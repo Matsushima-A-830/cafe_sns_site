@@ -1,0 +1,27 @@
+name: Migration Check
+
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/config.toml'
+
+jobs:
+  migration-lint:
+    name: Migration Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase
+        run: supabase start
+
+      - name: Apply migrations
+        run: supabase db reset --no-seed
+
+      - name: Lint migrations
+        run: supabase db lint --level warning
