@@ -174,6 +174,29 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **影響:** 動作には影響なし。将来の共同開発時の学習コスト
 - **対応判断:** 実装開始時に決定。変更しないままでも問題なし
 
+### D6b. GitHub リポジトリの main ブランチ保護
+
+- **課題:** GitHub Free では private リポの branch protection / rulesets が使えない (HTTP 403)
+- **現状の代替:**
+  - ローカル: `lefthook` の pre-push で typecheck + test を強制
+  - CI: `.github/workflows/ci.yml` で lint/typecheck/test/build を PR + main で実行
+  - この二重チェックで実質的な保護を担保
+- **対応案:**
+  - a) GitHub Pro に加入 ($4/月) して protection/rulesets を有効化
+  - b) リポジトリを Public 化して protection を無料で有効化
+  - c) 現状維持（個人開発の自己規律で補完）
+- **決定期限:** チームメンバーが増える時、または PMF 後
+
+### D6c. Biome バージョン Bump 時の手順
+
+- **課題:** Dependabot が Biome を bump した PR は `biome.json` の `$schema` が古いバージョンURLのため lint 失敗する
+- **対応手順（Bump 時に必ず実施）:**
+  1. `biome.json` の `$schema` を新バージョン URL に更新
+  2. `pnpm exec biome migrate --write` で設定移行
+  3. `pnpm biome check --write` で再フォーマット
+- **自動化候補:** Dependabot 用 GitHub Actions workflow で PR 更新後に自動 biome migrate を実行
+- **決定期限:** Biome bump が頻繁に来るようになった時
+
 ### D6. `/new/success` を独立ルートにする必要性
 
 - **課題:** 投稿完了画面 `S_POST_SUCCESS` を専用ルートにしたが、URL直踏みで意味を持たない（コンテキスト不足）
