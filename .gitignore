@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+.pnp
+.pnp.*
+
+# Next.js
+.next/
+out/
+build/
+next-env.d.ts
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Testing
+coverage/
+playwright-report/
+test-results/
+.playwright/
+
+# Supabase local
+supabase/.branches/
+supabase/.temp/
+
+# TypeScript
+*.tsbuildinfo
+
+# Editor
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+.cursor/
+
+# Claude Code（settings.local はユーザー個別）
+.claude/settings.local.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Vercel
+.vercel/
+
+# Sentry
+.sentryclirc
+
+# Local artifacts
+tmp/
+scratch/
+*.pem

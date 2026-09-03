@@ -1,0 +1,7 @@
+allowBuilds:
+  lefthook: true
+  sharp: true
+  unrs-resolver: true
+  '@biomejs/biome': true
+  '@tailwindcss/oxide': true
+  supabase: true

@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+/* ============================================
+   デザインシステム: brown 基礎スケール + セマンティックトークン
+   詳細: docs/design/design-system.md
+   ============================================ */
+
+@theme {
+  /* ===== brown 基礎スケール ===== */
+  --color-brown-50: #faf7f2;
+  --color-brown-100: #f5eee4;
+  --color-brown-200: #e8d9c4;
+  --color-brown-300: #d4b896;
+  --color-brown-400: #b8956a;
+  --color-brown-500: #8b6d47;
+  --color-brown-600: #6f5637;
+  --color-brown-700: #543f2a;
+  --color-brown-800: #3a2c1e;
+  --color-brown-900: #2b1a0f;
+
+  /* ===== cream 補色 ===== */
+  --color-cream-50: #fffcf7;
+  --color-cream-100: #fff8ed;
+  --color-cream-200: #fdecd1;
+
+  /* ===== セマンティック: レイアウト ===== */
+  --color-background: var(--color-brown-50);
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-muted: var(--color-brown-100);
+
+  /* ===== セマンティック: テキスト ===== */
+  --color-foreground: var(--color-brown-900);
+  --color-muted-foreground: var(--color-brown-700);
+  --color-subtle: var(--color-brown-500);
+
+  /* ===== セマンティック: インタラクティブ ===== */
+  --color-primary: var(--color-brown-500);
+  --color-primary-hover: var(--color-brown-600);
+  --color-primary-foreground: var(--color-brown-50);
+  --color-secondary: var(--color-cream-100);
+  --color-secondary-foreground: var(--color-brown-800);
+  --color-link: var(--color-brown-600);
+  --color-link-hover: var(--color-brown-700);
+
+  /* ===== セマンティック: 構造 ===== */
+  --color-border-default: var(--color-brown-200);
+  --color-border-strong: var(--color-brown-300);
+  --color-input: #ffffff;
+  --color-border-input: var(--color-brown-200);
+  --color-ring-focus: var(--color-brown-400);
+
+  /* ===== セマンティック: 状態 ===== */
+  --color-success: #4a7c59;
+  --color-success-foreground: #ffffff;
+  --color-warning: #c77f3e;
+  --color-warning-foreground: #ffffff;
+  --color-danger: #a94438;
+  --color-danger-foreground: #ffffff;
+  --color-info: #5b7c99;
+  --color-info-foreground: #ffffff;
+
+  /* ===== shadcn/ui 互換エイリアス ===== */
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-foreground);
+  --color-popover: var(--color-surface-elevated);
+  --color-popover-foreground: var(--color-foreground);
+  --color-accent: var(--color-muted);
+  --color-accent-foreground: var(--color-foreground);
+  --color-destructive: var(--color-danger);
+  --color-destructive-foreground: var(--color-danger-foreground);
+  --color-border: var(--color-border-default);
+  --color-ring: var(--color-ring-focus);
+
+  /* ===== 角丸 ===== */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+
+  /* ===== フォント ===== */
+  --font-sans: var(--font-noto-sans-jp), system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+}

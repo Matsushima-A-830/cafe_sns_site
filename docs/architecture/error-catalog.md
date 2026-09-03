@@ -1,0 +1,182 @@
+# エラーカタログ
+
+`Result<T, E>` 型 (`{ ok: false, error: 'CODE' }`) で返すエラーコードの標準リスト。**新規エラー追加時は必ずこのカタログに登録**し、勝手な文字列を発明しない。
+
+## 設計方針
+
+- **短い ALL_CAPS スネークケース** — `INVALID_INPUT`, `NOT_FOUND` 等
+- **意味を階層化しない** — `USER_PROFILE_INVALID_NAME` のような長い名前は避け、`INVALID_INPUT` + `details` で表現
+- **クライアント表示は変換テーブル経由** — サーバーはコードのみ返し、UIメッセージはフロント側で決める（i18n対応の余地）
+- **HTTP status とは分離** — Result 型は常に `200 OK` で返し、Route Handlers の HTTP status は別途決める
+
+---
+
+## 共通エラーコード
+
+| コード | 意味 | 発生源 | UI表示例 |
+|---|---|---|---|
+| `INVALID_INPUT` | 入力バリデーション失敗（Zod） | すべて | 「入力内容を確認してください」+ `details` から各フィールドエラー表示 |
+| `UNAUTHENTICATED` | セッションなし | Server Actions / API | ログイン画面へリダイレクト |
+| `FORBIDDEN` | 認可失敗（RLS弾き含む） | すべて | 「この操作を行う権限がありません」 |
+| `NOT_FOUND` | リソース不在 | すべて | 「対象が見つかりませんでした」 |
+| `CONFLICT` | 状態衝突（重複・楽観ロック等） | すべて | 状況に応じたメッセージ |
+| `RATE_LIMITED` | レート制限超過 | Server Actions / API | 「しばらく待ってから再試行してください」 |
+| `INTERNAL_ERROR` | 想定外エラー | すべて | 「エラーが発生しました。時間をおいて再試行してください」+ Sentry送信 |
+| `EXTERNAL_SERVICE_ERROR` | 外部API失敗（S3, Google Maps等） | 外部連携層 | サービス別のリカバリ手順 |
+
+---
+
+## ドメイン別エラーコード
+
+### アカウント / 認証
+
+| コード | 意味 | 発生源 |
+|---|---|---|
+| `EMAIL_ALREADY_EXISTS` | メールアドレス重複 | signup |
+| `PHONE_ALREADY_EXISTS` | 電話番号重複 | signup |
+| `USERNAME_ALREADY_EXISTS` | username重複 | onboarding |
+| `INVALID_CREDENTIALS` | ログイン失敗 | login |
+| `OTP_INVALID` | 確認コード不一致 | signup verify |
+| `OTP_EXPIRED` | 確認コード期限切れ | signup verify |
+| `AGE_RESTRICTED` | 13歳未満のブロック | signup birthdate |
+| `CONSENT_REQUIRED` | 保護者同意未完了で操作不可 | 各種投稿系Action |
+| `CONSENT_TOKEN_INVALID` | 保護者同意リンクトークン無効 | webhooks/consent |
+| `ACCOUNT_SUSPENDED` | 停止中アカウント | すべて |
+| `ACCOUNT_DELETED` | 削除済みアカウント | login |
+
+### 投稿 / コメント
+
+| コード | 意味 | 発生源 |
+|---|---|---|
+| `POST_NOT_FOUND` | 投稿不在 | posts系 |
+| `POST_ALREADY_DELETED` | 削除済み投稿 | posts系 |
+| `POST_TAGS_LIMIT_EXCEEDED` | タグ数上限（5個） | createPost |
+| `POST_IMAGES_LIMIT_EXCEEDED` | 画像枚数上限（10枚） | createPost |
+| `POST_BODY_EMPTY` | 本文空 | createPost |
+| `NG_WORD_DETECTED` | NGワード検出（`severity=block`） | createPost / createComment |
+| `COMMENT_NOT_FOUND` | コメント不在 | comments系 |
+
+### インタラクション
+
+| コード | 意味 | 発生源 |
+|---|---|---|
+| `ALREADY_LIKED` | 二重いいね | toggleLike |
+| `ALREADY_BOOKMARKED` | 二重保存 | toggleBookmark |
+| `ALREADY_FOLLOWING` | 二重フォロー | toggleFollow |
+| `SELF_FOLLOW_FORBIDDEN` | 自分自身フォロー禁止 | toggleFollow |
+| `BLOCKED_USER` | ブロック関係あり | 各種インタラクション |
+| `BLOCK_SELF_FORBIDDEN` | 自分自身ブロック禁止 | toggleBlock |
+
+### カフェ / エリア
+
+| コード | 意味 | 発生源 |
+|---|---|---|
+| `CAFE_NOT_FOUND` | カフェ不在 | cafes系 |
+| `CAFE_ALREADY_CLAIMED` | 既に別ユーザーが認証済み | claimCafe |
+| `AREA_CODE_UNKNOWN` | 不明なエリアコード | cafe作成・エリア検索 |
+
+### 経営者 / 認証申請
+
+| コード | 意味 | 発生源 |
+|---|---|---|
+| `DOCUMENTS_INSUFFICIENT` | 提出書類2点未満 | claimCafe |
+| `VERIFICATION_ALREADY_PENDING` | 既存申請あり | claimCafe |
+| `VERIFICATION_REJECTED` | 却下履歴あり（再申請待機中） | claimCafe |
+| `NOT_OWNER` | オーナー権限なし | owner系 |
+
+### アップロード / ストレージ
+
+| コード | 意味 | 発生源 |
+|---|---|---|
+| `FILE_TOO_LARGE` | サイズ上限超過 (10MB) | uploads/sign |
+| `UNSUPPORTED_MEDIA_TYPE` | 対応外形式 | uploads/sign |
+| `EXIF_STRIP_FAILED` | EXIF除去失敗 | クライアント側処理 |
+| `UPLOAD_FAILED` | S3アップロード失敗 | クライアント側 |
+
+### 通報 / モデレーション
+
+| コード | 意味 | 発生源 |
+|---|---|---|
+| `SELF_REPORT_FORBIDDEN` | 自分自身への通報禁止 | createReport |
+| `REPORT_ALREADY_SUBMITTED` | 同一対象への既通報あり | createReport |
+
+---
+
+## Result 型の実装例
+
+```typescript
+// types/result.ts
+export type ErrorCode =
+  | 'INVALID_INPUT' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND'
+  | 'CONFLICT' | 'RATE_LIMITED' | 'INTERNAL_ERROR' | 'EXTERNAL_SERVICE_ERROR'
+  | 'EMAIL_ALREADY_EXISTS' | 'PHONE_ALREADY_EXISTS' | 'USERNAME_ALREADY_EXISTS'
+  | 'INVALID_CREDENTIALS' | 'OTP_INVALID' | 'OTP_EXPIRED'
+  | 'AGE_RESTRICTED' | 'CONSENT_REQUIRED' | 'CONSENT_TOKEN_INVALID'
+  | 'ACCOUNT_SUSPENDED' | 'ACCOUNT_DELETED'
+  | 'POST_NOT_FOUND' | 'POST_ALREADY_DELETED' | 'POST_TAGS_LIMIT_EXCEEDED'
+  | 'POST_IMAGES_LIMIT_EXCEEDED' | 'POST_BODY_EMPTY' | 'NG_WORD_DETECTED'
+  | 'COMMENT_NOT_FOUND'
+  | 'ALREADY_LIKED' | 'ALREADY_BOOKMARKED' | 'ALREADY_FOLLOWING'
+  | 'SELF_FOLLOW_FORBIDDEN' | 'BLOCKED_USER' | 'BLOCK_SELF_FORBIDDEN'
+  | 'CAFE_NOT_FOUND' | 'CAFE_ALREADY_CLAIMED' | 'AREA_CODE_UNKNOWN'
+  | 'DOCUMENTS_INSUFFICIENT' | 'VERIFICATION_ALREADY_PENDING'
+  | 'VERIFICATION_REJECTED' | 'NOT_OWNER'
+  | 'FILE_TOO_LARGE' | 'UNSUPPORTED_MEDIA_TYPE' | 'EXIF_STRIP_FAILED' | 'UPLOAD_FAILED'
+  | 'SELF_REPORT_FORBIDDEN' | 'REPORT_ALREADY_SUBMITTED'
+
+export type Result<T, E extends ErrorCode = ErrorCode> =
+  | { ok: true; data: T }
+  | { ok: false; error: E; details?: unknown }
+```
+
+**メリット:**
+- 未登録エラーコードは TypeScript が弾く（型安全）
+- IDE 補完で候補が出る
+- カタログ追加漏れを構造的に防ぐ
+
+---
+
+## クライアント表示ルール
+
+`lib/errors/messages.ts` に日本語メッセージを集約:
+
+```typescript
+export const errorMessages: Record<ErrorCode, string> = {
+  INVALID_INPUT: '入力内容を確認してください',
+  UNAUTHENTICATED: 'ログインが必要です',
+  FORBIDDEN: 'この操作を行う権限がありません',
+  NOT_FOUND: '対象が見つかりませんでした',
+  AGE_RESTRICTED: '13歳未満のご利用はできません',
+  CONSENT_REQUIRED: '保護者の同意完了後にご利用いただけます',
+  NG_WORD_DETECTED: 'この内容は投稿できません。表現を見直してください',
+  // ...
+}
+```
+
+`useToast` や `<FormError>` 等で `errorMessages[result.error]` を表示。
+
+---
+
+## Sentry 送信対象
+
+以下のみ Sentry へ通知（それ以外はユーザー操作起因のため通知不要）:
+
+- `INTERNAL_ERROR`
+- `EXTERNAL_SERVICE_ERROR`
+- `EXIF_STRIP_FAILED`（頻発なら EXIF ライブラリ更新の兆候）
+- `UPLOAD_FAILED`（S3 or ネットワーク問題）
+- 未登録のエラーコード（実装漏れ）
+
+---
+
+## 追加時のルール
+
+新しいエラーコードが必要になったら:
+
+1. **本カタログに追加**（ドメイン別セクション）
+2. **`types/result.ts` の ErrorCode に追加**
+3. **`lib/errors/messages.ts` に日本語メッセージ追加**
+4. **必要なら Sentry送信対象 に追加**
+5. **PR説明にリンク**
+
+上記4ステップを守れば追加漏れがなくなる。
