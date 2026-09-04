@@ -8,7 +8,7 @@
 @theme {
   /* ===== brown 基礎スケール (キャラメルラテ) ===== */
   /* アンカー: #FFF1E3 / #D9B38C / #9A6B4A / #5B3A2A / #2E1C12 */
-  --color-brown-50:  #fff8f1;
+  --color-brown-50: #fff8f1;
   --color-brown-100: #fff1e3;
   --color-brown-200: #ecd2b8;
   --color-brown-300: #d9b38c;
@@ -20,7 +20,7 @@
   --color-brown-900: #2e1c12;
 
   /* ===== cream 補色 ===== */
-  --color-cream-50:  #fffdf9;
+  --color-cream-50: #fffdf9;
   --color-cream-100: #fff8f1;
   --color-cream-200: #fff1e3;
 
