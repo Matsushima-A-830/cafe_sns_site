@@ -6,22 +6,23 @@
    ============================================ */
 
 @theme {
-  /* ===== brown 基礎スケール ===== */
-  --color-brown-50: #faf7f2;
-  --color-brown-100: #f5eee4;
-  --color-brown-200: #e8d9c4;
-  --color-brown-300: #d4b896;
-  --color-brown-400: #b8956a;
-  --color-brown-500: #8b6d47;
-  --color-brown-600: #6f5637;
-  --color-brown-700: #543f2a;
-  --color-brown-800: #3a2c1e;
-  --color-brown-900: #2b1a0f;
+  /* ===== brown 基礎スケール (キャラメルラテ) ===== */
+  /* アンカー: #FFF1E3 / #D9B38C / #9A6B4A / #5B3A2A / #2E1C12 */
+  --color-brown-50: #fff8f1;
+  --color-brown-100: #fff1e3;
+  --color-brown-200: #ecd2b8;
+  --color-brown-300: #d9b38c;
+  --color-brown-400: #ba8f6b;
+  --color-brown-500: #9a6b4a;
+  --color-brown-600: #7b533a;
+  --color-brown-700: #5b3a2a;
+  --color-brown-800: #452b1e;
+  --color-brown-900: #2e1c12;
 
   /* ===== cream 補色 ===== */
-  --color-cream-50: #fffcf7;
-  --color-cream-100: #fff8ed;
-  --color-cream-200: #fdecd1;
+  --color-cream-50: #fffdf9;
+  --color-cream-100: #fff8f1;
+  --color-cream-200: #fff1e3;
 
   /* ===== セマンティック: レイアウト ===== */
   --color-background: var(--color-brown-50);

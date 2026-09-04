@@ -117,16 +117,16 @@ Tailwind CSS のカスタムカラーとして `brown` を定義:
 
 | トークン | HEX | 用途 |
 |---|---|---|
-| `brown-50` | `#FAF7F2` | 最淡背景（ページ背景） |
-| `brown-100` | `#F5EEE4` | カード背景 |
-| `brown-200` | `#E8D9C4` | ボーダー淡 |
-| `brown-300` | `#D4B896` | アクセント淡 |
-| `brown-400` | `#B8956A` | アクセント |
-| `brown-500` | `#8B6D47` | プライマリ（ボタン等） |
-| `brown-600` | `#6F5637` | プライマリ濃（hover） |
-| `brown-700` | `#543F2A` | テキスト濃 |
-| `brown-800` | `#3A2C1E` | テキスト特濃 |
-| `brown-900` | `#2B1A0F` | **`#000000` の代替**（最も濃い黒に近い茶） |
+| `brown-50` | `#FFF8F1` | 最淡背景（ページ背景） |
+| `brown-100` | `#FFF1E3` | カード背景 |
+| `brown-200` | `#ECD2B8` | ボーダー淡 |
+| `brown-300` | `#D9B38C` | アクセント淡 |
+| `brown-400` | `#BA8F6B` | アクセント |
+| `brown-500` | `#9A6B4A` | プライマリ（ボタン等） |
+| `brown-600` | `#7B533A` | プライマリ濃（hover） |
+| `brown-700` | `#5B3A2A` | テキスト濃 |
+| `brown-800` | `#452B1E` | テキスト特濃 |
+| `brown-900` | `#2E1C12` | **`#000000` の代替**（最も濃い黒に近い茶） |
 
 ### セマンティックトークン（推奨: この命名で使う）
 
@@ -251,20 +251,20 @@ Tailwind CSS のカスタムカラーとして `brown` を定義:
 
 @theme {
   /* ===== 基礎スケール ===== */
-  --color-brown-50:  #FAF7F2;
-  --color-brown-100: #F5EEE4;
-  --color-brown-200: #E8D9C4;
-  --color-brown-300: #D4B896;
-  --color-brown-400: #B8956A;
-  --color-brown-500: #8B6D47;
-  --color-brown-600: #6F5637;
-  --color-brown-700: #543F2A;
-  --color-brown-800: #3A2C1E;
-  --color-brown-900: #2B1A0F;
+  --color-brown-50:  #FFF8F1;
+  --color-brown-100: #FFF1E3;
+  --color-brown-200: #ECD2B8;
+  --color-brown-300: #D9B38C;
+  --color-brown-400: #BA8F6B;
+  --color-brown-500: #9A6B4A;
+  --color-brown-600: #7B533A;
+  --color-brown-700: #5B3A2A;
+  --color-brown-800: #452B1E;
+  --color-brown-900: #2E1C12;
 
-  --color-cream-50:  #FFFCF7;
-  --color-cream-100: #FFF8ED;
-  --color-cream-200: #FDECD1;
+  --color-cream-50:  #FFFDF9;
+  --color-cream-100: #FFF8F1;
+  --color-cream-200: #FFF1E3;
 
   /* ===== セマンティック（実装時はこちらを優先） ===== */
   /* レイアウト */
@@ -318,31 +318,31 @@ export default {
     extend: {
       colors: {
         brown: {
-          50:  '#FAF7F2', 100: '#F5EEE4', 200: '#E8D9C4', 300: '#D4B896',
-          400: '#B8956A', 500: '#8B6D47', 600: '#6F5637', 700: '#543F2A',
-          800: '#3A2C1E', 900: '#2B1A0F',
+          50:  '#FFF8F1', 100: '#FFF1E3', 200: '#ECD2B8', 300: '#D9B38C',
+          400: '#BA8F6B', 500: '#9A6B4A', 600: '#7B533A', 700: '#5B3A2A',
+          800: '#452B1E', 900: '#2E1C12',
         },
-        cream: { 50: '#FFFCF7', 100: '#FFF8ED', 200: '#FDECD1' },
+        cream: { 50: '#FFFDF9', 100: '#FFF8F1', 200: '#FFF1E3' },
 
         // セマンティック
-        background:      '#FAF7F2',
+        background:      '#FFF8F1',
         surface:         '#FFFFFF',
-        muted:           '#F5EEE4',
-        foreground:      '#2B1A0F',
-        'muted-foreground': '#543F2A',
-        subtle:          '#8B6D47',
-        primary:         '#8B6D47',
-        'primary-hover': '#6F5637',
-        'primary-foreground': '#FAF7F2',
-        secondary:       '#FFF8ED',
-        'secondary-foreground': '#3A2C1E',
-        link:            '#6F5637',
-        'link-hover':    '#543F2A',
-        'border-default': '#E8D9C4',
-        'border-strong':  '#D4B896',
+        muted:           '#FFF1E3',
+        foreground:      '#2E1C12',
+        'muted-foreground': '#5B3A2A',
+        subtle:          '#9A6B4A',
+        primary:         '#9A6B4A',
+        'primary-hover': '#7B533A',
+        'primary-foreground': '#FFF8F1',
+        secondary:       '#FFF8F1',
+        'secondary-foreground': '#452B1E',
+        link:            '#7B533A',
+        'link-hover':    '#5B3A2A',
+        'border-default': '#ECD2B8',
+        'border-strong':  '#D9B38C',
         input:           '#FFFFFF',
-        'border-input':  '#E8D9C4',
-        'ring-focus':    '#B8956A',
+        'border-input':  '#ECD2B8',
+        'ring-focus':    '#BA8F6B',
         success:         '#4A7C59', 'success-foreground': '#FFFFFF',
         warning:         '#C77F3E', 'warning-foreground': '#FFFFFF',
         danger:          '#A94438', 'danger-foreground':  '#FFFFFF',
