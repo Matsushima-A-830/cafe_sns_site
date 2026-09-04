@@ -90,6 +90,66 @@ erDiagram
 - `expires_at` で30日後自動削除（cron or scheduled function）
 - クライアントは変更検知で15秒デバウンス保存
 
+## バッジ付与ロジックの設計
+
+バッジ付与は **Server Actions から呼ぶ `checkAndAwardBadges` 関数で一元処理** する。DBトリガーに分散させない。
+
+### 判断理由
+
+- 付与条件（`badges.criteria jsonb`）が複雑になるほどPLPGSQLは可読性・テストコストが上がる
+- TypeScript で記述すれば Vitest でユニットテスト可能
+- 付与ロジックを追加・変更しても、マイグレーションではなくアプリコード変更で済む
+
+### 呼び出し方針
+
+```
+// トリガーごとに呼び出し元が異なる
+app/_actions/posts.ts  → checkAndAwardBadges(userId, 'POST_CREATED')
+app/_actions/likes.ts  → checkAndAwardBadges(userId, 'LIKE_RECEIVED')
+app/_actions/owner.ts  → checkAndAwardBadges(userId, 'REGULAR_AWARDED')
+// など
+```
+
+`checkAndAwardBadges` は `lib/badges/check.ts` に配置し、`trigger` の種別に応じて対象バッジを絞って判定する（全バッジを毎回評価しない）。付与済みバッジは `user_badges` にUPSERTして重複しない。
+
+### 実装例（概略）
+
+`BadgeTrigger` 型は `types/badges.ts` に定義する。
+
+```typescript
+// lib/badges/check.ts
+export async function checkAndAwardBadges(
+  supabase: SupabaseClient,
+  userId: string,
+  trigger: BadgeTrigger,  // 'POST_CREATED' | 'LIKE_RECEIVED' | ...
+): Promise<void> {
+  const candidates = BADGE_RULES.filter(r => r.triggers.includes(trigger))
+  // check() は独立しているので並列実行してよい
+  const results = await Promise.all(candidates.map(r => r.check(supabase, userId)))
+  for (const [rule, earned] of candidates.map((r, i) => [r, results[i]] as const)) {
+    if (earned) {
+      await supabase.from('user_badges').upsert(
+        { user_id: userId, badge_id: rule.id },
+        { onConflict: 'user_id,badge_id' },
+      )
+      await supabase.from('notifications').insert({
+        recipient_id: userId, type: 'badge', entity_type: 'badge',
+        entity_id: rule.id, payload: {},
+      })
+    }
+  }
+}
+```
+
+**注意 — `'REGULAR_AWARDED'` トリガーについて:**
+`owner.ts` は常連認定時に `notifications.type = 'regular_awarded'` を送信する（[tables.md regular_customers 参照](./tables.md#regular_customers)）。
+`checkAndAwardBadges(userId, 'REGULAR_AWARDED')` はバッジ付与（`type: 'badge'`）のみを担当する。
+`'regular_awarded'` 通知と `'badge'` 通知は別物であり、二重送信ではない。
+
+バッジ定義は `lib/badges/rules.ts` に集約し、`badges.criteria` の中身と対応させる。
+
+---
+
 ## モデレーション設計
 
 - `reports.status` で通報のワークフロー管理（pending / reviewing / resolved / rejected）

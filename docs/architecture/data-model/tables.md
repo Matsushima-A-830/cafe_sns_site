@@ -319,8 +319,8 @@ $$;
 | cafe_id | uuid | FK → cafes(id) | 紐付くカフェ（任意） |
 | post_type | text | NOT NULL, DEFAULT 'short' | short / blog |
 | title | text | | ブログ形式時のみ必須（アプリ層で制御） |
-| body | text | NOT NULL | 本文（Markdown） |
-| body_search | tsvector | GENERATED | 全文検索用 |
+| body_json | jsonb | NOT NULL | 本文（Tiptap JSON） |
+| body_search | tsvector | GENERATED | 全文検索用（`tiptap_to_plaintext(body_json)` で抽出） |
 | status | text | NOT NULL, DEFAULT 'published' | published / archived / hidden ※下書きは別テーブル `drafts` |
 | visibility | text | NOT NULL, DEFAULT 'public' | public / followers |
 | like_count | int | NOT NULL, DEFAULT 0 | トリガーで維持 |
@@ -350,6 +350,28 @@ $$;
 - INSERT: `auth.uid() = author_id` かつ profile.status='active'
 - UPDATE: `auth.uid() = author_id`
 - DELETE: `auth.uid() = author_id`（論理削除運用）
+
+**本文サイズ上限:** `body_json` から抽出した平文は 50,000 文字以内とする（アプリ層で投稿前に検証）。Tiptap JSON 全体のバイトサイズは 512KB を上限の目安とする（画像は S3 保存のため base64 埋め込み禁止）。
+
+**Tiptap JSON → 全文検索:**
+`body_search` は `public.tiptap_to_plaintext(body_json)` で抽出した平文をインデックスする。関数は `type == "text"` のリーフノードを再帰的に結合して返す（IMMUTABLE必須）。
+
+```sql
+CREATE OR REPLACE FUNCTION public.tiptap_to_plaintext(doc jsonb)
+RETURNS text LANGUAGE sql IMMUTABLE STRICT AS $$
+  SELECT string_agg(leaf->>'text', ' ')
+  FROM jsonb_path_query(doc, 'lax $.** ? (@.type == "text")') AS leaf
+$$;
+```
+
+GENERATED カラムの定義例（`'japanese'` は PGroonga または手動 FTS 設定が必要。PGroonga 未導入時は `'simple'` を暫定利用）:
+```sql
+body_search tsvector GENERATED ALWAYS AS (
+  to_tsvector('japanese',
+    coalesce(public.tiptap_to_plaintext(body_json), '')
+    || ' ' || coalesce(title, ''))
+) STORED
+```
 
 **下書きの取り扱い:** 未公開の投稿は `posts` ではなく [`drafts`](#drafts) テーブルに保存。公開時に `drafts` から `posts` へ移送し、`drafts` は削除する。
 
@@ -383,11 +405,27 @@ $$;
 | id | uuid | PK, DEFAULT gen_random_uuid() |
 | author_id | uuid | NOT NULL, FK → profiles(id) |
 | client_draft_key | text | NOT NULL | 端末側で発行するキー |
-| payload | jsonb | NOT NULL | 投稿途中データ（title, body, tag_ids, image_paths等） |
+| payload | jsonb | NOT NULL | 投稿途中データ（`v`, post_type, title, body_json, tag_ids, image_paths, cafe_id） |
 | last_saved_at | timestamptz | NOT NULL, DEFAULT now() |
 | expires_at | timestamptz | NOT NULL, DEFAULT now() + interval '30 days' |
 
 **制約:** `UNIQUE (author_id, client_draft_key)`
+
+**`payload` スキーマ（バージョン管理あり）:**
+
+```json
+{
+  "v": 1,
+  "post_type": "short | blog",
+  "title": "string | null",
+  "body_json": { "type": "doc", "content": [] },
+  "tag_ids": ["uuid"],
+  "image_paths": ["string"],
+  "cafe_id": "uuid | null"
+}
+```
+
+`v` でスキーマバージョンを管理する。フォームのデータ構造変更時は `v` をインクリメントし、クライアント側でバージョン不一致の下書きは破棄して新規下書きとして扱う（サイレント破棄ではなく「古い下書きは使えません」のUI通知を推奨）。
 
 **運用:** Supabase scheduled function または pg_cron で `expires_at < now()` を日次削除
 
@@ -551,6 +589,8 @@ $$;
 | payload | jsonb | NOT NULL, DEFAULT '{}' |
 | read_at | timestamptz | |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
+
+**制約:** `CHECK (type IN ('like','comment','follow','mention','badge','owner_verified','regular_awarded'))`
 
 **インデックス:** `(recipient_id, created_at DESC) WHERE read_at IS NULL` — 未読
 
