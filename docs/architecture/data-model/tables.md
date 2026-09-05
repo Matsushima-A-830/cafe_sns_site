@@ -48,13 +48,19 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 | guardian_email | text | | 保護者メール（未成年時） |
 | guardian_consent_at | timestamptz | | 保護者同意日時 |
 | role | text | NOT NULL, DEFAULT 'user' | user / owner / admin |
-| home_area | text | | ホームエリア（初期タグサジェスト用） |
+| home_area_code | text | FK → [areas](#areas)(code) | ホームエリア（初期タグサジェスト用）— マスタ参照 |
+| onboarded_at | timestamptz | | オンボーディング完了日時（NULL = 未完了） |
 | metadata | jsonb | NOT NULL, DEFAULT '{}' | 拡張用 |
 | created_at | timestamptz | NOT NULL, DEFAULT now() | |
 | updated_at | timestamptz | NOT NULL, DEFAULT now() | |
 
+**`home_area_code` を FK にする理由:** エリアの正は [`areas` マスタ](#areas)（[glossary.md](../../glossary.md)）。自由テキストで持つと `cafes.area_code` / `area_visits.area_code` とコード体系がずれ、ホームエリア起点のレコメンドが結合できなくなる。
+
+**`onboarded_at` の役割:** `S_ONBOARD_INTERESTS` はスキップ不可（幹A）。middleware がオンボーディング未完了ユーザーを `/onboarding` へ誘導するための唯一の判定材料であり、JWT カスタムクレームにも載せる（[routing.md](../routing.md#middlewarets-設計)）。`/onboarding/interests` の完了時にのみ `now()` を書き込む。
+
 **制約:**
 - `CHECK (status IN ('active','pending_consent','suspended','deleted'))`
+- `CHECK (role IN ('user','owner','admin'))`
 - 13歳未満のブロックは **BEFORE INSERT OR UPDATE トリガー**で実装する。`current_date` は IMMUTABLE ではないため CHECK 制約には書けない:
   ```sql
   CREATE OR REPLACE FUNCTION public.enforce_min_age() RETURNS trigger
@@ -187,6 +193,7 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 **運用:**
 - コード変更は禁止（外部参照が壊れる）— 変更が必要なら `is_active=false` にして新コードを作る
 - 階層の親子関係は 1階層のみ想定（過度な深さは避ける）
+- **境界ポリゴン列は持たない。** 位置情報は `center_location`（点）のみ。カフェのエリア判定は `ST_Distance` で最寄りの中心点を選ぶ（行政界ポリゴンの調達・保守コストに見合わない。[pending-items A3](../../product/pending-items.md)）
 - MVP時点では東京45エリアで start（詳細: [seed/areas-initial-set.md](../../seed/areas-initial-set.md)）
 
 ---
@@ -364,6 +371,8 @@ $$;
 
 **制約:**
 - `CHECK (status IN ('published','archived','hidden'))`
+- `CHECK (post_type IN ('short','blog'))`
+- `CHECK (visibility IN ('public','followers'))`
 - `CHECK (official_format IS NULL OR official_format IN ('tip','today_special','closure','new_menu'))`
 - `CHECK (is_official = false OR cafe_id IS NOT NULL)` — 公式投稿は必ずカフェに紐づく
 - **「`is_official=true` は認証済みオーナーのみ」は CHECK 制約では表現できない**（CHECK にサブクエリは書けない）。RLS の INSERT/UPDATE ポリシーで担保する:
@@ -387,10 +396,34 @@ $$;
 - `(published_at DESC) WHERE status='published' AND deleted_at IS NULL` — タイムライン
 
 **RLS:**
-- SELECT: `status='published' AND deleted_at IS NULL` かつ、閲覧者がブロックされていない
+- SELECT: `status='published' AND deleted_at IS NULL` かつ、**`visibility` を満たし**、閲覧者がブロックされていない
 - INSERT: `auth.uid() = author_id` かつ profile.status='active'
 - UPDATE: `auth.uid() = author_id`
 - DELETE: `auth.uid() = author_id`（論理削除運用）
+
+**`visibility` の SELECT ポリシー:**
+`visibility='followers'` の投稿は、作者本人と作者のフォロワーだけが読める（未ログインからは常に不可視）。SEO 対象の ISR ページ（`/posts/[id]`）は anon キーで描画されるため、フォロワー限定投稿は自動的に静的生成の対象外になる。
+
+```sql
+CREATE POLICY posts_select ON public.posts FOR SELECT TO anon, authenticated
+USING (
+  status = 'published'
+  AND deleted_at IS NULL
+  AND (
+    visibility = 'public'
+    OR author_id = auth.uid()
+    OR EXISTS (SELECT 1 FROM public.follows f
+               WHERE f.followee_id = posts.author_id AND f.follower_id = auth.uid())
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM public.blocks b
+    WHERE (b.blocker_id = posts.author_id AND b.blocked_id = auth.uid())
+       OR (b.blocker_id = auth.uid() AND b.blocked_id = posts.author_id)
+  )
+);
+```
+
+`comments` / `likes` / `post_bookmarks` は親 `posts` が読めることを前提にする（親が不可視なら子も辿れない）。
 
 **本文サイズ上限:** `body_json` から抽出した平文は 50,000 文字以内とする（アプリ層で投稿前に検証）。Tiptap JSON 全体のバイトサイズは 512KB を上限の目安とする（画像は S3 保存のため base64 埋め込み禁止）。
 
@@ -619,6 +652,14 @@ body_search tsvector GENERATED ALWAYS AS (
 - `CHECK (reason IN ('spam','harassment','minor_risk','copyright','privacy','other'))`
 - `CHECK (target_type IN ('post','comment','user','cafe'))`
 - `CHECK (status IN ('pending','reviewing','resolved','rejected'))`
+- **同一ユーザーによる同一対象への重複通報を DB で弾く**（[error-catalog](../error-catalog.md) `REPORT_ALREADY_SUBMITTED`）:
+  ```sql
+  -- 未処理の通報が既にある間だけ重複を禁止する（部分ユニークインデックス）
+  CREATE UNIQUE INDEX reports_open_unique
+  ON public.reports (reporter_id, target_type, target_id)
+  WHERE status IN ('pending','reviewing');
+  ```
+  **全期間の UNIQUE にはしない。** 一度 `resolved` / `rejected` になった対象が後に再び違反状態になる（投稿が編集される等）ケースで、同じ人が二度と通報できなくなるため
 
 **インデックス:** `(status, created_at)` — モデレーションキュー
 
@@ -729,7 +770,7 @@ body_search tsvector GENERATED ALWAYS AS (
 | last_visited_at | timestamptz | NOT NULL |
 | visit_count | int | NOT NULL, DEFAULT 1 |
 
-**運用:** posts INSERT時にトリガーで area_visits を upsert
+**運用:** 投稿が `published` になった時にトリガーで自エリア + 親エリアを upsert する。トリガー定義と NULL 対策は [README.md #エリアコードの一貫性](./README.md#エリアコードの一貫性) を参照
 
 **RLS:** SELECT 全ユーザー（プロフィール表示用） / INSERT・UPDATE はシステム
 

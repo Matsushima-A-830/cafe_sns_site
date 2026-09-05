@@ -184,20 +184,37 @@ export async function checkAndAwardBadges(
 
 - `cafes.area_code` と `area_visits.area_code` は同一のコード体系（例: `JP-13-shibuya-ku`）
 - **副地域に投稿したら親の区も訪問済みにする** — カフェが `JP-13-omotesando`（`level='sub_area'`）に紐づく場合、`JP-13-shibuya-ku`（`level='ward'`）にも訪問を記録する。これをしないと「東京23区制覇」「3エリア訪問」系バッジが永久に達成できない
-- 投稿INSERT時のトリガー例（自エリア + 親エリアの2行を upsert）:
+- 投稿の公開時にトリガーで自エリア + 親エリアの2行を upsert する:
   ```sql
-  INSERT INTO area_visits (user_id, area_code, first_visited_at, last_visited_at, visit_count)
-  SELECT NEW.author_id, code, NEW.published_at, NEW.published_at, 1
-  FROM cafes c
-  JOIN areas a ON a.code = c.area_code
-  CROSS JOIN LATERAL (VALUES (a.code), (a.parent_code)) AS t(code)
-  WHERE c.id = NEW.cafe_id AND t.code IS NOT NULL
-  ON CONFLICT (user_id, area_code) DO UPDATE
-    SET visit_count    = area_visits.visit_count + 1,
-        last_visited_at = EXCLUDED.last_visited_at;
+  CREATE OR REPLACE FUNCTION public.record_area_visit() RETURNS trigger
+  LANGUAGE plpgsql SECURITY DEFINER AS $$
+  DECLARE
+    visited_at timestamptz := coalesce(NEW.published_at, NEW.created_at, now());
+  BEGIN
+    INSERT INTO public.area_visits (user_id, area_code, first_visited_at, last_visited_at, visit_count)
+    SELECT NEW.author_id, t.code, visited_at, visited_at, 1
+    FROM public.cafes c
+    JOIN public.areas a ON a.code = c.area_code
+    CROSS JOIN LATERAL (VALUES (a.code), (a.parent_code)) AS t(code)
+    WHERE c.id = NEW.cafe_id AND t.code IS NOT NULL
+    ON CONFLICT (user_id, area_code) DO UPDATE
+      SET visit_count     = area_visits.visit_count + 1,
+          last_visited_at = GREATEST(area_visits.last_visited_at, EXCLUDED.last_visited_at);
+    RETURN NULL;
+  END $$;
+
+  -- 「公開になった瞬間」だけ発火させる（下書き相当・非公開・論理削除は計上しない）
+  CREATE TRIGGER posts_record_area_visit
+  AFTER INSERT OR UPDATE OF status ON public.posts
+  FOR EACH ROW
+  WHEN (NEW.status = 'published' AND NEW.deleted_at IS NULL AND NEW.cafe_id IS NOT NULL)
+  EXECUTE FUNCTION public.record_area_visit();
   ```
+  - `published_at` は nullable でデフォルトを持たないため、そのまま `first_visited_at` / `last_visited_at`（ともに NOT NULL）へ入れると NOT NULL 違反になる。`coalesce` でフォールバックする
+  - `area_visits` の RLS は「INSERT・UPDATE はシステム」なので、トリガー関数は `SECURITY DEFINER` で実行する
+  - `AFTER UPDATE OF status` も対象にするのは、`archived` → `published` の復帰を取りこぼさないため。同一投稿の再公開で `visit_count` が二重に増えるのは許容する（訪問実績の粒度は「投稿回数」であり厳密な来店回数ではない）
 - 「東京23区制覇」の母数は `areas.level = 'ward'` で数える（`parent_code IS NULL` だと吉祥寺のような23区外エリアが混入する）
-- `cafes.area_label` はUI表示専用（検索フィルタでは code 側を使う）
+- **エリアの表示名は `areas.label` を JOIN して取得する。`cafes` 側に表示名を複製しない**（コード体系の単一情報源を崩さないため）。検索フィルタも常に `areas.code` 側を使う
 - コード体系の詳細と初期セットは [seed/areas-initial-set.md](../../seed/areas-initial-set.md) 参照
 
 ## インデックス方針（主要）

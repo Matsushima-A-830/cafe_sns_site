@@ -12,18 +12,21 @@ Next.js 16 の App Router を前提とした、URL・ディレクトリ・レイ
 
 ## ロールとゲート方針
 
-Supabase の `profiles.role` と `profiles.status` の2軸で権限を判定する。
+Supabase の `profiles.role` と `profiles.status` の2軸で権限を判定し、`profiles.onboarded_at` で導線を分ける。
 
 | 権限概念 | 判定条件 | アクセス可能グループ |
 |---|---|---|
 | **guest** | セッションなし | `(browsing)`, `(auth)` |
 | **pending** | セッションあり `status = 'pending_consent'` | `(browsing)`, `/account/pending`, `/settings/account`（メール変更・退会のみ） |
 | **suspended** | `status = 'suspended'` | `/account/suspended` のみ |
-| **user** | `status = 'active'`, `role = 'user'` | 上記 + `(user)` |
-| **owner** | `status = 'active'`, `role = 'owner'` | 上記 + `(owner)` |
-| **admin** | `status = 'active'`, `role = 'admin'` | 上記 + `(admin)` |
+| **onboarding** | `status = 'active'`, `onboarded_at IS NULL` | `(browsing)` + `/onboarding/*` のみ（`(user)` 以降は `/onboarding/profile` へ誘導） |
+| **user** | `status = 'active'`, `onboarded_at IS NOT NULL`, `role = 'user'` | 上記 + `(user)` |
+| **owner** | 同上 + `role = 'owner'` | 上記 + `(owner)` + `/new/official` |
+| **admin** | 同上 + `role = 'admin'` | 上記 + `(admin)` |
 
-**重要:** `role` と `status` は `profiles` テーブルの独立カラム。middleware ではこの2軸を必ず別変数として扱う。
+**重要:**
+- `role` と `status` は `profiles` テーブルの独立カラム。middleware ではこの2軸を必ず別変数として扱う
+- **ルートグループと権限は 1:1 対応しない。** `/new/official`（S_POST_OFFICIAL）は `(user)` グループ配下にありながらオーナー権限が要る。権限の列挙は middleware 側を正とする
 
 ## ディレクトリ構造
 
@@ -222,10 +225,12 @@ function middleware(req):
   session = await getSupabaseSession(req)
   path    = req.nextUrl.pathname
 
-  // ---- 状態の抽出（role と status は必ず別変数）----
-  const isAuthed = session != null
-  const role     = isAuthed ? session.claims.role   : null   // 'user' | 'owner' | 'admin'
-  const status   = isAuthed ? session.claims.status : null   // 'active' | 'pending_consent' | 'suspended' | 'deleted'
+  // ---- 状態の抽出（role / status / onboarded は必ず別変数）----
+  const isAuthed  = session != null
+  const meta      = isAuthed ? session.claims.app_metadata : {}  // 下記 Hook が差し込む
+  const role      = meta.role      ?? null   // 'user' | 'owner' | 'admin'
+  const status    = meta.status    ?? null   // 'active' | 'pending_consent' | 'suspended' | 'deleted'
+  const onboarded = meta.onboarded ?? false  // profiles.onboarded_at IS NOT NULL
 
   // ---- 停止・削除アカウントは即座に隔離 ----
   if (isAuthed && status === 'suspended'):
@@ -251,10 +256,21 @@ function middleware(req):
     if (status === 'pending_consent' && !path.startsWith('/account/pending')):
       return redirect('/account/pending')
 
+  // ---- オンボーディング未完了は /onboarding に閉じ込める ----
+  // S_ONBOARD_INTERESTS はスキップ不可（幹A）。ここが唯一の強制ポイント
+  if (isAuthed && status === 'active' && !onboarded):
+    if (requiresAuth && !path.startsWith('/onboarding')):
+      return redirect('/onboarding/profile')
+  // 閲覧系 (browsing) は未完了でも通す。回遊を止めると離脱するため
+
   // ---- オーナー限定 ----
-  const isOwnerArea = path.startsWith('/owner')
-    && path !== '/owner/pending'
-    && !path.startsWith('/owner/claim')  // claim申請自体は user でも可
+  // 注意: オーナー限定エリアは /owner 配下だけではない。
+  //       /new/official (S_POST_OFFICIAL) は (user) グループ配下にあるため個別に列挙する
+  const isOwnerArea =
+    (path.startsWith('/owner')
+      && path !== '/owner/pending'
+      && !path.startsWith('/owner/claim'))   // claim申請自体は user でも可
+    || path.startsWith('/new/official')
 
   if (isOwnerArea):
     if (!isAuthed) return redirect('/login?next=' + path)
@@ -266,15 +282,47 @@ function middleware(req):
 
   // ---- 既ログイン → /login /signup にアクセス ----
   if ((path === '/login' || path.startsWith('/signup')) && isAuthed && status === 'active'):
-    return redirect('/me')
+    return redirect(onboarded ? '/me' : '/onboarding/profile')
 
   return next()
 ```
 
 **運用ポイント:**
-- `middleware.ts` は Edge Runtime で動くため、DBアクセスは避け、JWT 内のカスタムクレイム（`role` / `status`）だけで判定
-- Supabase の `auth.users.raw_app_meta_data` に `role` と `status` を書き込む DBトリガーを設ける（profiles UPDATE 時に同期）
+- `middleware.ts` は Edge Runtime で動くため、DBアクセスは避け、JWT 内のカスタムクレイム（`role` / `status` / `onboarded`）だけで判定
 - role と status は独立軸なので、両方を組み合わせて認可判定する
+- **オーナー限定エリアの列挙は middleware に一元化する。** ルートグループ (`(owner)`) と権限は 1:1 対応しない（`/new/official` が反例）ため、「グループ = 権限」と考えない
+
+### カスタムクレイムの同期方式
+
+`role` / `status` / `onboarded` は **Supabase の Custom Access Token Hook**（Postgres 関数）で発行時に `profiles` から読んで JWT に載せる。
+
+```sql
+-- 例: access token 発行のたびに profiles の現在値を claims に差し込む
+create or replace function public.custom_access_token_hook(event jsonb)
+returns jsonb language plpgsql stable as $$
+declare
+  p record;
+begin
+  select role, status, (onboarded_at is not null) as onboarded
+    into p
+  from public.profiles
+  where id = (event->>'user_id')::uuid;
+
+  -- サインアップ直後（生年月日入力前）は profiles 行がまだ無い
+  if not found then return event; end if;
+
+  return jsonb_set(event, '{claims,app_metadata}',
+    coalesce(event->'claims'->'app_metadata', '{}'::jsonb) || to_jsonb(p));
+end $$;
+```
+
+**`raw_app_meta_data` を profiles のトリガーで書き換える方式は採らない。** 書き換えても既発行のアクセストークンは失効せず、次のリフレッシュ（既定1時間）まで古い値が残るため。
+
+**それでもクレイムには反映遅延がある**（アクセストークンの寿命ぶん）。したがって:
+
+- **middleware のロール判定は「UXのための誘導」であり、認可の最終防衛線ではない**
+- 実際の認可は常に **RLS が担保する**（[data-model/README.md](./data-model/README.md#rlsポリシー方針概要)）。`suspended` 化・ブロック・通報対応は RLS 側で即時に効く
+- 即時のセッション遮断が必要なケース（アカウント停止）は、admin 操作時に Supabase Admin API でリフレッシュトークンを失効させる
 
 ## 共通レイアウトの責務
 

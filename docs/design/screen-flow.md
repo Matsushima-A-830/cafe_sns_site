@@ -101,9 +101,8 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    Start([S_SIGNUP 開始]) --> Method[/認証方式選択<br/>メール or 電話番号/]
-    Method --> Cred[/メール or 電話番号<br/>+ パスワード入力/]
-    Cred --> Verify[/OTP or メール確認/]
+    Start([S_SIGNUP 開始]) --> Cred[/メールアドレス<br/>+ パスワード入力/]
+    Cred --> Verify[/メール確認コード OTP/]
     Verify -->|失敗| Cred
     Verify -->|成功| BirthDate[/生年月日入力<br/>必須/]
 
@@ -134,6 +133,7 @@ flowchart TD
 ```
 
 **設計メモ**
+- **MVP の登録手段はメールアドレスのみ。** 電話番号（SMS OTP）は外部SMSプロバイダの契約が必要で無料枠がないため見送る（[pending-items B6](../product/pending-items.md)）
 - 保護者同意待ち中も閲覧はできる（ログイン不要機能と同等の範囲）
 - `profiles.status = 'pending_consent'` の間は投稿・いいね・コメント不可（RLSでガード）
 - 年齢判定はクライアント計算だが、DB側にも BEFORE INSERT トリガー（`enforce_min_age`）を配置（`current_date` は IMMUTABLE でないため CHECK 制約は使えない。[tables.md profiles](../architecture/data-model/tables.md#profiles) 参照）

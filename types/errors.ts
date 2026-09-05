@@ -12,6 +12,7 @@ export type ErrorCode =
   | 'EXTERNAL_SERVICE_ERROR'
   // アカウント / 認証
   | 'EMAIL_ALREADY_EXISTS'
+  // MVP未使用: 電話番号登録は見送り (pending-items B6)
   | 'PHONE_ALREADY_EXISTS'
   | 'USERNAME_ALREADY_EXISTS'
   | 'INVALID_CREDENTIALS'
