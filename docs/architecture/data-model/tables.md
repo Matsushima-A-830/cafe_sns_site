@@ -5,6 +5,8 @@ Supabase (PostgreSQL) のスキーマ定義草案です。すべて `public` ス
 ## 目次
 
 - [profiles](#profiles) — ユーザープロフィール
+- [user_settings](#user_settings) — ユーザー設定（通知・プライバシー・表示）
+- [user_interest_tags](#user_interest_tags) — 好きな気分（オンボーディング / 幹A）
 - [follows](#follows) — フォロー関係
 - [blocks](#blocks) — ブロック関係
 - [areas](#areas) — エリアマスタ（制覇マップ用）
@@ -82,6 +84,59 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 
 ---
 
+## user_settings
+
+`S_SETTINGS` の永続化項目。**`profiles.metadata` の jsonb ではなく型付きの1:1テーブルにする**（決定 2026-09-05）。通知トリガーが SQL から直接参照するため、jsonb だと毎回のキャストとキー欠落の考慮が必要になり、型と DEFAULT で守れなくなるのが理由。
+
+| カラム | 型 | 制約 | 説明 |
+|---|---|---|---|
+| user_id | uuid | PK, FK → profiles(id) ON DELETE CASCADE | |
+| notify_like | boolean | NOT NULL, DEFAULT true | いいね通知 |
+| notify_comment | boolean | NOT NULL, DEFAULT true | コメント通知 |
+| notify_follow | boolean | NOT NULL, DEFAULT true | フォロー通知 |
+| notify_email | boolean | NOT NULL, DEFAULT true | メールでも通知するか |
+| use_location | boolean | NOT NULL, DEFAULT true | 位置情報の使用（タグサジェスト等） |
+| allow_recommendation | boolean | NOT NULL, DEFAULT true | おすすめ表示に行動履歴を活用してよいか |
+| font_scale | text | NOT NULL, DEFAULT 'normal' | 文字サイズ: small / normal / large |
+| updated_at | timestamptz | NOT NULL, DEFAULT now() | |
+
+**制約:** `CHECK (font_scale IN ('small','normal','large'))`
+
+**行の作成:** `profiles` INSERT 時のトリガーで既定値の行を同時に作る。アプリ側は「行が無い」を考慮しなくてよい。
+
+**通知トグルの効かせ方:** `notifications` を INSERT するトリガー（[likes](#likes) / [comments](#comments) / [follows](#follows)）は、**INSERT 前に `user_settings` を見て該当フラグが false なら通知行を作らない**。作ってから隠す方式にしない（未読カウントが合わなくなるため）。
+
+**`notify_email` の位置づけ:** MVP でメール通知は実装しない（[pending-items B7](../../product/pending-items.md)）。列だけ先に置き、既定 true のまま未使用とする。
+
+**RLS:** SELECT・INSERT・UPDATE すべて `auth.uid() = user_id` / DELETE 不可（profiles 削除に追随）
+
+---
+
+## user_interest_tags
+
+オンボーディング `S_ONBOARD_INTERESTS` で選ぶ「好きな気分」。**幹A（気分起点の発見）のレコメンドはこの行を入力にする。**
+
+| カラム | 型 | 制約 |
+|---|---|---|
+| user_id | uuid | PK, FK → profiles(id) ON DELETE CASCADE |
+| tag_id | uuid | PK, FK → tags(id) |
+| created_at | timestamptz | NOT NULL, DEFAULT now() |
+
+**インデックス:** `(tag_id, user_id)` — 「同じ気分の人」の逆引き
+
+**個数の上限:** UIは1〜5個。DB でも上限を担保する（[post_tags の5個上限](../../product/pending-items.md#d4-post_tags-の5個上限のdb制約) と同じ方式の BEFORE INSERT トリガー）。**最低1個**はオンボーディング完了条件（`profiles.onboarded_at`）側で担保し、DB制約にはしない（選択と完了フラグ書き込みの間に一瞬0件の状態があるため）。
+
+**category の制限:** 選択できるのは `tags.category IN ('occasion','mood')` のみ（ワイヤーフレームの2タブに対応）。BEFORE INSERT トリガーで弾く。
+
+**RLS:**
+- SELECT: 全ユーザー（「同じ気分の人」の集計に使うため）
+- INSERT・DELETE: `auth.uid() = user_id`
+- UPDATE: 不可（付け替えは DELETE + INSERT）
+
+**変更UI:** MVP ではオンボーディング後に編集する画面を持たない。編集導線は `S_PROFILE_EDIT` への追加として後続で検討する。
+
+---
+
 ## follows
 
 | カラム | 型 | 制約 |
@@ -124,6 +179,7 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 | city | text | NOT NULL | 市区町村 |
 | area_code | text | FK → [areas](#areas)(code) | エリアコード（例: `JP-13-shibuya-ku`）— マスタテーブル参照 |
 | address | text | | 住所 |
+| main_image_path | text | | メイン画像（Supabase Storage の `cafe-images` オブジェクトパス） |
 | location | geography(POINT, 4326) | | 緯度経度 |
 | phone | text | | |
 | website | text | | |
@@ -141,6 +197,8 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 - `(prefecture, city, area_code)` — エリア絞り込み
 - `(area_code)` — 制覇マップ集計との結合
 - `GIN(name_kana gin_trgm_ops)` — フリガナ部分一致
+
+**`main_image_path` の用途:** `S_CAFE_DETAIL` のヒーロー画像、`S_OWNER_CAFE_EDIT` の「メイン画像」、`/cafes/[id]` の OG 画像がすべてこの1列を参照する。**複数枚を持つ `cafe_images` テーブルは作らない** — カフェの写真はユーザー投稿（[post_images](#post_images)）が主で、店側が持つのは看板1枚で足りる（3回同じ要求が出てから拡張を検討する）。未設定時は当該カフェの最新投稿の1枚目にフォールバックする。
 
 **エリアコードの運用:**
 - `cafes.area_code` は投稿トリガーで [`area_visits.area_code`](#area_visits) に伝搬される
@@ -355,7 +413,8 @@ $$;
 | post_type | text | NOT NULL, DEFAULT 'short' | short / blog |
 | title | text | | ブログ形式時のみ必須（アプリ層で制御） |
 | body_json | jsonb | NOT NULL | 本文（Tiptap JSON） |
-| body_search | tsvector | GENERATED | 全文検索用（`tiptap_to_plaintext(body_json)` で抽出） |
+| body_text | text | GENERATED | 本文の平文（`tiptap_to_plaintext(body_json)`）— 部分一致検索・抜粋表示用 |
+| body_search | tsvector | GENERATED | 全文検索用（`simple` 設定） |
 | status | text | NOT NULL, DEFAULT 'published' | published / archived / hidden ※下書きは別テーブル `drafts` |
 | visibility | text | NOT NULL, DEFAULT 'public' | public / followers |
 | like_count | int | NOT NULL, DEFAULT 0 | トリガーで維持 |
@@ -392,7 +451,8 @@ $$;
 **インデックス:**
 - `(author_id, created_at DESC)`
 - `(cafe_id, created_at DESC) WHERE cafe_id IS NOT NULL`
-- `GIN(body_search)`
+- `GIN(body_search)` — 英数字トークンの語一致
+- `GIN(body_text gin_trgm_ops)` — 日本語の部分一致（実質こちらが主）
 - `(published_at DESC) WHERE status='published' AND deleted_at IS NULL` — タイムライン
 
 **RLS:**
@@ -425,10 +485,25 @@ USING (
 
 `comments` / `likes` / `post_bookmarks` は親 `posts` が読めることを前提にする（親が不可視なら子も辿れない）。
 
-**本文サイズ上限:** `body_json` から抽出した平文は 50,000 文字以内とする（アプリ層で投稿前に検証）。Tiptap JSON 全体のバイトサイズは 512KB を上限の目安とする（画像は S3 保存のため base64 埋め込み禁止）。
+**本文サイズ上限:** `body_json` から抽出した平文は 50,000 文字以内とする（アプリ層で投稿前に検証）。Tiptap JSON 全体のバイトサイズは 512KB を上限の目安とする（画像は Storage 保存のため base64 埋め込み禁止）。
 
-**Tiptap JSON → 全文検索:**
-`body_search` は `public.tiptap_to_plaintext(body_json)` で抽出した平文をインデックスする。関数は `type == "text"` のリーフノードを再帰的に結合して返す（IMMUTABLE必須）。
+### 全文検索の方式（決定 2026-09-05）
+
+**`simple` 設定の tsvector + `pg_trgm` の2本立てにする。PGroonga は導入しない。**
+
+素の PostgreSQL に `'japanese'` テキスト検索設定は存在せず、`to_tsvector('japanese', ...)` は実行時エラーになる。かといって PGroonga を入れると tsvector 方式をやめて専用索引に寄せる設計変更が要り、索引サイズも増える。**幹A は「気分タグ起点の発見」が主軸で全文検索は補助**（[positioning.md](../../product/positioning.md)）なので、MVP は確実に動く構成を取る。
+
+| 用途 | 仕組み |
+|---|---|
+| 日本語の部分一致（実質の主役） | `body_text` に `gin_trgm_ops` の GIN 索引。`body_text ILIKE '%渋谷%'` が索引で効く |
+| 英数字の語一致（店名・`Wi-Fi` 等） | `body_search`（`simple` 設定の tsvector）に GIN 索引 |
+
+`simple` 設定は空白区切りでしかトークン化しないため、日本語の文は1つの巨大トークンになり tsvector 側はほぼ効かない。**日本語検索の精度は pg_trgm が担う**と理解して使う。
+
+**将来の差し替え:** 検索精度が課題になったら、`body_text` に PGroonga 索引を張り替えるだけで移行できる（列の追加・データ移行は不要）。この差し替えやすさが本方式を選ぶ理由でもある。
+
+**Tiptap JSON → 平文の抽出:**
+`type == "text"` のリーフノードを再帰的に結合する。GENERATED カラムから呼ぶため IMMUTABLE 必須。
 
 ```sql
 CREATE OR REPLACE FUNCTION public.tiptap_to_plaintext(doc jsonb)
@@ -438,14 +513,20 @@ RETURNS text LANGUAGE sql IMMUTABLE STRICT AS $$
 $$;
 ```
 
-GENERATED カラムの定義例（`'japanese'` は PGroonga または手動 FTS 設定が必要。PGroonga 未導入時は `'simple'` を暫定利用）:
+GENERATED カラムの定義:
 ```sql
+body_text text GENERATED ALWAYS AS (
+  coalesce(public.tiptap_to_plaintext(body_json), '')
+) STORED,
+
 body_search tsvector GENERATED ALWAYS AS (
-  to_tsvector('japanese',
+  to_tsvector('simple',
     coalesce(public.tiptap_to_plaintext(body_json), '')
     || ' ' || coalesce(title, ''))
 ) STORED
 ```
+
+**`body_search` で `body_text` を参照していない理由:** PostgreSQL の生成列は**他の生成列を参照できない**。そのため両方が `body_json` から独立に計算する（`tiptap_to_plaintext` を2回呼ぶ形になるが、STORED なので書き込み時の1回だけ）。
 
 **`metadata` のスキーマ（公式投稿）:** `official_format` ごとに追加項目を持つ。専用カラムを増やさず jsonb に寄せ、Zod スキーマ（`lib/validators/posts.ts`）で境界検証する。
 
@@ -478,14 +559,14 @@ body_search tsvector GENERATED ALWAYS AS (
 |---|---|---|
 | id | uuid | PK, DEFAULT gen_random_uuid() |
 | post_id | uuid | NOT NULL, FK → posts(id) ON DELETE CASCADE |
-| storage_path | text | NOT NULL | S3キー |
+| storage_path | text | NOT NULL | Supabase Storage `post-images` のオブジェクトパス |
 | display_order | smallint | NOT NULL, DEFAULT 0 |
 | width | int | |
 | height | int | |
 | alt_text | text | |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 
-**アプリ層の責務:** アップロード時にEXIFを剥がしてからS3にPUTする（クライアント側でsharp/exifr等で処理）
+**アプリ層の責務:** アップロード時にEXIFを剥がしてから Storage に PUT する（クライアント側で exifr 等で処理）。バケット構成は [README.md #ストレージ設計](./README.md#ストレージ設計) を参照
 
 **RLS:** SELECT 全ユーザー / INSERT・DELETE は post の作者
 
@@ -724,6 +805,8 @@ body_search tsvector GENERATED ALWAYS AS (
 | `report_resolved` | 通報の `status` が resolved / rejected に遷移 | 通報者 |
 
 **インデックス:** `(recipient_id, created_at DESC) WHERE read_at IS NULL` — 未読
+
+**ユーザー設定の反映:** `like` / `comment` / `follow` の3種は、発火元トリガーが **INSERT 前に [`user_settings`](#user_settings) の該当フラグを確認し、false なら行を作らない**。作ってから隠す方式にはしない（未読カウントがずれるため）。残りのタイプ（`badge` / `owner_verified` / `regular_awarded` / `official_post` / `report_resolved`）はユーザーが切れない重要通知として常に作る。
 
 **RLS:** SELECT・UPDATE は recipient のみ
 

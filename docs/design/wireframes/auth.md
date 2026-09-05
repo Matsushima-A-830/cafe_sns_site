@@ -316,7 +316,7 @@
 - 選択済みバッジで進捗を可視化
 - **選択のパラドックス回避:** 初期表示9個 + 「もっと見る」
 - 完了時に `profiles.onboarded_at` へ `now()` を書き込む。これがオンボーディング完了の唯一の判定材料で、middleware はこれを見て未完了ユーザーを `/onboarding` へ戻す（[routing.md](../../architecture/routing.md#middlewarets-設計)）
-- **選択したタグの保存先は未決**（[pending-items A7](../../product/pending-items.md)）。`user_interest_tags` を新設する案が有力
+- 選択したタグは [`user_interest_tags`](../../architecture/data-model/tables.md#user_interest_tags) に保存する（1〜5個、`occasion` / `mood` のみ）
 - 完了時、`S_MY_HOME` に遷移。**ピークエンド則:** 「ようこそ！」トースト + 小さなアニメーション
 
 ### PC（オンボーディング共通）

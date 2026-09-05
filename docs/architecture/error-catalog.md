@@ -22,7 +22,7 @@
 | `CONFLICT` | 状態衝突（重複・楽観ロック等） | すべて | 状況に応じたメッセージ |
 | `RATE_LIMITED` | レート制限超過 | Server Actions / API | 「しばらく待ってから再試行してください」 |
 | `INTERNAL_ERROR` | 想定外エラー | すべて | 「エラーが発生しました。時間をおいて再試行してください」+ Sentry送信 |
-| `EXTERNAL_SERVICE_ERROR` | 外部API失敗（S3, Google Maps等） | 外部連携層 | サービス別のリカバリ手順 |
+| `EXTERNAL_SERVICE_ERROR` | 外部API失敗（Supabase Storage, Google Maps等） | 外部連携層 | サービス別のリカバリ手順 |
 
 ---
 
@@ -91,7 +91,7 @@
 | `FILE_TOO_LARGE` | サイズ上限超過 (10MB) | uploads/sign |
 | `UNSUPPORTED_MEDIA_TYPE` | 対応外形式 | uploads/sign |
 | `EXIF_STRIP_FAILED` | EXIF除去失敗 | クライアント側処理 |
-| `UPLOAD_FAILED` | S3アップロード失敗 | クライアント側 |
+| `UPLOAD_FAILED` | Storage へのアップロード失敗 | クライアント側 |
 
 ### 通報 / モデレーション
 
@@ -169,7 +169,7 @@ export const errorMessages: Record<ErrorCode, string> = {
 - `INTERNAL_ERROR`
 - `EXTERNAL_SERVICE_ERROR`
 - `EXIF_STRIP_FAILED`（頻発なら EXIF ライブラリ更新の兆候）
-- `UPLOAD_FAILED`（S3 or ネットワーク問題）
+- `UPLOAD_FAILED`（Storage or ネットワーク問題）
 - 未登録のエラーコード（実装漏れ）
 
 ---

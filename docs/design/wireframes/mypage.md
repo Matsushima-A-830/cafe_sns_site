@@ -299,8 +299,6 @@
 | ● ブロック中のユーザー               ▶  |
 +----------------------------------------+
 | 通知                                    |
-| ● プッシュ通知               [ON/OFF]  |
-| ● メール通知                 [ON/OFF]  |
 | ● いいね                     [ON/OFF]  |
 | ● コメント                   [ON/OFF]  |
 | ● フォロー                   [ON/OFF]  |
@@ -322,7 +320,9 @@
 ```
 
 - アカウント削除は最下部の危険操作扱い、二段階確認 + パスワード再入力
+- **各トグルの保存先は [`user_settings`](../../architecture/data-model/tables.md#user_settings)**（型付きの1:1テーブル）。通知トリガーが SQL から直接読む
 - 通知トグルは初期値: 全てON（デフォルト効果）※CTAで後から絞りやすい
+- **「プッシュ通知」「メール通知」は MVP では出さない** — Web Push は Service Worker + VAPID + 購読情報の管理が一式必要で、トグル1個の規模ではない（[pending-items B7](../../product/pending-items.md)）。MVP の通知はアプリ内通知のみ
 - **テーマ（ダークモード）切替は MVP では出さない** — [design-system.md §6](../design-system.md#6-ダークモード) で未対応と決めているため。対応時に `/settings/display` へ追加する
 - 言語切替も同様に MVP では出さない（日本語のみ。i18n の導入判断は [routing.md 未確定事項](../../architecture/routing.md#未確定事項実装時に判断)）
 
