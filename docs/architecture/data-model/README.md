@@ -18,7 +18,9 @@ Supabase (PostgreSQL) を前提としたデータモデル設計です。詳細�
 | 分類 | テーブル |
 |---|---|
 | ユーザー | `profiles`, `follows`, `blocks` |
+| エリア | `areas` |
 | カフェ | `cafes`, `cafe_business_hours`, `cafe_congestion_reports`, `cafe_owner_verifications` |
+| 幹C（オーナー連携） | `regular_customers` |
 | コンテンツ | `posts`, `post_images`, `drafts`, `comments` |
 | タグ | `tags`, `post_tags` |
 | インタラクション | `likes`, `user_cafe_lists`, `post_bookmarks` |
@@ -44,12 +46,18 @@ erDiagram
     profiles ||--o{ user_badges : "earns"
     profiles ||--o{ area_visits : "visits"
     profiles ||--o{ cafe_owner_verifications : "requests"
+    profiles ||--o{ regular_customers : "certified_as"
 
     cafes ||--o{ posts : "featured_in"
     cafes ||--o{ cafe_business_hours : "has"
     cafes ||--o{ cafe_congestion_reports : "receives"
     cafes ||--o{ user_cafe_lists : "listed_by"
     cafes ||--o{ cafe_owner_verifications : "claimed_by"
+    cafes ||--o{ regular_customers : "certifies"
+
+    areas ||--o{ cafes : "locates"
+    areas ||--o{ area_visits : "counted_in"
+    areas ||--o{ areas : "parent_of"
 
     posts ||--o{ post_images : "contains"
     posts ||--o{ post_tags : "tagged_with"
@@ -174,16 +182,21 @@ export async function checkAndAwardBadges(
 
 制覇マップ機能の実現には、投稿対象カフェとエリア訪問実績の紐付けが必要。以下のルールで整合を保つ:
 
-- `cafes.area_code` と `area_visits.area_code` は同一のコード体系（例: `JP-13-shibuya`）
-- 投稿INSERT時のトリガー例:
-  ```
-  INSERT INTO area_visits (user_id, area_code, ...)
-  SELECT NEW.author_id, c.area_code, NEW.published_at
-  FROM cafes c WHERE c.id = NEW.cafe_id AND c.area_code IS NOT NULL
+- `cafes.area_code` と `area_visits.area_code` は同一のコード体系（例: `JP-13-shibuya-ku`）
+- **副地域に投稿したら親の区も訪問済みにする** — カフェが `JP-13-omotesando`（`level='sub_area'`）に紐づく場合、`JP-13-shibuya-ku`（`level='ward'`）にも訪問を記録する。これをしないと「東京23区制覇」「3エリア訪問」系バッジが永久に達成できない
+- 投稿INSERT時のトリガー例（自エリア + 親エリアの2行を upsert）:
+  ```sql
+  INSERT INTO area_visits (user_id, area_code, first_visited_at, last_visited_at, visit_count)
+  SELECT NEW.author_id, code, NEW.published_at, NEW.published_at, 1
+  FROM cafes c
+  JOIN areas a ON a.code = c.area_code
+  CROSS JOIN LATERAL (VALUES (a.code), (a.parent_code)) AS t(code)
+  WHERE c.id = NEW.cafe_id AND t.code IS NOT NULL
   ON CONFLICT (user_id, area_code) DO UPDATE
-    SET visit_count = area_visits.visit_count + 1,
-        last_visited_at = NEW.published_at;
+    SET visit_count    = area_visits.visit_count + 1,
+        last_visited_at = EXCLUDED.last_visited_at;
   ```
+- 「東京23区制覇」の母数は `areas.level = 'ward'` で数える（`parent_code IS NULL` だと吉祥寺のような23区外エリアが混入する）
 - `cafes.area_label` はUI表示専用（検索フィルタでは code 側を使う）
 - コード体系の詳細と初期セットは [seed/areas-initial-set.md](../../seed/areas-initial-set.md) 参照
 

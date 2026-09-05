@@ -1,6 +1,6 @@
 # バッジ初期セット（MVP 20個）
 
-`badges` テーブルに投入する初期データ。獲得条件は `badges.criteria (jsonb)` で表現し、判定はサーバー側バッチ or トリガーで実行。
+`badges` テーブルに投入する初期データ。獲得条件は `badges.criteria (jsonb)` で表現し、判定は Server Actions から呼ぶ `checkAndAwardBadges` で実行する（DBトリガーには置かない。[判定タイミング](#判定タイミング) 参照）。
 
 **差別化戦略との整合:** 幹A（気分検索）を反映して**シーン系バッジ**、幹C（オーナー連携）を反映して**行きつけ系バッジ**を設けている（[product/positioning.md](../product/positioning.md) 参照）。
 
@@ -107,12 +107,18 @@
 
 ## 判定タイミング
 
-| バッジ種別 | 判定方法 |
-|---|---|
-| POST_*, AREA_*, SCENE_* | `posts INSERT` トリガーで判定 |
-| REGULAR_* | `regular_customers INSERT` トリガーで判定 |
-| COM_10_FOLLOWERS, COM_100_LIKES | 相手アクション時に対象ユーザーで判定 |
-| COM_FIRST_LIKE_GIVEN | `likes INSERT` トリガーで判定 |
+**判定は DBトリガーではなく、Server Actions から呼ぶ `checkAndAwardBadges(supabase, userId, trigger)` に一元化する**
+（理由と実装方針は [data-model/README.md #バッジ付与ロジックの設計](../architecture/data-model/README.md#バッジ付与ロジックの設計) を参照）。
+
+| バッジ種別 | `BadgeTrigger` | 呼び出し元 |
+|---|---|---|
+| POST_*, AREA_*, SCENE_* | `POST_CREATED` | `app/_actions/posts.ts`（投稿公開後） |
+| REGULAR_* | `REGULAR_AWARDED` | `app/_actions/owner.ts`（常連認定後） |
+| COM_100_LIKES | `LIKE_RECEIVED` | `app/_actions/likes.ts`（いいねを受けた側で判定） |
+| COM_FIRST_LIKE_GIVEN | `LIKE_GIVEN` | `app/_actions/likes.ts`（いいねをした側で判定） |
+| COM_10_FOLLOWERS | `FOLLOW_RECEIVED` | `app/_actions/follows.ts`（フォローされた側で判定） |
+
+`BadgeTrigger` の型定義は `types/badges.ts`、判定ルールは `lib/badges/rules.ts` に集約する。
 
 ## フェーズ2以降の拡張想定
 

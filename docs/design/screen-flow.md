@@ -136,7 +136,7 @@ flowchart TD
 **設計メモ**
 - 保護者同意待ち中も閲覧はできる（ログイン不要機能と同等の範囲）
 - `profiles.status = 'pending_consent'` の間は投稿・いいね・コメント不可（RLSでガード）
-- 年齢判定はクライアント計算だが、DB側にも `CHECK (birth_date <= current_date - interval '13 years')` を配置
+- 年齢判定はクライアント計算だが、DB側にも BEFORE INSERT トリガー（`enforce_min_age`）を配置（`current_date` は IMMUTABLE でないため CHECK 制約は使えない。[tables.md profiles](../architecture/data-model/tables.md#profiles) 参照）
 
 ---
 

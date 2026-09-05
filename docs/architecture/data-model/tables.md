@@ -54,8 +54,19 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 | updated_at | timestamptz | NOT NULL, DEFAULT now() | |
 
 **制約:**
-- `CHECK (birth_date <= current_date - interval '13 years')` — 13歳未満は不可
 - `CHECK (status IN ('active','pending_consent','suspended','deleted'))`
+- 13歳未満のブロックは **BEFORE INSERT OR UPDATE トリガー**で実装する。`current_date` は IMMUTABLE ではないため CHECK 制約には書けない:
+  ```sql
+  CREATE OR REPLACE FUNCTION public.enforce_min_age() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+  BEGIN
+    IF NEW.birth_date > current_date - interval '13 years' THEN
+      RAISE EXCEPTION 'AGE_RESTRICTED';
+    END IF;
+    RETURN NEW;
+  END $$;
+  ```
+  アプリ層（サインアップの Zod スキーマ）でも同じ判定を行い、二重にガードする
 
 **RLS:**
 - SELECT: 全ユーザー可（ただし `guardian_email`, `metadata` は View で除外して公開）
@@ -105,7 +116,7 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 | name_kana | text | | フリガナ（検索用） |
 | prefecture | text | NOT NULL | 都道府県 |
 | city | text | NOT NULL | 市区町村 |
-| area_code | text | FK → [areas](#areas)(code) | エリアコード（例: `JP-13-shibuya`）— マスタテーブル参照 |
+| area_code | text | FK → [areas](#areas)(code) | エリアコード（例: `JP-13-shibuya-ku`）— マスタテーブル参照 |
 | address | text | | 住所 |
 | location | geography(POINT, 4326) | | 緯度経度 |
 | phone | text | | |
@@ -144,11 +155,12 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 
 | カラム | 型 | 制約 | 説明 |
 |---|---|---|---|
-| code | text | PK | 例: `JP-13-shibuya` |
+| code | text | PK | 例: `JP-13-shibuya-ku` |
 | prefecture_code | text | NOT NULL | 例: `JP-13` (東京都) — ISO 3166-2 |
-| slug | text | NOT NULL | 例: `shibuya`（URL・タグ用） |
-| label | text | NOT NULL | 例: `渋谷` |
-| label_kana | text | | 例: `シブヤ`（検索用） |
+| slug | text | NOT NULL | 例: `shibuya-ku`（URL・タグ用） |
+| label | text | NOT NULL | 例: `渋谷区` |
+| label_kana | text | | 例: `シブヤク`（検索用） |
+| level | text | NOT NULL | `ward`（市区町村レベル） / `sub_area`（副地域・人気エリア） |
 | parent_code | text | FK → areas(code) | 上位エリア（例: `JP-13-shibuya-ku` 配下に `JP-13-omotesando`） |
 | center_location | geography(POINT, 4326) | | 地図中心座標 |
 | priority | smallint | NOT NULL, DEFAULT 0 | 表示優先度（副都心系を上位に） |
@@ -158,9 +170,13 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 **制約:**
 - `UNIQUE (prefecture_code, slug)` — 都道府県内でslug重複禁止
 - `CHECK (code = prefecture_code || '-' || slug)` — コード整合性の自動チェック
+- `CHECK (level IN ('ward','sub_area'))`
+
+**`level` を持つ理由:** `parent_code IS NULL` を「市区町村レベル」の代わりに使うと、23区外で親を持たないエリア（例: 吉祥寺／武蔵野市）が混入して「東京23区制覇」の母数が狂う。レベルは明示的に持つ。
 
 **インデックス:**
 - `(prefecture_code, priority DESC)` — 都道府県別の表示順
+- `(prefecture_code, level)` — 制覇マップの母数集計
 - `(parent_code)` — 階層ナビゲーション
 - `GIST(center_location)` — 地図検索
 
@@ -337,7 +353,20 @@ $$;
 **制約:**
 - `CHECK (status IN ('published','archived','hidden'))`
 - `CHECK (official_format IS NULL OR official_format IN ('tip','today_special','closure','new_menu'))`
-- `CHECK (is_official = false OR (cafe_id IS NOT NULL AND EXISTS (SELECT 1 FROM cafes WHERE id = cafe_id AND verified_owner_id = author_id)))` — is_official=true は認証済みオーナーのみ許可
+- `CHECK (is_official = false OR cafe_id IS NOT NULL)` — 公式投稿は必ずカフェに紐づく
+- **「`is_official=true` は認証済みオーナーのみ」は CHECK 制約では表現できない**（CHECK にサブクエリは書けない）。RLS の INSERT/UPDATE ポリシーで担保する:
+  ```sql
+  CREATE POLICY posts_insert ON public.posts FOR INSERT TO authenticated
+  WITH CHECK (
+    author_id = auth.uid()
+    AND (
+      is_official = false
+      OR EXISTS (SELECT 1 FROM public.cafes c
+                 WHERE c.id = posts.cafe_id AND c.verified_owner_id = auth.uid())
+    )
+  );
+  ```
+  service_role 経由の書き込みは RLS を迂回するため、同等のチェックを BEFORE INSERT トリガーにも置く
 
 **インデックス:**
 - `(author_id, created_at DESC)`
@@ -451,7 +480,7 @@ body_search tsvector GENERATED ALWAYS AS (
 
 **RLS:**
 - SELECT: `deleted_at IS NULL` かつブロック相手を除外
-- INSERT: 認証済み。`is_official = true` は該当カフェの `verified_owner_id = auth.uid()` の場合のみ許可
+- INSERT: 認証済み。`is_official = true` は該当カフェの `verified_owner_id = auth.uid()` の場合のみ許可（posts と同様、CHECK 制約ではなく RLS の `WITH CHECK` で表現する）
 - UPDATE: `auth.uid() = author_id`
 - DELETE: 作者 or 投稿主（論理削除）
 
@@ -634,7 +663,7 @@ body_search tsvector GENERATED ALWAYS AS (
 | カラム | 型 | 制約 |
 |---|---|---|
 | user_id | uuid | PK, FK → profiles(id) |
-| area_code | text | PK, FK → [areas](#areas)(code) | エリアコード（例: `JP-13-shibuya`） |
+| area_code | text | PK, FK → [areas](#areas)(code) | エリアコード（例: `JP-13-shibuya-ku`） |
 | first_visited_at | timestamptz | NOT NULL |
 | last_visited_at | timestamptz | NOT NULL |
 | visit_count | int | NOT NULL, DEFAULT 1 |
