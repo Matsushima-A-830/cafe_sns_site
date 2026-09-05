@@ -71,6 +71,11 @@
 
 ## `badges.criteria` のJSON構造例
 
+> **⚠️ 以下は「例」であり、20件ぶんの `criteria` は未確定。**
+> `post_count` 系（`POST_*`）・`follower_count`（`COM_10_FOLLOWERS`）・`likes_received`（`COM_100_LIKES`）・
+> `likes_given`（`COM_FIRST_LIKE_GIVEN`）・`AREA_3` / `AREA_10` の `scope` は型が決まっていない。
+> seed を書く時に20件ぶんを確定させ、このドキュメントに反映すること（[pending-items D9](../product/pending-items.md)）。
+
 ```json
 // シーン系
 {

@@ -82,6 +82,9 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 - UPDATE: `auth.uid() = id`（`role`, `status` は admin のみ変更可）
 - DELETE: 不可（`status='deleted'` で無効化）
 
+> **⚠️ 最初の admin は自力では作れない。** `role` の変更が admin 限定なので鶏と卵になる。
+> `seed.sql` を書く時に、開発用 admin の作り方と本番での昇格手順を決めること（[pending-items A9](../../product/pending-items.md)）。
+
 ---
 
 ## user_settings
