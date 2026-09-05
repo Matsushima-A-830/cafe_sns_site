@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000'
+// 外部URL（Vercel Preview 等）を指定された場合は自前でサーバーを立てない
+const externalBaseURL = process.env.PLAYWRIGHT_BASE_URL
+const baseURL = externalBaseURL ?? 'http://localhost:3000'
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -20,12 +22,15 @@ export default defineConfig({
     { name: 'mobile-chrome', use: { ...devices['Pixel 7'] } },
     { name: 'mobile-safari', use: { ...devices['iPhone 14'] } },
   ],
-  webServer: process.env.CI
+  // CI でも必ずサーバーを立てる。ここを undefined にすると誰も listen していない
+  // localhost へ接続しに行き、最初のテストを書いた瞬間に落ちる。
+  // CI は事前に pnpm build 済みの前提で本番サーバーを使う。
+  webServer: externalBaseURL
     ? undefined
     : {
-        command: 'pnpm dev',
+        command: process.env.CI ? 'pnpm start' : 'pnpm dev',
         url: baseURL,
-        reuseExistingServer: true,
+        reuseExistingServer: !process.env.CI,
         timeout: 120_000,
       },
 })

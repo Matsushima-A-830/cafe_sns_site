@@ -48,7 +48,7 @@ p-18  (72px)  ⚠️ 8倍数なので値としては可。ただし許可表に�
 ```
 
 **注意:** Tailwind v4 は spacing スケールを動的生成するため、`p-13` や `p-18` も**書けば通ってしまう**（v3 のように未定義エラーにならない）。
-禁止の根拠は「Tailwind に存在しないから」ではなく **「8の倍数（+ 例外 4/12）でないから」**。CI か lint hook での grep 検出を前提にする。
+禁止の根拠は「Tailwind に存在しないから」ではなく **「8の倍数（+ 例外 4/12）でないから」**。`scripts/check-design-system.sh` が CI と pre-commit で検出する（`pnpm lint:design`）。
 
 同様に `m-`, `gap-`, `space-x-`, `space-y-` などすべての余白系ユーティリティで統一する。
 
@@ -239,7 +239,7 @@ Tailwind CSS のカスタムカラーとして `brown` を定義:
 | Tailwind default `text-black` | 上記 |
 | **ページ地色**に純白 `#FFFFFF` を使う | `bg-background`（= `brown-50`）<br>※ カード面 `bg-surface` / 入力欄 `bg-input` は純白でよい（意図的な設計） |
 
-**チェック:** `#000` `#000000` `text-black` `bg-black` `black/[0-9]` は grep で検出可能。
+**チェック:** `scripts/check-design-system.sh` が自動検出する（`pnpm lint:design`）。CI と pre-commit hook の両方で実行されるため、違反はコミットできない。
 
 ---
 

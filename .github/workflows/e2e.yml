@@ -39,6 +39,15 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium webkit
 
+      # playwright.config.ts の webServer が `pnpm start` を叩くため、先にビルドが必要
+      - name: Build
+        run: pnpm build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+          SUPABASE_SERVICE_ROLE_KEY: dummy-service-role-key
+
       - name: Run Playwright tests
         run: pnpm test:e2e
         env:

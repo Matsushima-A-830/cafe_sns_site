@@ -39,6 +39,11 @@ pnpm dev               # http://localhost:3000
 - Node.js 22 LTS
 - pnpm
 
+**認証まわりのローカル挙動:**
+- `supabase/config.toml` の `site_url` は `http://localhost:3000`。**`.env.example` の `NEXT_PUBLIC_SITE_URL` と完全一致させること**（リダイレクト許可は完全一致判定なので、`127.0.0.1` と `localhost` の食い違いでコールバックが落ちる）
+- `[auth.email] enable_confirmations = true`。サインアップの確認メールは **`http://localhost:54324`**（local_smtp の Web UI）で受け取る
+- **WSL 上のリポジトリでは git 操作を WSL 側のシェルから行う**（Windows 側からだと lefthook が起動できず、検査が無音でスキップされる。[git-workflow.md](./git-workflow.md#git-hooks-lefthook)）
+
 **Local `.env.local` の例:**
 
 ```env
@@ -155,6 +160,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      - run: pnpm lint:design   # デザインシステム禁止パターン検査
       - run: pnpm typecheck
       - run: pnpm test:run
 
@@ -180,15 +186,20 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium webkit
+      - run: pnpm build          # webServer が pnpm start を叩くため先にビルドが要る
       - run: pnpm test:e2e
-        env:
-          BASE_URL: ${{ secrets.PREVIEW_BASE_URL }}
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: playwright-report
           path: playwright-report/
 ```
+
+**E2E は CI 内で自前のサーバーに対して実行する。** `playwright.config.ts` の `webServer` が `pnpm start` を起動するため、直前に `pnpm build` が必要。
+
+- **`webServer` を CI で `undefined` にしない** — 誰も listen していない `localhost:3000` に接続しに行き、最初のテストを書いた瞬間に落ちる
+- **`--pass-with-no-tests` は使わない** — テストが0件でもグリーンになり、CI の故障に気づけなくなる。最低1本のスモークテスト（`tests/e2e/smoke.spec.ts`）を常に置いておく
+- Vercel Preview に対して流したい場合は `PLAYWRIGHT_BASE_URL` を渡す。設定されている時だけ `webServer` は起動しない
 
 ### DBマイグレーション自動適用
 

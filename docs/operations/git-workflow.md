@@ -310,6 +310,20 @@ scratch/
 
 **Windowsフレンドリな hook マネージャ**として lefthook を採用（Husky よりシェル依存が少ない）。
 
+### ⚠️ git 操作は WSL 側のシェルから行う
+
+このリポジトリは **WSL のファイルシステム上**にある。Windows 側（PowerShell / Git Bash）から `git commit` すると:
+
+- `node_modules` に入っている lefthook は **Linux バイナリ**なので Windows から起動できない
+- 生成された hook は候補を一通り探した末に `Can't find lefthook in PATH` と表示して **終了コード 0 を返す**
+- 結果、**Biome もデザインシステム検査も commitlint も走らないままコミットが成立する**（失敗ではなく無音のスキップ）
+
+エラーではなく警告1行なので気づきにくい。**コミット・プッシュは WSL のシェルから実行すること。**
+
+> `.lefthookrc`（`rc:` オプション）で PATH を通す案は使えない。生成される hook の shebang は `#!/bin/sh` で、Ubuntu では dash になる。dash の `.` はスラッシュを含まない引数を **PATH から探す**ため `. .lefthookrc` が "not found" となり、シェルごと終了してすべてのコミットが失敗する。
+
+hook が動いたかどうかは、コミット時に lefthook のバナー（`🥊 lefthook`）が出るかで判別できる。
+
 `lefthook.yml`:
 
 ```yaml
@@ -323,6 +337,11 @@ pre-commit:
         [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
         pnpm biome check --write {staged_files}
       stage_fixed: true
+
+    # node 非依存の bash スクリプトなので nvm 不要
+    design-system:
+      glob: "{app,components}/**/*.{ts,tsx,css}"
+      run: bash scripts/check-design-system.sh {staged_files}
 
 commit-msg:
   commands:

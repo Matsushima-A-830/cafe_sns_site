@@ -155,11 +155,17 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "http://127.0.0.1:3000"
+# NEXT_PUBLIC_SITE_URL (.env.example) と完全一致させること。
+# リダイレクト許可は完全一致で判定されるため、localhost と 127.0.0.1 の違いで認証コールバックが落ちる。
+site_url = "http://localhost:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+# ローカルは http（https ではない）。両ホスト名を許可して踏み間違いを防ぐ。
+additional_redirect_urls = [
+  "http://localhost:3000/**",
+  "http://127.0.0.1:3000/**",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -222,7 +228,10 @@ enable_signup = true
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+# S_SIGNUP は step2 で確認コード(OTP)を入れる設計なので true が正
+# (docs/design/wireframes/auth.md)。ローカルのメールは local_smtp の
+# Web UI (http://localhost:54324) で受け取れる。
+enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
@@ -280,9 +289,14 @@ max_frequency = "5s"
 # uri = "pg-functions://postgres/auth/before-user-created-hook"
 
 # This hook runs before a token is issued and allows you to add additional claims based on the authentication method used.
+# TODO: middleware が role / status / onboarded のクレイムを前提にしているため、
+#   public.custom_access_token_hook を作るマイグレーションと "同じPR" で下2行を有効化する。
+#   関数が存在しない状態で enabled = true にすると、トークン発行そのものが失敗して
+#   ログインできなくなるので先行して有効化しないこと。
+#   設計: docs/architecture/routing.md#カスタムクレイムの同期方式
 # [auth.hook.custom_access_token]
 # enabled = true
-# uri = "pg-functions://<database>/<schema>/<hook_name>"
+# uri = "pg-functions://postgres/public/custom_access_token_hook"
 
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
 [auth.sms.twilio]
