@@ -57,15 +57,10 @@ export async function middleware(request: NextRequest) {
   }
 
   // ---- オンボーディング未完了は /onboarding に閉じ込める ----
+  // suspended/deleted はここに来る前に既に return 済み。
   // status === null は「profiles 行がまだ無い」（OTP確認後・プロフィール作成前）ケースも含む。
   // ここを active のみに絞ると、profiles 行が無いユーザーが /me 等をすり抜けてしまう
-  if (
-    isAuthed &&
-    status !== 'suspended' &&
-    status !== 'deleted' &&
-    status !== 'pending_consent' &&
-    !onboarded
-  ) {
+  if (isAuthed && status !== 'pending_consent' && !onboarded) {
     if (requiresAuth && !path.startsWith('/onboarding')) {
       return redirect('/onboarding/profile')
     }

@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { checkUsernameAvailable, submitProfile } from '@/app/_actions/onboarding'
 import { Button } from '@/components/ui/button'
@@ -12,6 +12,10 @@ import { Label } from '@/components/ui/label'
 import { errorMessage } from '@/lib/utils/error-messages'
 import { type ProfileInput, profileSchema } from '@/lib/validators/onboarding'
 
+// /signup/birthdate や /signup/consent へ差し戻された後に戻ってきても
+// 入力済みのユーザーネーム・表示名が消えないよう、一時的に sessionStorage へ退避する
+const DRAFT_KEY = 'onboarding-profile-draft'
+
 export function ProfileForm() {
   const router = useRouter()
   const [formError, setFormError] = useState<string>()
@@ -19,9 +23,21 @@ export function ProfileForm() {
   const {
     register,
     getValues,
+    reset,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<ProfileInput>({ resolver: zodResolver(profileSchema) })
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem(DRAFT_KEY)
+    if (!saved) return
+    sessionStorage.removeItem(DRAFT_KEY)
+    try {
+      reset(JSON.parse(saved))
+    } catch {
+      // 壊れた保存値は無視する
+    }
+  }, [reset])
 
   const onCheckUsername = async () => {
     setUsernameCheck(undefined)
@@ -39,13 +55,23 @@ export function ProfileForm() {
     )
   }
 
+  const redirectTo = (path: string, values: ProfileInput) => {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(values))
+    router.push(path)
+  }
+
   const onSubmit = handleSubmit(async (values) => {
     setFormError(undefined)
     const result = await submitProfile(values)
     if (!result.ok) {
+      // タブを閉じる等で生年月日入力を経ずに到達した場合。値を保存してから差し戻す
+      if (result.error === 'BIRTHDATE_REQUIRED') {
+        redirectTo('/signup/birthdate', values)
+        return
+      }
       // 未成年で保護者メール未登録（/signup/consent を飛ばした等）はそちらへ差し戻す
       if (result.error === 'CONSENT_REQUIRED') {
-        router.push('/signup/consent')
+        redirectTo('/signup/consent', values)
         return
       }
       setFormError(errorMessage(result.error))

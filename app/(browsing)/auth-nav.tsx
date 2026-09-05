@@ -9,14 +9,18 @@ import { createClient } from '@/lib/supabase/browser'
 /**
  * 認証状態はクライアント側で取得する。(browsing) レイアウトで getUser() を
  * サーバー側に置くと配下の全ページ（ホーム・カフェ詳細・投稿詳細）が動的レンダリングに
- * 固定され、CLAUDE.md が求める SSG/ISR が効かなくなるため
+ * 固定され、CLAUDE.md が求める SSG/ISR が効かなくなるため。
+ *
+ * ここはナビの見た目を出し分けるだけの表示用途（実際の認可は RLS / middleware が担う）
+ * なので、getUser()（Auth サーバーへの通信）ではなく getSession()（ローカルの Cookie を
+ * 読むだけ）を使う。初期表示までの遅延が短くなり、CLS も小さくなる
  */
 export function AuthNav() {
   const [isAuthed, setIsAuthed] = useState<boolean | null>(null)
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data }) => setIsAuthed(data.user != null))
+    supabase.auth.getSession().then(({ data }) => setIsAuthed(data.session != null))
 
     const {
       data: { subscription },

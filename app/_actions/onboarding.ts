@@ -1,5 +1,6 @@
 'use server'
 
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import {
   areaSchema,
@@ -38,7 +39,8 @@ export async function checkUsernameAvailable(
 /**
  * profiles 行はここで初めて作られる。username / display_name / birth_date が揃うのが
  * この時点のため（docs/architecture/data-model/tables.md#profiles）。
- * birth_date は signup/birthdate で auth の user_metadata に一時保持したものを読む
+ * birth_date は signup/birthdate で auth の app_metadata（Admin API 経由、本人は書き換え不可）
+ * に一時保持したものを読む
  */
 export async function submitProfile(input: unknown): Promise<Result<null>> {
   const parsed = profileSchema.safeParse(input)
@@ -51,8 +53,10 @@ export async function submitProfile(input: unknown): Promise<Result<null>> {
   if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
 
   const metadata = user.app_metadata as SignupMetadata
+  // OTP確認後にタブを閉じる等で /signup/birthdate を経ずにここへ来た場合。
+  // 生年月日はURL直打ちでしか戻れないため、専用コードでその画面へ差し戻す
   if (!metadata.birth_date || !metadata.age_category) {
-    return { ok: false, error: 'INVALID_INPUT', details: '生年月日が未入力です' }
+    return { ok: false, error: 'BIRTHDATE_REQUIRED' }
   }
 
   // /signup/consent を飛ばして直接ここに来ると guardian_email が無いまま
@@ -84,6 +88,13 @@ export async function submitProfile(input: unknown): Promise<Result<null>> {
     }
     return { ok: false, error: 'INTERNAL_ERROR', details: error.message }
   }
+
+  // 一時保持していた下書き項目は不要になったので消す。custom_access_token_hook が
+  // JWT クレイムからは既に除去しているが、raw_app_meta_data 自体に残したままにしない
+  // （アカウントの生涯にわたって生年月日・保護者メールを保持し続けない）
+  await createAdminClient().auth.admin.updateUserById(user.id, {
+    app_metadata: { birth_date: null, age_category: null, guardian_email: null },
+  })
 
   // status (pending_consent/active) が変わったので JWT クレイムを即時反映させる。
   // 更新しないと custom_access_token_hook が古い（profiles 行が無かった時点の）値のままになり、
@@ -136,24 +147,21 @@ export async function submitInterests(input: unknown): Promise<Result<null>> {
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
 
-  // 前回の試行でタグ INSERT は成功したが直後の onboarded_at 更新だけ失敗した場合、
-  // 再送信での INSERT は enforce_user_interest_tags_rules トリガーの件数チェックに
-  // 一意制約より先に引っかかり P0001 (INTEREST_TAGS_LIMIT) になる。
-  // ここで弾くと永久にオンボーディングを完了できなくなるため、既に1件でも保存済みなら
-  // INSERT 自体をスキップして onboarded_at の更新に進む
-  const { count: existingCount, error: countError } = await supabase
+  // 既存タグを先に削除してから INSERT する（置き換え）。
+  // 「1件でもあれば INSERT をスキップ」だと、オンボーディング済みユーザーが
+  // /onboarding/interests に戻ってタグを選び直しても保存されない（黙って無視される）。
+  // 削除してから INSERT すれば enforce_user_interest_tags_rules トリガーの件数チェックは
+  // 常に0件からになるため、リトライ時に P0001 (INTEREST_TAGS_LIMIT) に引っかかることもない
+  const { error: deleteError } = await supabase
     .from('user_interest_tags')
-    .select('tag_id', { count: 'exact', head: true })
+    .delete()
     .eq('user_id', user.id)
+  if (deleteError) return { ok: false, error: 'INTERNAL_ERROR', details: deleteError.message }
 
-  if (countError) return { ok: false, error: 'INTERNAL_ERROR', details: countError.message }
-
-  if (!existingCount) {
-    const { error: insertError } = await supabase
-      .from('user_interest_tags')
-      .insert(parsed.data.tagIds.map((tagId) => ({ user_id: user.id, tag_id: tagId })))
-    if (insertError) return { ok: false, error: 'INTERNAL_ERROR', details: insertError.message }
-  }
+  const { error: insertError } = await supabase
+    .from('user_interest_tags')
+    .insert(parsed.data.tagIds.map((tagId) => ({ user_id: user.id, tag_id: tagId })))
+  if (insertError) return { ok: false, error: 'INTERNAL_ERROR', details: insertError.message }
 
   const { error: updateError } = await supabase
     .from('profiles')
