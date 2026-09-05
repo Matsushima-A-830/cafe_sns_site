@@ -17,7 +17,8 @@
       "!playwright-report",
       "!test-results",
       "!supabase/.branches",
-      "!supabase/.temp"
+      "!supabase/.temp",
+      "!supabase/templates"
     ]
   },
   "formatter": {
