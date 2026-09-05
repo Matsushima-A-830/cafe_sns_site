@@ -194,6 +194,7 @@ feat: 気分入り口をS_HOMEに追加
 - ✅ Status checks 必須（CI パス）
   - `Lint / Typecheck / Test`（`ci.yml`）
   - `Build`（`ci.yml`、`next build`）
+  - `Supabase Integration`（`integration.yml`、RLS の統合テスト）
   - `e2e`（Playwright、時間がかかる場合はメインパスのみ）
   - `migration-check`（Supabase migration lint）
 - ✅ ブランチが最新であることを要求

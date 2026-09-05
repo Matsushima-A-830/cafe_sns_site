@@ -238,6 +238,8 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 - `UNIQUE (prefecture_code, slug)` — 都道府県内でslug重複禁止
 - `CHECK (code = prefecture_code || '-' || slug)` — コード整合性の自動チェック
 - `CHECK (level IN ('ward','sub_area'))`
+- `CHECK (parent_code IS DISTINCT FROM code)` — 自分自身を親にできない（階層ナビが無限ループする）
+- `parent_code` の FK は `ON DELETE RESTRICT`（コード変更禁止・削除は `is_active=false` の運用に合わせる）
 
 **`level` を持つ理由:** `parent_code IS NULL` を「市区町村レベル」の代わりに使うと、23区外で親を持たないエリア（例: 吉祥寺／武蔵野市）が混入して「東京23区制覇」の母数が狂う。レベルは明示的に持つ。
 
@@ -250,6 +252,11 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 **RLS:**
 - SELECT: 全ユーザー (`is_active = true`)
 - INSERT / UPDATE / DELETE: admin のみ
+
+> **現状（2026-09-05）:** 書き込みポリシーは**まだ置いていない**。ポリシー不在なので `anon` / `authenticated`
+> からの書き込みは全拒否になり、「admin のみ」の安全側の部分実装として成立している。
+> admin 判定には `profiles.role` が要るため、`profiles` を作る PR で `is_admin()` と一緒に追加する
+> （[pending-items A9](../../product/pending-items.md)）。`tags` / `badges` も同じ扱い。
 
 **運用:**
 - コード変更は禁止（外部参照が壊れる）— 変更が必要なら `is_active=false` にして新コードを作る
@@ -510,11 +517,17 @@ USING (
 
 ```sql
 CREATE OR REPLACE FUNCTION public.tiptap_to_plaintext(doc jsonb)
-RETURNS text LANGUAGE sql IMMUTABLE STRICT AS $$
+RETURNS text LANGUAGE sql IMMUTABLE STRICT
+SET search_path = '' AS $$
   SELECT string_agg(leaf->>'text', ' ')
-  FROM jsonb_path_query(doc, 'lax $.** ? (@.type == "text")') AS leaf
+  FROM jsonb_path_query(doc, 'strict $.** ? (@.type == "text")') AS leaf
 $$;
 ```
+
+**jsonpath は `lax` ではなく `strict` を使う。** `lax` は配列を自動展開するため、`$.**` が同じリーフを
+「配列経由」と「直接参照」の2回拾い、本文が丸ごと重複する（`A B C` → `A A B C B C`）。
+`strict` なら文書順に1回ずつ、text ノードが無い文書・スカラー・配列ルートでも期待どおりに動く
+（検証: `tests/integration/shared-functions.test.ts`）。
 
 GENERATED カラムの定義:
 ```sql
@@ -650,7 +663,11 @@ body_search tsvector GENERATED ALWAYS AS (
 | is_curated | boolean | NOT NULL, DEFAULT false | 運営厳選タグ |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 
-**RLS:** SELECT 全ユーザー / INSERT・UPDATE admin のみ（MVP）
+**インデックス:** `(category, priority DESC)` — 「今、どんなカフェ気分？」のカテゴリ別 priority 順表示
+
+**制約:** `CHECK (category IN ('area','mood','occasion','other'))` / `CHECK (usage_count >= 0)`
+
+**RLS:** SELECT 全ユーザー / INSERT・UPDATE admin のみ（MVP）。書き込みポリシー未設定の現状は [areas](#areas) と同じ
 
 **運用:** 「選択のパラドックス回避」の観点から、UIでは `is_curated=true` を優先表示、自由入力タグは制限（例: 1投稿5個まで）
 
@@ -827,7 +844,13 @@ body_search tsvector GENERATED ALWAYS AS (
 | criteria | jsonb | NOT NULL | 付与条件（訪問数等） |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 
-**RLS:** SELECT 全ユーザー / INSERT admin のみ
+**制約:** `CHECK (coalesce(jsonb_typeof(criteria->'type'),'') = 'string' AND coalesce(jsonb_typeof(criteria->'threshold'),'') = 'number')`
+— **`coalesce` が要る。** `jsonb_typeof` は STRICT なのでキーが無いと NULL を返し、CHECK は NULL を「通過」と扱うため、
+`coalesce` 無しだと `'{}'` や `type` だけの JSON が素通りする（検証: `tests/integration/master-tables-constraints.test.ts`）。
+`type` の値そのものは列挙しない（フェーズ2でバッジ種別が増えるたびにマイグレーションを打つのは割に合わない）。
+確定した9種の `type` は [seed/badges-initial-set.md](../../seed/badges-initial-set.md) 参照
+
+**RLS:** SELECT 全ユーザー / INSERT admin のみ。書き込みポリシー未設定の現状は [areas](#areas) と同じ
 
 ---
 

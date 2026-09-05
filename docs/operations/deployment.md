@@ -133,11 +133,23 @@ SENTRY_DSN=<開発時は空でも可>
 
 | ファイル | トリガ | 内容 |
 |---|---|---|
-| `ci.yml` | PR / push | lint + typecheck + test + build |
+| `ci.yml` | PR / push | lint + typecheck + ユニットテスト + build |
+| `integration.yml` | PR / main push | Supabase を起動して `pnpm test:integration`（RLS 検証） |
 | `e2e.yml` | PR | Playwright E2E |
 | `migration-check.yml` | PR (supabase/migrations 変更時) | migration lint |
-| `deploy-migration.yml` | main push (supabase/migrations 変更時) | prod DB migration 適用 |
+| `deploy-migration.yml` | main push (supabase/migrations 変更時) | prod DB migration 適用 + マスタデータ投入 |
 | `preview-cleanup.yml` | PR close | Preview 環境のクリーンアップ（**未作成**） |
+
+**マスタデータ（areas / tags / badges）の本番投入は `supabase db push --include-seed`。**
+`db push` は `supabase/migrations/**` しか流さないため、`--include-seed` が無いと本番の
+マスタ3テーブルが空のままになる（気分タグのチップも制覇マップのエリアも出ない）。
+`seed.sql` は全件 `on conflict do update` なので毎デプロイ再実行して安全。
+ただし `areas.is_active` だけは意図的に更新対象から外してある（廃止したエリアを再有効化しないため）。
+
+**テストの実行経路が2つに分かれている理由:** `tests/integration/**` は実 Supabase を叩くため、
+Docker を起動しない `ci.yml` では動かない。`vitest.config.ts` の `exclude` でユニット実行から外し、
+Supabase を起動する `integration.yml` で `pnpm test:integration` として流す。
+この分離をしないと、RLS テストを1本追加した時点で `ci.yml` が落ちる。
 
 ### `ci.yml` 例
 

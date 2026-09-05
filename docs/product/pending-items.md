@@ -4,13 +4,13 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 
 ## 🔴 実装着手時点で未了のもの（2026-09-05 現在）
 
-初回マイグレーションを書き始めることは**できる**。ただし以下は途中で必ず当たるので、当たった時点で解消する。
+初回マイグレーション（拡張・共通関数・マスタ3テーブル・seed）は **2026-09-05 に完了**。
+残る未了は以下2件で、いずれも次のフェーズで当たる。
 
 | # | 内容 | いつ効いてくるか | ブロックするもの |
 |---|---|---|---|
 | [A3](#a3-エリア定義制覇マップ用-部分解消設計は確定--座標データが未収集) | `areas.center_location` の座標45件が未収集 | `S_MAP` / カフェ登録の実装時 | 地図表示、エリア自動判定、現在地検索。**seed は座標なしで投入してよい** |
-| [A9](#a9-最初の-admin-アカウントをどう作るか--未決2026-09-05-追加) | 最初の admin を作る手段が無い（RLS で role 変更は admin のみ） | `seed.sql` を書く時 | 管理画面すべて（MVPスコープ内） |
-| [D9](#d9-badgescriteria-の-json-が全20件ぶん書かれていない-2026-09-05-追加) | `badges.criteria` が20件ぶん確定していない | バッジ seed 投入時 | バッジ付与ロジック。既存パターンからの類推で埋まる |
+| [A9](#a9-最初の-admin-アカウントをどう作るか--未決2026-09-05-追加) | 最初の admin を作る手段が無い（RLS で role 変更は admin のみ） | `profiles` を作る時 / 管理画面の実装時 | 管理画面すべて（MVPスコープ内）。**初回マイグレーションは踏まずに済ませた**（マスタ3テーブルは書き込み全拒否） |
 
 これ以外の優先度A項目はすべて解消済み。
 
@@ -66,7 +66,19 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - b) 本番は service_role キーで一度だけ手動 UPDATE する運用にし、手順を `deployment.md` に残す
   - c) 「最初の1人は admin」になる初回起動時トリガーを置く
 - **推奨:** a + b（ローカルは seed で自動、本番は手順化した手動昇格。c は本番で事故ると危険）
-- **決定期限:** `seed.sql` を書く時（＝初回マイグレーションと同時）
+- **決定期限:** 管理画面の実装前、または admin がマスタを編集する必要が出た時
+
+#### 初回マイグレーション時点での回避（2026-09-05）
+
+初回マイグレーションはこの決定を踏まずに済ませた。**マスタ3テーブル（`areas` / `tags` / `badges`）には
+SELECT ポリシーしか置いていない。** ポリシー不在 = `anon` / `authenticated` からの書き込みは全拒否になるため、
+「admin のみ書き込み可」の**安全側の部分実装**として成立している。seed は RLS をバイパスする
+service_role で流すので影響しない。
+
+- **効いていないこと:** admin がマスタ（エリア追加・タグの厳選昇格など）を画面から編集できない
+- **解消のタイミング:** `profiles` を作る PR で `is_admin()` を定義し、3テーブルに書き込みポリシーを追加する。
+  それまでマスタの変更は seed の更新 + `db:reset`、本番は service_role からの手動投入で回す
+- **検証:** 拒否パスは `tests/integration/master-tables-rls.test.ts` が押さえている（許可パスの検証は admin が要るのでこの決定待ち）
 
 ### A4. 混雑度データの入力方法 ✅ 解消済（2026-09-03）
 
@@ -276,17 +288,13 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **対応判断:** 実装開始時に決定。変更しないままでも問題なし
 - **推奨（2026-09-05）: `(browsing)` のまま進める。** 一般的な `(public)` は「未ログインでも見える」を含意するが、`(browsing)` 配下には `/cafes/new`（要ログイン）が入っており、名前と権限が一致しない。どの名前でも誤解は残るので、既に37画面のドキュメント全体で使われている現行名を変えないほうが安い
 
-### D9. `badges.criteria` の JSON が全20件ぶん書かれていない 🟡（2026-09-05 追加）
+### D9. `badges.criteria` の JSON が全20件ぶん書かれていない ✅ 解消済（2026-09-05）
 
-- **課題:** [seed/badges-initial-set.md](../seed/badges-initial-set.md) には `post_count_with_tag` / `distinct_scene_tag_count` / `regular_customer_count` / `distinct_area_count` の**例**があるだけで、20件それぞれの `criteria` が確定していない。特に以下は型が未定義:
-  - `POST_FIRST` / `POST_10` / `POST_50` / `POST_100` → `post_count` 系
-  - `COM_10_FOLLOWERS` → `follower_count` 系
-  - `COM_100_LIKES` → `likes_received` 系
-  - `COM_FIRST_LIKE_GIVEN` → `likes_given` 系
-  - `AREA_3` / `AREA_10` → `distinct_area_count` に `scope` をどう与えるか（`tokyo_23` 以外）
-- **影響:** 既存パターンからの類推で埋まる範囲。設計判断というより記述作業
-- **対応:** `seed.sql` を書く時に20件ぶんを確定させ、`badges-initial-set.md` に反映する。あわせて `lib/badges/rules.ts` の判定関数と1対1で対応させる
-- **決定期限:** バッジ seed の投入時
+- **決定:** 20件ぶんの `criteria` を確定し [`supabase/seed.sql`](../../supabase/seed.sql) に投入した。type 一覧と各フィールドは [seed/badges-initial-set.md #badgescriteria-の構造確定-2026-09-05](../seed/badges-initial-set.md) を正とする
+- **type は9種:** `post_count` / `distinct_area_count` / `post_count_with_tag` / `post_count_with_tags_or` / `distinct_scene_tag_count` / `regular_customer_count` / `follower_count` / `likes_received` / `likes_given`。`threshold` は全 type 共通の必須項目
+- **`scope` はオブジェクト形に確定:** `{"level":"ward"}` / `{"level":"ward","prefecture_code":"JP-13"}`。`level` を明示しないと、副地域投稿で `area_visits` に親の区も入る仕様（[README.md #エリアコードの一貫性](../architecture/data-model/README.md#エリアコードの一貫性)）のせいで1投稿でエリア数が2増える
+- **DB側のガード:** `badges_criteria_shape_check` が `type`(string) と `threshold`(number) の存在を守る。type の値そのものは列挙しない（フェーズ2でバッジ種別が増えるたびにマイグレーションを打つのは割に合わない）
+- **残作業:** `lib/badges/rules.ts` で9つの type それぞれの判定を実装する（バッジ機能の実装時）
 
 ### D6. `/new/success` を独立ルートにする必要性
 

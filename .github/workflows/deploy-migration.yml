@@ -28,8 +28,11 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
-      - name: Push migrations
-        run: supabase db push
+      # --include-seed が要る: db push はマイグレーションしか流さないため、
+      # これが無いと本番の areas / tags / badges が空のままになる。
+      # seed.sql は全件 on conflict do update なので毎デプロイ再実行して安全
+      - name: Push migrations and master data
+        run: supabase db push --include-seed
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}

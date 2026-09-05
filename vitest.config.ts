@@ -9,7 +9,8 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./tests/setup.ts'],
     include: ['**/*.{test,spec}.{ts,tsx}'],
-    exclude: ['**/node_modules/**', '**/.next/**', 'tests/e2e/**'],
+    // tests/integration は実 Supabase が要るので vitest.integration.config.ts 側で実行する
+    exclude: ['**/node_modules/**', '**/.next/**', 'tests/e2e/**', 'tests/integration/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
@@ -17,6 +18,7 @@ export default defineConfig({
         'node_modules/**',
         '.next/**',
         'tests/e2e/**',
+        'tests/integration/**',
         '**/*.config.{ts,js,mjs}',
         '**/*.d.ts',
       ],

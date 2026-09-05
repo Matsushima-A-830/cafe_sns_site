@@ -69,46 +69,58 @@
 | `COM_100_LIKES` | いいねの受け手 | 累計いいね100獲得 |
 | `COM_FIRST_LIKE_GIVEN` | はじめての返報性 | 他人の投稿に初いいね |
 
-## `badges.criteria` のJSON構造例
+## `badges.criteria` の構造（確定 2026-09-05）
 
-> **⚠️ 以下は「例」であり、20件ぶんの `criteria` は未確定。**
-> `post_count` 系（`POST_*`）・`follower_count`（`COM_10_FOLLOWERS`）・`likes_received`（`COM_100_LIKES`）・
-> `likes_given`（`COM_FIRST_LIKE_GIVEN`）・`AREA_3` / `AREA_10` の `scope` は型が決まっていない。
-> seed を書く時に20件ぶんを確定させ、このドキュメントに反映すること（[pending-items D9](../product/pending-items.md)）。
+**20件ぶんすべて確定済み。実体は [`supabase/seed.sql`](../../supabase/seed.sql) が正**（本節はその要約）。
+
+`criteria` は `type` で判別する。**`threshold` は全 type 共通の必須項目**で、
+`badges_criteria_shape_check` が `type`（string）と `threshold`（number）の存在をDB側でも守る。
+
+### type 一覧
+
+| type | 追加フィールド | 意味 | 使うバッジ |
+|---|---|---|---|
+| `post_count` | — | 累計投稿数 | `POST_FIRST` `POST_10` `POST_50` `POST_100` |
+| `distinct_area_count` | `scope` | 投稿したエリア数 | `AREA_3` `AREA_10` `AREA_TOKYO_23` |
+| `post_count_with_tag` | `tag_slug` | 特定タグ付き投稿の累計 | `SCENE_MORNING` `SCENE_NIGHT` `SCENE_SOLO` `SCENE_RAINY` |
+| `post_count_with_tags_or` | `tag_slugs` | いずれかのタグが付いた投稿の累計 | `SCENE_WORK` |
+| `distinct_scene_tag_count` | `category` | 投稿に使った異なるシーンタグ数 | `SCENE_EXPLORER` |
+| `regular_customer_count` | — | 常連認定を受けた店舗数 | `REGULAR_FIRST` `REGULAR_3` `REGULAR_5` `REGULAR_VIP` |
+| `follower_count` | — | フォロワー数 | `COM_10_FOLLOWERS` |
+| `likes_received` | — | 受け取ったいいね累計 | `COM_100_LIKES` |
+| `likes_given` | — | 送ったいいね累計 | `COM_FIRST_LIKE_GIVEN` |
+
+### `scope`（エリア系のみ）
+
+**オブジェクト形にする。**`areas` への絞り込み条件をそのまま持たせ、名前付きスコープを
+`lib/badges/rules.ts` 側にハードコードしない。
 
 ```json
-// シーン系
-{
-  "type": "post_count_with_tag",
-  "tag_slug": "morning-cafe",
-  "threshold": 10
-}
-
-{
-  "type": "post_count_with_tags_or",
-  "tag_slugs": ["work", "study"],
-  "threshold": 10
-}
-
-{
-  "type": "distinct_scene_tag_count",
-  "category": "occasion",
-  "threshold": 5
-}
-
-// 行きつけ系
-{
-  "type": "regular_customer_count",
-  "threshold": 3
-}
-
-// エリア系
-{
-  "type": "distinct_area_count",
-  "scope": "tokyo_23",
-  "threshold": 23
-}
+{ "type": "distinct_area_count", "scope": { "level": "ward" }, "threshold": 3 }
+{ "type": "distinct_area_count", "scope": { "level": "ward" }, "threshold": 10 }
+{ "type": "distinct_area_count",
+  "scope": { "level": "ward", "prefecture_code": "JP-13" }, "threshold": 23 }
 ```
+
+**`level` を明示するのが要点。** 副地域のカフェに投稿すると `area_visits` には
+自エリアと親の区の2行が入る（[data-model/README.md #エリアコードの一貫性](../architecture/data-model/README.md#エリアコードの一貫性)）。
+`level` で絞らずに数えると、1投稿でエリア数が2増えて閾値の意味が壊れる。
+
+### その他の type の例
+
+```json
+{ "type": "post_count", "threshold": 10 }
+{ "type": "post_count_with_tag", "tag_slug": "morning-cafe", "threshold": 10 }
+{ "type": "post_count_with_tags_or", "tag_slugs": ["work", "study"], "threshold": 10 }
+{ "type": "distinct_scene_tag_count", "category": "occasion", "threshold": 5 }
+{ "type": "regular_customer_count", "threshold": 3 }
+{ "type": "follower_count", "threshold": 10 }
+{ "type": "likes_received", "threshold": 100 }
+{ "type": "likes_given", "threshold": 1 }
+```
+
+seed の20件が上記の型に収まっていることは `tests/integration/seed.test.ts` が検証する
+（未知の `type`・`threshold <= 0`・実在しないタグ slug の参照を落とす）。
 
 ## 判定タイミング
 

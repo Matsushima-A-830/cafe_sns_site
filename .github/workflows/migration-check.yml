@@ -23,5 +23,7 @@ jobs:
       - name: Apply migrations
         run: supabase db reset --no-seed
 
+      # --schema public を付けないと PostGIS が extensions に持ち込む
+      # 16個の内製外関数の警告に、自分たちのコードの指摘が埋もれる
       - name: Lint migrations
-        run: supabase db lint --level warning
+        run: supabase db lint --level warning --schema public

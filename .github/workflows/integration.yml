@@ -1,0 +1,47 @@
+name: Integration
+
+# tests/integration/** は実 Supabase を要求するため、Supabase を起動しない
+# ci.yml の Vitest ジョブ（pnpm test:run）からは除外してこちらで流す。
+on:
+  pull_request:
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+  push:
+    branches: [main]
+
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  supabase-integration:
+    name: Supabase Integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start local Supabase
+        run: pnpm exec supabase start
+
+      # start でも適用されるが、seed 込みのクリーンな状態を明示的に作り直す
+      - name: Apply migrations and seed
+        run: pnpm exec supabase db reset
+
+      # 接続情報は tests/helpers/supabase.ts が supabase status から読む
+      - name: Integration tests
+        run: pnpm test:integration
+
+      # supabase status はエンドポイントと鍵を出すだけで、落ちた原因は分からない
+      - name: Dump Supabase container logs
+        if: failure()
+        run: docker ps -a --filter name=supabase --format '{{.Names}}' | xargs -r -I{} sh -c 'echo "===== {} ====="; docker logs --tail 200 {} 2>&1'
