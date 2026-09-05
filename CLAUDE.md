@@ -162,7 +162,7 @@ cafe_sns_site/
 │   └── e2e/                       # Playwright
 ├── supabase/
 │   ├── migrations/                # SQL migration ファイル
-│   ├── seed.sql                   # 初期データ（tags, badges, areas）
+│   ├── seed.sql                   # ローカル専用データのみ（本番には届かない）
 │   └── config.toml
 └── public/                        # 静的アセット
 ```

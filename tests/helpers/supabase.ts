@@ -19,7 +19,9 @@ function parseCliEnv(raw: string): Record<string, string> {
   return entries
 }
 
-const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]', '0.0.0.0'])
+// 0.0.0.0 は bind 用アドレスで接続先としては意味を持たず、環境によっては
+// ローカル以外に解決されうるので許可しない
+const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]'])
 
 // このファイルの利用者は service role で areas/tags/badges を delete し、
 // auth のユーザーを作っては消す。接続先がローカルであることを必ず確かめてから返す。

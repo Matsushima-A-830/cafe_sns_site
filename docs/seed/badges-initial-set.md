@@ -71,7 +71,11 @@
 
 ## `badges.criteria` の構造（確定 2026-09-05）
 
-**20件ぶんすべて確定済み。実体は [`supabase/seed.sql`](../../supabase/seed.sql) が正**（本節はその要約）。
+**20件ぶんすべて確定済み。実体は [`supabase/migrations/20260905120400_seed_master_data.sql`](../../supabase/migrations/20260905120400_seed_master_data.sql) が正**（本節はその要約）。
+
+マスタは `seed.sql` ではなくマイグレーションに置く（`seed.sql` は本番に届かないため。
+[deployment.md](../operations/deployment.md#cicd-パイプライン) 参照）。**変更する時は既存ファイルを
+編集せず新しいマイグレーションを追加する。**
 
 `criteria` は `type` で判別する。**`threshold` は全 type 共通の必須項目**で、
 `badges_criteria_shape_check` が `type`（string）と `threshold`（number）の存在をDB側でも守る。

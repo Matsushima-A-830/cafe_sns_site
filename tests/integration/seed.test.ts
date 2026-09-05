@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { serviceRoleClient } from '../helpers/supabase'
 
-// 前提: `pnpm db:reset` 直後の状態（マイグレーション + seed.sql が流れている）
+// 前提: `pnpm db:reset` 直後の状態。
+// マスタは seed.sql ではなく 20260905120400_seed_master_data.sql が投入する
 const service = serviceRoleClient()
 
 // docs/seed/badges-initial-set.md で確定した criteria の type 一覧

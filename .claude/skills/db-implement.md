@@ -214,7 +214,14 @@ $$;
 
 ## seed データ
 
-`supabase/seed.sql` に初期データを投入。開発時 `pnpm db:reset` で自動流し込み。
+**マスタデータ（本番にも要るもの）はマイグレーションに置く。`supabase/seed.sql` には置かない。**
+
+`seed.sql` は `supabase db reset`（ローカル）でしか実行されず、本番の経路である `supabase db push` は
+流さない。`--include-seed` を付けても未適用マイグレーションが0件なら seed はスキップされる。
+`seed.sql` に置いてよいのは「ローカル / Preview だけで欲しいもの」（開発用 admin、ダミー投稿など）。
+
+マスタは `insert ... on conflict do update` の冪等なマイグレーションとして書き、
+**変更時は既存ファイルを編集せず新しいマイグレーションを追加する**（forward-only）。
 
 ```sql
 -- 厳選タグ

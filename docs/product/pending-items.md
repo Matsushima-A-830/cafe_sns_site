@@ -82,11 +82,10 @@ service_role で流すので影響しない。
 
 #### A9 を解く時に同時に片付けること
 
-1. **`db push --include-seed` が admin の編集を毎デプロイ巻き戻す。**
-   `seed.sql` の `on conflict do update` は `label` / `priority` / `is_curated` / `description` / `criteria` を
-   上書きする（保護しているのは `areas.is_active` のみ）。今は admin がマスタを書けないので無害だが、
-   書き込みポリシーを足した瞬間、管理画面での編集が次のデプロイで消える。
-   seed を「初期投入のみ（`do nothing`）」に倒すか、マスタ編集を seed 経由に一本化するかを決める
+1. **admin のマスタ編集と、マイグレーションでのマスタ変更の関係を決める。**
+   マスタは forward-only のマイグレーションで配るので、既存行を書き換えるマイグレーションを後から足すと
+   管理画面での編集を上書きする。「マスタ編集は管理画面のみ / マイグレーションは追加専用」に倒すのが素直だが、
+   書き込みポリシーを足す時に方針を明記すること
 2. **`areas` の2ノード循環を塞ぐ。** `sub_area` 同士が互いを親に指すケースは CHECK では防げないので、
    「親は必ず `level='ward'`」をトリガーで担保する（[tables.md #areas](../architecture/data-model/tables.md#areas)）
 
@@ -300,7 +299,7 @@ service_role で流すので影響しない。
 
 ### D9. `badges.criteria` の JSON が全20件ぶん書かれていない ✅ 解消済（2026-09-05）
 
-- **決定:** 20件ぶんの `criteria` を確定し [`supabase/seed.sql`](../../supabase/seed.sql) に投入した。type 一覧と各フィールドは [seed/badges-initial-set.md #badgescriteria-の構造確定-2026-09-05](../seed/badges-initial-set.md) を正とする
+- **決定:** 20件ぶんの `criteria` を確定し [`supabase/migrations/20260905120400_seed_master_data.sql`](../../supabase/migrations/20260905120400_seed_master_data.sql) に投入した。type 一覧と各フィールドは [seed/badges-initial-set.md #badgescriteria-の構造確定-2026-09-05](../seed/badges-initial-set.md) を正とする
 - **type は9種:** `post_count` / `distinct_area_count` / `post_count_with_tag` / `post_count_with_tags_or` / `distinct_scene_tag_count` / `regular_customer_count` / `follower_count` / `likes_received` / `likes_given`。`threshold` は全 type 共通の必須項目
 - **`scope` はオブジェクト形に確定:** `{"level":"ward"}` / `{"level":"ward","prefecture_code":"JP-13"}`。`level` を明示しないと、副地域投稿で `area_visits` に親の区も入る仕様（[README.md #エリアコードの一貫性](../architecture/data-model/README.md#エリアコードの一貫性)）のせいで1投稿でエリア数が2増える
 - **DB側のガード:** `badges_criteria_shape_check` が `type`(string) と `threshold`(number) の存在を守る。type の値そのものは列挙しない（フェーズ2でバッジ種別が増えるたびにマイグレーションを打つのは割に合わない）

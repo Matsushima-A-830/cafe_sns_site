@@ -8,7 +8,6 @@ describe('assertLocal', () => {
     'http://127.0.0.1:54321',
     'http://localhost:54321',
     'http://[::1]:54321',
-    'http://0.0.0.0:54321',
   ])('ローカルの %s は通す', (url) => {
     expect(() => assertLocal(url)).not.toThrow()
   })
@@ -17,6 +16,8 @@ describe('assertLocal', () => {
     'https://abcdefgh.supabase.co',
     'https://db.example.com',
     'http://127.0.0.1.evil.example.com',
+    // bind 用アドレス。接続先としては意味を持たない
+    'http://0.0.0.0:54321',
   ])('ローカル以外の %s は拒否する', (url) => {
     expect(() => assertLocal(url)).toThrow(/ローカル以外への接続を拒否/)
   })

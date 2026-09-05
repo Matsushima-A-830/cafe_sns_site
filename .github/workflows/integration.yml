@@ -33,8 +33,9 @@ jobs:
       - name: Start local Supabase
         run: pnpm exec supabase start
 
-      # start でも適用されるが、seed 込みのクリーンな状態を明示的に作り直す
-      - name: Apply migrations and seed
+      # start でも適用されるが、クリーンな状態を明示的に作り直す
+      # （マスタデータもマイグレーションに入っている）
+      - name: Apply migrations
         run: pnpm exec supabase db reset
 
       # 接続情報は tests/helpers/supabase.ts が supabase status から読む
