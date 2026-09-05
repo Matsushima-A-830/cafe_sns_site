@@ -44,8 +44,11 @@ p-11  (44px)  ❌
 p-13  (52px)  ❌
 p-15  (60px)  ❌
 p-17  (68px)  ❌
-p-18  (72px)  ❌ ← 72pxは8倍数だが、Tailwind標準では p-18 は存在しないので実質不要
+p-18  (72px)  ⚠️ 8倍数なので値としては可。ただし許可表にない粒度なので原則使わない
 ```
+
+**注意:** Tailwind v4 は spacing スケールを動的生成するため、`p-13` や `p-18` も**書けば通ってしまう**（v3 のように未定義エラーにならない）。
+禁止の根拠は「Tailwind に存在しないから」ではなく **「8の倍数（+ 例外 4/12）でないから」**。CI か lint hook での grep 検出を前提にする。
 
 同様に `m-`, `gap-`, `space-x-`, `space-y-` などすべての余白系ユーティリティで統一する。
 
@@ -234,7 +237,7 @@ Tailwind CSS のカスタムカラーとして `brown` を定義:
 |---|---|
 | `#000000` / `text-black` / `bg-black` | `text-brown-900` / `bg-brown-900` |
 | Tailwind default `text-black` | 上記 |
-| 純白の `#FFFFFF` は原則UI背景に使わない（`brown-50` or `cream-50` を優先） | `bg-brown-50` |
+| **ページ地色**に純白 `#FFFFFF` を使う | `bg-background`（= `brown-50`）<br>※ カード面 `bg-surface` / 入力欄 `bg-input` は純白でよい（意図的な設計） |
 
 **チェック:** `#000` `#000000` `text-black` `bg-black` `black/[0-9]` は grep で検出可能。
 
@@ -242,7 +245,7 @@ Tailwind CSS のカスタムカラーとして `brown` を定義:
 
 ## 4. Tailwind 設定
 
-### Tailwind v4（Next.js 15 デフォルト）の場合
+### Tailwind v4（本プロジェクトの採用構成）
 
 `app/globals.css` に **基礎スケール + セマンティック** の2層で定義:
 
@@ -308,50 +311,7 @@ Tailwind CSS のカスタムカラーとして `brown` を定義:
 
 これにより Tailwind の `bg-primary`, `text-foreground`, `border-default` などが自動的に使えるようになる。
 
-### Tailwind v3 の場合
-
-`tailwind.config.ts` の extend で同じ2層構造を実現:
-
-```typescript
-export default {
-  theme: {
-    extend: {
-      colors: {
-        brown: {
-          50:  '#FFF8F1', 100: '#FFF1E3', 200: '#ECD2B8', 300: '#D9B38C',
-          400: '#BA8F6B', 500: '#9A6B4A', 600: '#7B533A', 700: '#5B3A2A',
-          800: '#452B1E', 900: '#2E1C12',
-        },
-        cream: { 50: '#FFFDF9', 100: '#FFF8F1', 200: '#FFF1E3' },
-
-        // セマンティック
-        background:      '#FFF8F1',
-        surface:         '#FFFFFF',
-        muted:           '#FFF1E3',
-        foreground:      '#2E1C12',
-        'muted-foreground': '#5B3A2A',
-        subtle:          '#9A6B4A',
-        primary:         '#9A6B4A',
-        'primary-hover': '#7B533A',
-        'primary-foreground': '#FFF8F1',
-        secondary:       '#FFF8F1',
-        'secondary-foreground': '#452B1E',
-        link:            '#7B533A',
-        'link-hover':    '#5B3A2A',
-        'border-default': '#ECD2B8',
-        'border-strong':  '#D9B38C',
-        input:           '#FFFFFF',
-        'border-input':  '#ECD2B8',
-        'ring-focus':    '#BA8F6B',
-        success:         '#4A7C59', 'success-foreground': '#FFFFFF',
-        warning:         '#C77F3E', 'warning-foreground': '#FFFFFF',
-        danger:          '#A94438', 'danger-foreground':  '#FFFFFF',
-        info:            '#5B7C99', 'info-foreground':    '#FFFFFF',
-      },
-    },
-  },
-}
-```
+**本プロジェクトは Tailwind v4 のみ。** `tailwind.config.ts` は使わず、色の定義は `app/globals.css` の `@theme` が唯一の情報源とする（パレット変更時の二重管理を避けるため）。
 
 ---
 
@@ -360,10 +320,10 @@ export default {
 ### 良い例
 
 ```tsx
-<div className="p-4 md:p-6 lg:p-8 bg-brown-50 text-brown-900 border border-brown-200 rounded-lg">
-  <h2 className="text-2xl font-bold text-brown-900 mb-4">見出し</h2>
-  <p className="text-base text-brown-700">本文テキスト</p>
-  <button className="mt-6 px-6 py-3 bg-brown-500 hover:bg-brown-600 text-brown-50 rounded-md">
+<div className="p-4 md:p-6 lg:p-8 bg-surface text-foreground border border-default rounded-lg">
+  <h2 className="text-2xl font-bold text-foreground mb-4">見出し</h2>
+  <p className="text-base text-muted-foreground">本文テキスト</p>
+  <button className="mt-6 px-6 py-3 bg-primary hover:bg-primary-hover text-primary-foreground rounded-md">
     ボタン
   </button>
 </div>
@@ -372,7 +332,7 @@ export default {
 **チェック:**
 - 余白: `p-4`(16px), `md:p-6`(24px), `lg:p-8`(32px), `mb-4`(16px), `mt-6`(24px), `px-6`(24px), `py-3`(12px 例外OK)
 - テキスト: `text-2xl`, `text-base` (整数)
-- 色: `bg-brown-50`, `text-brown-900`, `bg-brown-500` (すべてbrown系、blackなし)
+- 色: **セマンティックトークンのみ**（`bg-surface` `text-foreground` `bg-primary`）。`bg-brown-500` のような具体色は使わない
 
 ### 悪い例
 

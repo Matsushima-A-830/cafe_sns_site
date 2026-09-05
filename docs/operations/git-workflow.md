@@ -185,7 +185,7 @@ feat: 気分入り口をS_HOMEに追加
 
 > ⚠️ **現状は未設定**。GitHub Free では private リポジトリの branch protection / rulesets が使えない（API は HTTP 403）。
 > 下記は Pro 加入 or Public 化した時点で有効化する目標値であり、**それまでは lefthook（pre-push）+ CI の二重チェックで代替**する。
-> 詳細と選択肢: [pending-items D6b](../product/pending-items.md)
+> 詳細と選択肢: [pending-items D7](../product/pending-items.md)
 
 有効化できるようになったら以下を設定:
 

@@ -32,7 +32,7 @@ docs/
 | ドキュメント | 内容 |
 |---|---|
 | [data-model/README.md](./architecture/data-model/README.md) | ER図・設計方針・RLS方針 |
-| [data-model/tables.md](./architecture/data-model/tables.md) | 24テーブルの列・制約・RLSポリシー |
+| [data-model/tables.md](./architecture/data-model/tables.md) | 25テーブルの列・制約・RLSポリシー |
 | [routing.md](./architecture/routing.md) | Next.js App Router・URL・middleware方針 |
 | [error-catalog.md](./architecture/error-catalog.md) | Result型エラーコード一覧 |
 
@@ -42,7 +42,7 @@ docs/
 |---|---|
 | **[design-system.md](./design/design-system.md)** ⭐️ | 余白/カラー/サイズ規約、brownパレット、セマンティックトークン |
 | [screen-flow.md](./design/screen-flow.md) | Mermaid フロー6種 |
-| [wireframes/README.md](./design/wireframes/README.md) | 35画面のモバイル/PCレイアウト（ASCII） |
+| [wireframes/README.md](./design/wireframes/README.md) | 37画面のモバイル/PCレイアウト（ASCII） |
 
 ### ⚙️ Operations（Git・デプロイ）
 

@@ -105,7 +105,7 @@
 ## Result 型の実装例
 
 ```typescript
-// types/result.ts
+// types/errors.ts
 export type ErrorCode =
   | 'INVALID_INPUT' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND'
   | 'CONFLICT' | 'RATE_LIMITED' | 'INTERNAL_ERROR' | 'EXTERNAL_SERVICE_ERROR'
@@ -123,6 +123,11 @@ export type ErrorCode =
   | 'VERIFICATION_REJECTED' | 'NOT_OWNER'
   | 'FILE_TOO_LARGE' | 'UNSUPPORTED_MEDIA_TYPE' | 'EXIF_STRIP_FAILED' | 'UPLOAD_FAILED'
   | 'SELF_REPORT_FORBIDDEN' | 'REPORT_ALREADY_SUBMITTED'
+```
+
+```typescript
+// types/result.ts
+import type { ErrorCode } from './errors'
 
 export type Result<T, E extends ErrorCode = ErrorCode> =
   | { ok: true; data: T }
@@ -174,7 +179,7 @@ export const errorMessages: Record<ErrorCode, string> = {
 新しいエラーコードが必要になったら:
 
 1. **本カタログに追加**（ドメイン別セクション）
-2. **`types/result.ts` の ErrorCode に追加**
+2. **`types/errors.ts` の `ErrorCode` に追加**
 3. **`lib/errors/messages.ts` に日本語メッセージ追加**
 4. **必要なら Sentry送信対象 に追加**
 5. **PR説明にリンク**

@@ -1,6 +1,6 @@
 # Next.jsルーティング設計
 
-Next.js 15+ の App Router を前提とした、URL・ディレクトリ・レイアウトの設計。
+Next.js 16 の App Router を前提とした、URL・ディレクトリ・レイアウトの設計。
 
 ## 設計方針
 
