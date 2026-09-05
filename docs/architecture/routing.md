@@ -17,7 +17,7 @@ Supabase の `profiles.role` と `profiles.status` の2軸で権限を判定す�
 | 権限概念 | 判定条件 | アクセス可能グループ |
 |---|---|---|
 | **guest** | セッションなし | `(browsing)`, `(auth)` |
-| **pending** | セッションあり `status = 'pending_consent'` | `(browsing)`, `/account/pending`, `/settings` |
+| **pending** | セッションあり `status = 'pending_consent'` | `(browsing)`, `/account/pending`, `/settings/account`（メール変更・退会のみ） |
 | **suspended** | `status = 'suspended'` | `/account/suspended` のみ |
 | **user** | `status = 'active'`, `role = 'user'` | 上記 + `(user)` |
 | **owner** | `status = 'active'`, `role = 'owner'` | 上記 + `(owner)` |
@@ -79,8 +79,10 @@ app/
 │   │   └── blocked/
 │   │       └── page.tsx             # /signup/blocked (S_SIGNUP_BLOCKED)
 │   ├── account/
-│   │   └── pending/
-│   │       └── page.tsx             # /account/pending (S_ACCOUNT_PENDING)
+│   │   ├── pending/
+│   │   │   └── page.tsx             # /account/pending (S_ACCOUNT_PENDING)
+│   │   └── suspended/
+│   │       └── page.tsx             # /account/suspended (S_ACCOUNT_SUSPENDED)
 │   └── onboarding/
 │       ├── layout.tsx               # プログレスバー
 │       ├── profile/page.tsx         # /onboarding/profile (S_ONBOARD_PROFILE)
@@ -176,6 +178,7 @@ app/
 | S_SIGNUP_BLOCKED | `/signup/blocked` | Static |
 | S_MINOR_CONSENT | `/signup/consent` | SSR |
 | S_ACCOUNT_PENDING | `/account/pending` | SSR |
+| S_ACCOUNT_SUSPENDED | `/account/suspended` | SSR |
 | S_ONBOARD_* | `/onboarding/{profile,area,interests}` | SSR |
 | S_MYPAGE | `/me` | SSR |
 | S_PROFILE_EDIT | `/me/edit` | SSR |
@@ -209,7 +212,8 @@ app/
 
 ## middleware.ts 設計
 
-`app/middleware.ts` で全リクエストを傍受し、ロールベースのリダイレクトを一元管理する。
+**配置はプロジェクトルートの `middleware.ts`**（`src/` 構成なら `src/middleware.ts`）。`app/middleware.ts` は Next.js に認識されない。
+ここで全リクエストを傍受し、ロールベースのリダイレクトを一元管理する。
 
 ```
 擬似コード:
@@ -329,11 +333,14 @@ app/_actions/
 ├── profiles.ts       # updateProfile, updateAvatar
 ├── drafts.ts         # saveDraft, deleteDraft (autosave)
 ├── notifications.ts  # markAsRead, markAllAsRead
-├── owner.ts          # claimCafe, updateCafeInfo
-└── admin.ts          # resolveReport, approveOwnerClaim
+├── owner.ts          # claimCafe, withdrawClaim, updateCafeInfo,
+│                     # awardRegular, revokeRegular, updateRegularNote (幹C)
+└── admin.ts          # resolveReport, approveOwnerClaim, rejectOwnerClaim
 ```
 
 **注意:**
+- `awardRegular` は `regular_customers` INSERT に加えて、`notifications.type = 'regular_awarded'` の送信と `checkAndAwardBadges(userId, 'REGULAR_AWARDED')` の呼び出しを担う（[data-model/README.md](./data-model/README.md#バッジ付与ロジックの設計)）
+- 公式投稿の公開時は `posts.ts` から `notifications.type = 'official_post'` を、当該カフェを「お気に入り」「行きたい」に入れているユーザーへ送る
 - Server Actionsからは Supabase Server Client を使用（RLS + auth コンテキスト）
 - 認可はRLSに委譲、Server Action側では入力バリデーションのみ
 - 楽観更新はTanstack Query + Server Actions で

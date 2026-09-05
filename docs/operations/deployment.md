@@ -46,7 +46,7 @@ NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<local anon key>
 SUPABASE_SERVICE_ROLE_KEY=<local service role key>
 NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=<開発用キー>
-AWS_S3_BUCKET=<開発用バケット or 未設定でSupabase Storageを使用>
+AWS_S3_BUCKET=<S3採用時のみ。未設定なら Supabase Storage を使用 → pending-items A5 で決定>
 SENTRY_DSN=<開発時は空でも可>
 ```
 
@@ -97,7 +97,7 @@ SENTRY_DSN=<開発時は空でも可>
   - `citext`
   - `postgis`
   - `pg_trgm`
-  - `pg_cron`（下書き自動削除用、Pro以上）
+  - `pg_cron` — **Supabase Pro 以上でのみ利用可。MVP の Free 枠では使えない**。下書きの期限切れ削除は Edge Function + GitHub Actions の `schedule` で代替する（[pending-items A6](../product/pending-items.md)）
 
 ## CI/CD パイプライン
 
@@ -107,11 +107,11 @@ SENTRY_DSN=<開発時は空でも可>
 
 | ファイル | トリガ | 内容 |
 |---|---|---|
-| `ci.yml` | PR / push | lint + typecheck + test |
+| `ci.yml` | PR / push | lint + typecheck + test + build |
 | `e2e.yml` | PR | Playwright E2E |
 | `migration-check.yml` | PR (supabase/migrations 変更時) | migration lint |
 | `deploy-migration.yml` | main push (supabase/migrations 変更時) | prod DB migration 適用 |
-| `preview-cleanup.yml` | PR close | Preview 環境のクリーンアップ |
+| `preview-cleanup.yml` | PR close | Preview 環境のクリーンアップ（**未作成**） |
 
 ### `ci.yml` 例
 
@@ -126,16 +126,18 @@ jobs:
   lint-typecheck-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm biome ci
+      - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test:run
+
+  # 別ジョブで next build も実行する（実体は .github/workflows/ci.yml を参照）
 ```
 
 ### `e2e.yml` 例
@@ -149,9 +151,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v3
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: pnpm
@@ -201,7 +203,7 @@ jobs:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ○ | ○ | ○ | Supabase Anon Key |
 | `SUPABASE_SERVICE_ROLE_KEY` | ○ | ○ | ○ | Server-side only |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | ○ | ○ | ○ | Maps API |
-| `AWS_S3_BUCKET` | ○ | ○ | ○ | 画像バケット |
+| `AWS_S3_BUCKET` | △ | △ | △ | 画像バケット（S3 を採用する場合のみ。[pending-items A5](../product/pending-items.md)） |
 | `AWS_S3_REGION` | ○ | ○ | ○ | |
 | `AWS_ACCESS_KEY_ID` | ○ | ○ | ○ | Server-side only |
 | `AWS_SECRET_ACCESS_KEY` | ○ | ○ | ○ | Server-side only |
@@ -412,4 +414,4 @@ git commit -m "feat: regular_customers テーブル追加"
 - **BrowserStack 契約タイミング** — MVPリリース直前に1ヶ月分（[product/pending-items A1](../product/pending-items.md#a1-safari対応方針)）
 - **メールサービス選定** — Resend / SendGrid 比較未実施（[product/pending-items B3](../product/pending-items.md#b3-保護者同意メールのテンプレート-送信基盤)）
 - **AWS移行の具体構成** — フェーズ2で決定（[product/pending-items C1](../product/pending-items.md#c1-本番awsアーキテクチャ詳細)）
-- **CDN・画像配信の切替タイミング** — Supabase Storage の帯域を見て判断
+- **画像ストレージの正（S3 か Supabase Storage か）** — [pending-items A5](../product/pending-items.md) で決定。切替タイミングは Supabase Storage の帯域を見て判断

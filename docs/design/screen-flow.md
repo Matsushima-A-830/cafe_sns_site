@@ -122,7 +122,7 @@ flowchart TD
 
     Activated --> Onboard1[/S_ONBOARD_PROFILE<br/>username / display_name / avatar/]
     Onboard1 --> Onboard2[/S_ONBOARD_AREA<br/>ホームエリア選択<br/>デフォルト効果/]
-    Onboard2 --> Onboard3[/S_ONBOARD_INTERESTS<br/>興味タグ選択<br/>厳選5～7個から/]
+    Onboard2 --> Onboard3[/S_ONBOARD_INTERESTS<br/>好きな気分を選択 必須<br/>occasion タグから1〜5個/]
     Onboard3 --> MyHome([S_MY_HOME へ])
 
     classDef block fill:#fdd,stroke:#a33

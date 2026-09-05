@@ -153,7 +153,7 @@ Card:...    カードコンポーネントの略記
 | S_ACCOUNT_PENDING | 同意待ち | auth.md |
 | S_ONBOARD_PROFILE | プロフィール初期設定 | auth.md |
 | S_ONBOARD_AREA | ホームエリア選択 | auth.md |
-| S_ONBOARD_INTERESTS | 興味タグ選択 | auth.md |
+| S_ONBOARD_INTERESTS | 好きな気分の選択（必須） | auth.md |
 | S_MYPAGE | マイページ | mypage.md |
 | S_PROFILE_EDIT | プロフィール編集 | mypage.md |
 | S_FAVORITES | お気に入りカフェ | mypage.md |

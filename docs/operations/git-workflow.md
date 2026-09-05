@@ -13,7 +13,7 @@
 シンプルなトランクベース + short-lived feature branch。
 
 ```
-main (protected, 常にデプロイ可能)
+main (常にデプロイ可能。保護設定は下記「ブランチ保護」参照)
  ├── feature/xxx
  ├── fix/xxx
  ├── refactor/xxx
@@ -183,19 +183,28 @@ feat: 気分入り口をS_HOMEに追加
 
 ## ブランチ保護（main）
 
-GitHub 側で設定:
+> ⚠️ **現状は未設定**。GitHub Free では private リポジトリの branch protection / rulesets が使えない（API は HTTP 403）。
+> 下記は Pro 加入 or Public 化した時点で有効化する目標値であり、**それまでは lefthook（pre-push）+ CI の二重チェックで代替**する。
+> 詳細と選択肢: [pending-items D6b](../product/pending-items.md)
+
+有効化できるようになったら以下を設定:
 
 - ✅ 直接 push 禁止
 - ✅ PR 必須（自分含む）
 - ✅ Status checks 必須（CI パス）
-  - `lint` (Biome)
-  - `typecheck` (tsc)
-  - `test` (Vitest)
-  - `e2e` (Playwright、時間かかる場合はメインパスのみ)
-  - `migration-check` (Supabase migration lint)
+  - `Lint / Typecheck / Test`（`ci.yml`）
+  - `Build`（`ci.yml`、`next build`）
+  - `e2e`（Playwright、時間がかかる場合はメインパスのみ）
+  - `migration-check`（Supabase migration lint）
 - ✅ ブランチが最新であることを要求
 - ✅ Delete branch on merge
 - ❌ Approval 必須にはしない（個人開発）
+
+**保護が無効な間の運用ルール（自己規律で担保）:**
+
+- `main` への直接 push はしない。必ずブランチ → PR → Squash Merge
+- CI が赤い PR はマージしない
+- `--no-verify` で pre-push を飛ばさない
 
 ## タグ・リリース
 
@@ -308,26 +317,38 @@ pre-commit:
   parallel: true
   commands:
     biome-check:
-      glob: "*.{ts,tsx,js,jsx,json}"
-      run: pnpm biome check --write {staged_files}
+      glob: "*.{ts,tsx,js,jsx,json,css}"
+      run: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        pnpm biome check --write {staged_files}
       stage_fixed: true
-    typecheck-changed:
-      glob: "*.{ts,tsx}"
-      run: pnpm tsc --noEmit
 
 commit-msg:
   commands:
     conventional-commits:
-      run: pnpm commitlint --edit {1}
+      run: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        pnpm commitlint --edit {1}
 
 pre-push:
   parallel: true
   commands:
-    test:
-      run: pnpm test:run
     typecheck:
-      run: pnpm typecheck
+      run: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        pnpm typecheck
+    test:
+      run: |
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+        pnpm test:run
 ```
+
+- **nvm を source する理由:** GUIクライアントや Windows 側から起動された hook は nvm の PATH を引き継がず、`pnpm` が見つからずに失敗するため
+- 型チェックは全体スキャンで遅いので pre-commit には置かず pre-push に寄せている
 
 `commitlint.config.ts`:
 

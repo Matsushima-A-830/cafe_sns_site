@@ -284,14 +284,26 @@ $$;
 | cafe_id | uuid | NOT NULL, FK → cafes(id) |
 | status | text | NOT NULL, DEFAULT 'pending' |
 | document_urls | jsonb | NOT NULL, DEFAULT '[]' |
+| contact_email | text | NOT NULL |
+| applicant_note | text | |
 | review_notes | text | |
 | reviewed_by | uuid | FK → profiles(id) |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 | reviewed_at | timestamptz | |
 
-**制約:** `CHECK (status IN ('pending','approved','rejected'))`
+**制約:**
+- `CHECK (status IN ('pending','approved','rejected','withdrawn'))`
+- `CHECK (jsonb_array_length(document_urls) >= 2)` — 書類2点以上（[error-catalog](../error-catalog.md) `DOCUMENTS_INSUFFICIENT`）
 
-**RLS:** SELECT は本人 + admin / INSERT 認証済み / UPDATE admin のみ
+**列の意味:**
+- `contact_email` — 運営からの追加確認先。`profiles` のログイン用メールとは別に持つ（[S_OWNER_CLAIM](../../design/wireframes/owner.md#s_owner_claimオーナー認証申請)）
+- `applicant_note` — 「屋号と本人氏名が異なる場合の説明」等の補足事項
+
+**RLS:**
+- SELECT: 本人 + admin
+- INSERT: 認証済み（`user_id = auth.uid()`）
+- UPDATE: admin（審査）、**または本人が `status = 'pending' → 'withdrawn'` に変更する場合のみ**（申請の取り下げ）
+- DELETE: 不可（履歴保持）
 
 ---
 
@@ -344,7 +356,7 @@ $$;
 | bookmark_count | int | NOT NULL, DEFAULT 0 | 同上 |
 | is_official | boolean | NOT NULL, DEFAULT false | 経営者による公式投稿フラグ（幹C） |
 | official_format | text | | オーナー限定フォーマット: `tip` / `today_special` / `closure` / `new_menu` / NULL |
-| metadata | jsonb | NOT NULL, DEFAULT '{}' | 社会的証明カウンタ等の追加余地 |
+| metadata | jsonb | NOT NULL, DEFAULT '{}' | 公式投稿のフォーマット別項目 + 社会的証明カウンタ等の追加余地（下記） |
 | published_at | timestamptz | | |
 | created_at | timestamptz | NOT NULL, DEFAULT now() | |
 | updated_at | timestamptz | NOT NULL, DEFAULT now() | |
@@ -402,6 +414,27 @@ body_search tsvector GENERATED ALWAYS AS (
 ) STORED
 ```
 
+**`metadata` のスキーマ（公式投稿）:** `official_format` ごとに追加項目を持つ。専用カラムを増やさず jsonb に寄せ、Zod スキーマ（`lib/validators/posts.ts`）で境界検証する。
+
+```json
+// today_special: 今日のおすすめ
+{ "v": 1, "menu_name": "季節限定マロンタルト", "price_yen": 580,
+  "valid_until": "2026-09-15" }        // 「今日のみ」「〜今週末」「期限なし(null)」
+
+// new_menu: 新メニュー
+{ "v": 1, "menu_name": "秋の限定ブレンド", "price_yen": 620,
+  "available_from": "2026-09-15" }
+
+// closure: 臨時休業・営業時間変更
+{ "v": 1, "closure_type": "closed" | "hours_changed",
+  "starts_on": "2026-09-15", "ends_on": "2026-09-15", "reason": "私用のため" }
+
+// tip: 豆知識 — 追加項目なし（title + body_json のみ）
+```
+
+- `price_yen` は表示専用。価格の比較・アンカリング表示はフェーズ2（[mvp-scope.md](../../product/mvp-scope.md)）
+- `closure` の期間は `cafe_business_hours` を上書きしない。営業時間そのものへの反映は `cafe_special_hours` テーブルの導入後（[pending-items B5](../../product/pending-items.md)）
+
 **下書きの取り扱い:** 未公開の投稿は `posts` ではなく [`drafts`](#drafts) テーブルに保存。公開時に `drafts` から `posts` へ移送し、`drafts` は削除する。
 
 ---
@@ -456,7 +489,7 @@ body_search tsvector GENERATED ALWAYS AS (
 
 `v` でスキーマバージョンを管理する。フォームのデータ構造変更時は `v` をインクリメントし、クライアント側でバージョン不一致の下書きは破棄して新規下書きとして扱う（サイレント破棄ではなく「古い下書きは使えません」のUI通知を推奨）。
 
-**運用:** Supabase scheduled function または pg_cron で `expires_at < now()` を日次削除
+**運用:** `expires_at < now()` を日次削除。`pg_cron` は Supabase Pro 以上のため、MVP（Free）では Edge Function + GitHub Actions の `schedule` で実行する（[pending-items A6](../../product/pending-items.md)）。取りこぼし対策として、下書き一覧の取得時にも `expires_at > now()` で絞る
 
 **RLS:** SELECT・INSERT・UPDATE・DELETE すべて `auth.uid() = author_id`
 
@@ -574,7 +607,7 @@ body_search tsvector GENERATED ALWAYS AS (
 | reporter_id | uuid | NOT NULL, FK → profiles(id) |
 | target_type | text | NOT NULL | post / comment / user / cafe |
 | target_id | uuid | NOT NULL |
-| reason | text | NOT NULL | spam / harassment / minor_risk / other |
+| reason | text | NOT NULL | spam / harassment / minor_risk / copyright / privacy / other |
 | description | text | |
 | status | text | NOT NULL, DEFAULT 'pending' | pending / reviewing / resolved / rejected |
 | reviewer_id | uuid | FK → profiles(id) |
@@ -582,9 +615,25 @@ body_search tsvector GENERATED ALWAYS AS (
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 | resolved_at | timestamptz | |
 
+**制約:**
+- `CHECK (reason IN ('spam','harassment','minor_risk','copyright','privacy','other'))`
+- `CHECK (target_type IN ('post','comment','user','cafe'))`
+- `CHECK (status IN ('pending','reviewing','resolved','rejected'))`
+
 **インデックス:** `(status, created_at)` — モデレーションキュー
 
 **RLS:** SELECT 本人 + admin / INSERT 認証済み / UPDATE admin のみ
+
+**理由コードと UI ラベルの対応**（[wireframes/composer.md S_REPORT_FORM](../../design/wireframes/composer.md#s_report_form通報フォーム)）:
+
+| code | UIラベル |
+|---|---|
+| `spam` | スパム / 宣伝 |
+| `harassment` | 嫌がらせ / 誹謗中傷 |
+| `minor_risk` | 未成年に不適切 |
+| `copyright` | 著作権侵害 |
+| `privacy` | 個人情報を含む |
+| `other` | その他 |
 
 ---
 
@@ -612,14 +661,26 @@ body_search tsvector GENERATED ALWAYS AS (
 | id | uuid | PK, DEFAULT gen_random_uuid() |
 | recipient_id | uuid | NOT NULL, FK → profiles(id) |
 | actor_id | uuid | FK → profiles(id) |
-| type | text | NOT NULL | like / comment / follow / mention / badge / owner_verified |
+| type | text | NOT NULL | 下の CHECK 制約と同じ値域（説明は下表） |
 | entity_type | text | | post / comment / user 等 |
 | entity_id | uuid | |
 | payload | jsonb | NOT NULL, DEFAULT '{}' |
 | read_at | timestamptz | |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 
-**制約:** `CHECK (type IN ('like','comment','follow','mention','badge','owner_verified','regular_awarded'))`
+**制約:** `CHECK (type IN ('like','comment','follow','mention','badge','owner_verified','regular_awarded','official_post','report_resolved'))`
+
+| type | 発火元 | 宛先 |
+|---|---|---|
+| `like` | `likes` INSERT | 投稿者 |
+| `comment` | `comments` INSERT | 投稿者 / 親コメント作者 |
+| `follow` | `follows` INSERT | フォローされた人 |
+| `mention` | 本文中の @メンション（MVP未実装、[pending-items D2](../../product/pending-items.md)） | 対象ユーザー |
+| `badge` | `checkAndAwardBadges` | 獲得者 |
+| `owner_verified` | オーナー認証の承認 / 却下 | 申請者 |
+| `regular_awarded` | 常連認定（幹C） | 認定されたユーザー |
+| `official_post` | オーナー限定投稿の公開（幹C） | 当該カフェを「お気に入り」「行きたい」に入れているユーザー |
+| `report_resolved` | 通報の `status` が resolved / rejected に遷移 | 通報者 |
 
 **インデックス:** `(recipient_id, created_at DESC) WHERE read_at IS NULL` — 未読
 

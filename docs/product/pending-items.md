@@ -43,6 +43,29 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **将来 (C系):** Google Places API "popular times" 連携は投稿数が集まってから検討
 - **残作業:** Postgres関数の実装、投稿数増加時に Materialized View 化検討
 
+### A5. 画像ストレージの正をどちらにするか 🔴 未決
+
+- **課題:** ドキュメント間で S3 と Supabase Storage が混在している
+  - `CLAUDE.md` 技術スタック / `tables.md` `post_images.storage_path` → **AWS S3 + CloudFront**
+  - `tables.md` `cafe_owner_verifications.document_urls` / `owner.md` → **Supabase Storage 非公開バケット**
+  - `deployment.md` の Local 例 → 「未設定で Supabase Storage を使用」
+- **選択肢:**
+  - a) 公開画像は S3 + CloudFront、非公開の審査書類のみ Supabase Storage（現状のドキュメント通り、2系統を運用）
+  - b) MVP は Supabase Storage に一本化し、帯域が問題になった時点で S3 + CloudFront へ移行
+- **推奨:** b（MVPの運用コストと実装工数が小さい。`lib/storage/` のラッパー越しに使い、移行時の差し替え点を1箇所に閉じる）
+- **決定期限:** 投稿画像アップロード機能の実装前
+
+### A6. `pg_cron` が Supabase Free で使えない問題 🔴 未決
+
+- **課題:** `drafts.expires_at`（30日）の自動削除に `pg_cron` を想定しているが、**`pg_cron` は Supabase Pro 以上**。`deployment.md` のコスト見積りは Free 前提で $0
+- **影響範囲:** 期限切れ下書きの削除、将来の集計バッチ（`cafe_congestion_hourly_avg` の Materialized View 更新等）
+- **選択肢:**
+  - a) Supabase Edge Function + 外部スケジューラ（GitHub Actions の `schedule`）で日次実行
+  - b) 参照時に遅延削除（下書き一覧の取得時に `expires_at < now()` を除外 + まとめて削除）
+  - c) Supabase Pro ($25/月) に上げる
+- **推奨:** a + b の併用（Free 枠のまま動き、取りこぼしがない）
+- **決定期限:** 下書き自動保存の実装前
+
 ## 優先度B: 実装フェーズ中に解消可
 
 ### B1. バッジ画像アセット
@@ -83,6 +106,16 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - c) 外部AIモデレーション（Perspective API）に移行
 - **推奨:** MVPは a、成長後に c を検討
 - **決定期限:** 投稿機能実装前
+
+### B5. `cafe_special_hours` テーブルの要否
+
+- **課題:** オーナー限定投稿の `closure`（臨時休業・営業時間変更）で期間を入力させるが、現状は `posts.metadata` に持つだけで `cafe_business_hours` に反映されない。`S_OWNER_CAFE_EDIT` にも「特別営業日 [追加]」UIがある
+- **選択肢:**
+  - a) `cafe_special_hours (cafe_id, date, opens_at, closes_at, is_closed, source_post_id)` を新設し、カフェ詳細の営業時間表示で当日分を上書き
+  - b) MVP は告知（公式投稿）のみに留め、営業時間表示は通常の `cafe_business_hours` のまま
+- **推奨:** MVP は b、公式投稿の利用が定着したら a へ
+- **決定期限:** オーナー限定投稿 `closure` の実装前
+- 参照: [wireframes/composer.md](../design/wireframes/composer.md) / [wireframes/owner.md](../design/wireframes/owner.md)
 
 ## 優先度C: MVP後で可
 
