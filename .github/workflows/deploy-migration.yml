@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'supabase/migrations/**'
+      # db push --include-seed でマスタデータも配るので、seed 単独の変更でも
+      # 起動させる。無いとタグ追加・ラベル修正が次のマイグレーションまで反映されない
+      - 'supabase/seed.sql'
 
 concurrency:
   group: deploy-migration

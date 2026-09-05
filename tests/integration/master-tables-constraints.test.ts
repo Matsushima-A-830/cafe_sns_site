@@ -28,20 +28,21 @@ describe('badges.criteria の形状制約', () => {
   })
 
   // jsonb_typeof は STRICT なのでキー欠落だと NULL を返す。
-  // CHECK は NULL でも通過するため、coalesce で潰さないと素通りする
+  // CHECK は NULL でも通過するため、coalesce で潰さないと素通りする。
+  //
+  // code は日本語ラベルから作らず ASCII で明示する。ラベルから生成すると
+  // 全ケースが同じ code に潰れ、制約が退行した時に2件目以降が 23514 ではなく
+  // 23505（unique 違反）で落ちて誤診につながる
   it.each([
-    ['空オブジェクト', {}],
-    ['type だけ', { type: 'post_count' }],
-    ['threshold だけ', { threshold: 1 }],
-    ['type が文字列でない', { type: 5, threshold: 1 }],
-    ['threshold が数値でない', { type: 'post_count', threshold: '1' }],
-    ['オブジェクトですらない（配列）', []],
-    ['オブジェクトですらない（文字列）', 'post_count'],
-  ])('%s は拒否される', async (label, criteria) => {
-    const { error } = await insertCriteria(
-      `CONSTRAINT_TEST_${label.replace(/[^A-Za-z]/g, '')}`,
-      criteria,
-    )
+    ['EMPTY', '空オブジェクト', {}],
+    ['TYPE_ONLY', 'type だけ', { type: 'post_count' }],
+    ['THRESHOLD_ONLY', 'threshold だけ', { threshold: 1 }],
+    ['TYPE_NOT_STRING', 'type が文字列でない', { type: 5, threshold: 1 }],
+    ['THRESHOLD_NOT_NUMBER', 'threshold が数値でない', { type: 'post_count', threshold: '1' }],
+    ['ARRAY', 'オブジェクトですらない（配列）', []],
+    ['SCALAR', 'オブジェクトですらない（文字列）', 'post_count'],
+  ])('%s: %s は拒否される', async (key, _label, criteria) => {
+    const { error } = await insertCriteria(`CONSTRAINT_TEST_${key}`, criteria)
 
     expect(error?.code).toBe(CHECK_VIOLATION)
   })
@@ -67,6 +68,19 @@ describe('areas の制約', () => {
       slug: 'constraint-test-level',
       label: '未知レベル',
       level: 'prefecture',
+    })
+
+    expect(error?.code).toBe(CHECK_VIOLATION)
+  })
+
+  it('ward は親を持てない（階層は1段のみ）', async () => {
+    const { error } = await service.from('areas').insert({
+      code: 'JP-13-constraint-test-ward-parent',
+      prefecture_code: 'JP-13',
+      slug: 'constraint-test-ward-parent',
+      label: '親を持つ区',
+      level: 'ward',
+      parent_code: 'JP-13-shibuya-ku',
     })
 
     expect(error?.code).toBe(CHECK_VIOLATION)

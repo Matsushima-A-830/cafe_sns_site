@@ -80,6 +80,16 @@ service_role で流すので影響しない。
   それまでマスタの変更は seed の更新 + `db:reset`、本番は service_role からの手動投入で回す
 - **検証:** 拒否パスは `tests/integration/master-tables-rls.test.ts` が押さえている（許可パスの検証は admin が要るのでこの決定待ち）
 
+#### A9 を解く時に同時に片付けること
+
+1. **`db push --include-seed` が admin の編集を毎デプロイ巻き戻す。**
+   `seed.sql` の `on conflict do update` は `label` / `priority` / `is_curated` / `description` / `criteria` を
+   上書きする（保護しているのは `areas.is_active` のみ）。今は admin がマスタを書けないので無害だが、
+   書き込みポリシーを足した瞬間、管理画面での編集が次のデプロイで消える。
+   seed を「初期投入のみ（`do nothing`）」に倒すか、マスタ編集を seed 経由に一本化するかを決める
+2. **`areas` の2ノード循環を塞ぐ。** `sub_area` 同士が互いを親に指すケースは CHECK では防げないので、
+   「親は必ず `level='ward'`」をトリガーで担保する（[tables.md #areas](../architecture/data-model/tables.md#areas)）
+
 ### A4. 混雑度データの入力方法 ✅ 解消済（2026-09-03）
 
 - **解消:** ユーザー投稿 + 時間帯別平均グラフ方式に決定

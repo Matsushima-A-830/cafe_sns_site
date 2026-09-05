@@ -239,7 +239,18 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 - `CHECK (code = prefecture_code || '-' || slug)` — コード整合性の自動チェック
 - `CHECK (level IN ('ward','sub_area'))`
 - `CHECK (parent_code IS DISTINCT FROM code)` — 自分自身を親にできない（階層ナビが無限ループする）
+- `CHECK ((level='ward' AND parent_code IS NULL) OR level='sub_area')` — 階層は1段のみ。`ward` が親を持つと階層走査が循環し、23区制覇の母数もずれる
 - `parent_code` の FK は `ON DELETE RESTRICT`（コード変更禁止・削除は `is_active=false` の運用に合わせる）
+
+> **残る穴:** `sub_area` 同士が互いを親に指す2ノード循環は CHECK では防げない（CHECK は他行を参照できない）。
+> 現状マスタを書けるのは seed と service_role だけなので実害はないが、
+> **admin がエリアを編集できるようにする時（[pending-items A9](../../product/pending-items.md)）に、
+> 「親は必ず `level='ward'`」をトリガーで担保すること。**
+
+**`tiptap_to_plaintext` の戻り値は NULL になりうる。** `supabase gen types` は関数の戻り値を
+non-nullable (`Returns: string`) として生成するため、RPC 経由で呼ぶ場合は型を信用せず NULL を扱う
+（text ノードが無い投稿・STRICT による NULL 入力の2経路がある）。`posts.body_text` の生成列は
+`coalesce` で包んでいるので DB 側は安全。
 
 **`level` を持つ理由:** `parent_code IS NULL` を「市区町村レベル」の代わりに使うと、23区外で親を持たないエリア（例: 吉祥寺／武蔵野市）が混入して「東京23区制覇」の母数が狂う。レベルは明示的に持つ。
 

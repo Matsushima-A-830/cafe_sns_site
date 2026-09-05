@@ -22,7 +22,11 @@ create table public.areas (
   constraint areas_prefecture_slug_key unique (prefecture_code, slug),
   constraint areas_code_matches_slug check (code = prefecture_code || '-' || slug),
   constraint areas_level_check check (level in ('ward', 'sub_area')),
-  constraint areas_parent_not_self check (parent_code is distinct from code)
+  constraint areas_parent_not_self check (parent_code is distinct from code),
+  -- 階層は1段のみ。ward が親を持つと階層走査が循環し、23区制覇の母数もずれる
+  constraint areas_hierarchy_check check (
+    (level = 'ward' and parent_code is null) or level = 'sub_area'
+  )
 );
 
 comment on table public.areas is 'エリアマスタ。code は変更禁止（is_active=false にして新コードを作る）';

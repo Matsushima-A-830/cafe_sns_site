@@ -2,11 +2,11 @@ name: Integration
 
 # tests/integration/** は実 Supabase を要求するため、Supabase を起動しない
 # ci.yml の Vitest ジョブ（pnpm test:run）からは除外してこちらで流す。
+# paths-ignore は付けない。必須ステータスチェックに指定しているため、
+# path フィルタでスキップすると GitHub が合格を合成せず、docs だけの PR が
+# 「Waiting for status to be reported」で永久に止まる
 on:
   pull_request:
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
   push:
     branches: [main]
 

@@ -191,12 +191,20 @@ feat: 気分入り口をS_HOMEに追加
 
 - ✅ 直接 push 禁止
 - ✅ PR 必須（自分含む）
-- ✅ Status checks 必須（CI パス）
+- ✅ Status checks 必須（CI パス）— **名前は GitHub 上の「ジョブ名」で指定する**（ワークフロー名ではない）
   - `Lint / Typecheck / Test`（`ci.yml`）
   - `Build`（`ci.yml`、`next build`）
   - `Supabase Integration`（`integration.yml`、RLS の統合テスト）
-  - `e2e`（Playwright、時間がかかる場合はメインパスのみ）
-  - `migration-check`（Supabase migration lint）
+  - `Playwright`（`e2e.yml`）
+
+> ⚠️ **必須チェックにするワークフローに `paths` / `paths-ignore` を付けてはいけない。**
+> GitHub は path フィルタでスキップしたワークフローに合格ステータスを**合成しない**ため、
+> 条件に当たらない PR（例: docs のみ）が「Waiting for status to be reported」で永久に止まる。
+> このため `integration.yml` と `e2e.yml` からは path フィルタを外してある。
+>
+> `migration-check.yml` は `supabase/**` に絞ったままなので、**必須チェックには含めない**。
+> マイグレーションが壊れていれば `Supabase Integration` の `db reset` が先に落ちるので、
+> ゲートとしての穴は空かない。
 - ✅ ブランチが最新であることを要求
 - ✅ Delete branch on merge
 - ❌ Approval 必須にはしない（個人開発）
