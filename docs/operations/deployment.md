@@ -197,19 +197,23 @@ jobs:
 
 ### 一覧
 
+凡例: ○ = 必須（未設定なら起動時に Zod が落とす） / △ = 任意（該当機能を使う時だけ） / ✕ = 不要
+
 | 変数 | Local | Preview | Prod | 説明 |
 |---|---|---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | ○ | ○ | ○ | Supabase URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ○ | ○ | ○ | Supabase Anon Key |
 | `SUPABASE_SERVICE_ROLE_KEY` | ○ | ○ | ○ | Server-side only |
-| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | ○ | ○ | ○ | Maps API |
-| `AWS_S3_BUCKET` | △ | △ | △ | 画像バケット（S3 を採用する場合のみ。[pending-items A5](../product/pending-items.md)） |
-| `AWS_S3_REGION` | ○ | ○ | ○ | |
-| `AWS_ACCESS_KEY_ID` | ○ | ○ | ○ | Server-side only |
-| `AWS_SECRET_ACCESS_KEY` | ○ | ○ | ○ | Server-side only |
-| `SENTRY_DSN` | ✕ | ○ | ○ | エラー通知 |
 | `NEXT_PUBLIC_SITE_URL` | ○ | ○ | ○ | 自サイトURL（OG等） |
-| `RESEND_API_KEY` | ✕ | ○ | ○ | 保護者同意メール等 |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | △ | △ | △ | Maps API。S_MAP 実装までは未設定で動く |
+| `AWS_S3_BUCKET` | △ | △ | △ | 画像バケット。**S3 を採用する場合のみ**（[pending-items A5](../product/pending-items.md) 未決） |
+| `AWS_S3_REGION` | △ | △ | △ | 同上 |
+| `AWS_ACCESS_KEY_ID` | △ | △ | △ | 同上 / Server-side only |
+| `AWS_SECRET_ACCESS_KEY` | △ | △ | △ | 同上 / Server-side only |
+| `RESEND_API_KEY` | ✕ | △ | ○ | 保護者同意メール等。本番は未成年フローに必須 |
+| `SENTRY_DSN` | ✕ | △ | ○ | エラー通知 |
+
+**AWS 系と Maps を必須にしない理由:** A5 が未決のうちに必須化すると、画像機能に触らない開発でも起動できなくなる。実際に使う箇所で「未設定なら機能を出さない」を判断する。
 
 ### 管理方針
 
@@ -221,31 +225,42 @@ jobs:
 
 ### `lib/env.ts` で Zod 検証
 
+**実装が正。** 以下は現在の [`lib/env.ts`](../../lib/env.ts) の写しであり、変更したらこの節も更新する。
+
 ```typescript
 import { z } from 'zod'
 
-const publicEnv = z.object({
+const publicEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
-  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: z.string().min(1),
   NEXT_PUBLIC_SITE_URL: z.string().url(),
+  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: z.string().min(1).optional(),
 })
 
-const serverEnv = publicEnv.extend({
+const serverEnvSchema = publicEnvSchema.extend({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
-  AWS_S3_BUCKET: z.string().min(1),
-  AWS_S3_REGION: z.string().min(1),
-  AWS_ACCESS_KEY_ID: z.string().min(1),
-  AWS_SECRET_ACCESS_KEY: z.string().min(1),
+  AWS_S3_BUCKET: z.string().min(1).optional(),
+  AWS_S3_REGION: z.string().min(1).optional(),
+  AWS_ACCESS_KEY_ID: z.string().min(1).optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+  RESEND_API_KEY: z.string().min(1).optional(),
   SENTRY_DSN: z.string().url().optional(),
-  RESEND_API_KEY: z.string().optional(),
 })
 
-// 実行環境で切り分け（server-only import）
-export const env = typeof window === 'undefined'
-  ? serverEnv.parse(process.env)
-  : publicEnv.parse(process.env)
+export const env =
+  typeof window === 'undefined'
+    ? serverEnvSchema.parse(process.env)
+    : publicEnvSchema.parse({
+        NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+      })
 ```
+
+**クライアント側で変数を1つずつ列挙している理由:** Next.js は `process.env.NEXT_PUBLIC_XXX` という**静的な参照**だけをビルド時に値へ置換する。ブラウザに `process.env` オブジェクトそのものは存在しないため、`publicEnvSchema.parse(process.env)` と書くと実行時に必ず落ちる。
+
+**任意の変数を使う側の作法:** `env.AWS_S3_BUCKET` 等は `string | undefined` になる。使用箇所で未設定を検知したら、機能を出さないか `EXTERNAL_SERVICE_ERROR` を返す（[error-catalog](../architecture/error-catalog.md)）。`!` で握りつぶさない。
 
 ## DB マイグレーション運用
 

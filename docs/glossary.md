@@ -28,7 +28,8 @@
 | コメント | `comment` | `comments` | 投稿へのユーザー返信 |
 | 返信 | `reply` | `comments.parent_id` | コメントへの返信（コメントの子） |
 | タグ | `tag` | `tags` | 投稿の分類ラベル |
-| エリア | `area` | `areas` / `cafes.area_code` / `area_visits.area_code` | 制覇マップで使う地理区分（ISO 3166-2準拠） |
+| エリア | `area` | `areas` / `cafes.area_code` / `area_visits.area_code` / `profiles.home_area_code` | 制覇マップで使う地理区分（ISO 3166-2準拠）。**エリアを参照する列は必ず `areas.code` への FK にする**（自由テキストで持たない） |
+| ホームエリア | `home area` | `profiles.home_area_code` | ユーザーがよく行くエリア。おすすめ・タグサジェストの初期値 |
 | バッジ | `badge` | `badges` / `user_badges` | ゲーミフィケーション達成報酬 |
 | 通報 | `report` | `reports` | ユーザーからの違反報告 |
 | ブロック | `block` | `blocks` | 相互非表示化 |

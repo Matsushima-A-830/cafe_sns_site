@@ -33,7 +33,7 @@
 | コード | 意味 | 発生源 |
 |---|---|---|
 | `EMAIL_ALREADY_EXISTS` | メールアドレス重複 | signup |
-| `PHONE_ALREADY_EXISTS` | 電話番号重複 | signup |
+| `PHONE_ALREADY_EXISTS` | 電話番号重複 | signup ※**MVP未使用**（電話番号登録は見送り → [pending-items B6](../product/pending-items.md)）。型は残す |
 | `USERNAME_ALREADY_EXISTS` | username重複 | onboarding |
 | `INVALID_CREDENTIALS` | ログイン失敗 | login |
 | `OTP_INVALID` | 確認コード不一致 | signup verify |
@@ -98,7 +98,7 @@
 | コード | 意味 | 発生源 |
 |---|---|---|
 | `SELF_REPORT_FORBIDDEN` | 自分自身への通報禁止 | createReport |
-| `REPORT_ALREADY_SUBMITTED` | 同一対象への既通報あり | createReport |
+| `REPORT_ALREADY_SUBMITTED` | 同一対象への**未処理の**通報が既にある（DB の部分ユニークインデックスで担保） | createReport |
 
 ---
 

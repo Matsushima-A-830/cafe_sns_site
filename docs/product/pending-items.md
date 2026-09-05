@@ -29,8 +29,9 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **初期セット:** 東京45エリア（23区 + 主要副地域22）
 - **残作業:**
   - DB初期化時に `areas` テーブル作成 + seed SQL 実行
-  - エリア境界 (`center_location`, `bounds`) の座標データ収集
-  - 新規カフェ登録時の `area_code` 自動判定ロジック（PostGIS `ST_Distance`）
+  - `areas.center_location` の座標データ収集（45エリアぶんの中心点）
+  - 新規カフェ登録時の `area_code` 自動判定ロジック（PostGIS `ST_Distance` で最寄りの `center_location` を選ぶ）
+- **境界ポリゴン (`bounds`) は持たない（2026-09-05 決定）:** [tables.md areas](../architecture/data-model/tables.md#areas) は `center_location`（点）のみを持つ。エリア判定は最寄り中心点への距離で足り、行政界ポリゴンの調達・保守コストに見合わない。地図の初期表示範囲も中心点 + 固定ズームで代替する
 
 ### A4. 混雑度データの入力方法 ✅ 解消済（2026-09-03）
 
@@ -65,6 +66,17 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - c) Supabase Pro ($25/月) に上げる
 - **推奨:** a + b の併用（Free 枠のまま動き、取りこぼしがない）
 - **決定期限:** 下書き自動保存の実装前
+- **影響範囲の追記（2026-09-05）:** 下書き削除だけでなく **`S_OWNER_ANALYTICS` の「Materialized View から日次更新」**（[wireframes/owner.md](../design/wireframes/owner.md#s_owner_analytics投稿分析)）も同じスケジューラに依存する。MVPスコープ内の機能なので、A6 は「後回し可」ではない
+
+### A7. オンボーディングで選んだ「好きな気分」の保存先 🔴 未決（2026-09-05 追加）
+
+- **課題:** `S_ONBOARD_INTERESTS` は occasion タグを1〜5個**必須**で選ばせ、ワイヤーフレームにも「気分起点の発見体験（幹A）の初期データがここでしか取れない」と明記されている。しかし **25テーブルのどこにも保存先がない**（`tags` は投稿に紐づく `post_tags` しか持たない）
+- **影響:** 保存先がないと「シーン別レコメンド」「あなたと同じ気分の人が保存したカフェ」（[positioning.md 幹A 施策3](./positioning.md)）が成立しない
+- **選択肢:**
+  - a) `user_interest_tags (user_id, tag_id, created_at)` を新設（PK 複合、RLS: SELECT 全員 or 本人 / INSERT・DELETE 本人）
+  - b) `profiles.metadata` の jsonb に `interest_tag_ids` として持つ
+- **推奨:** a（タグ別の集計・レコメンドで結合が必要になるため。jsonb だとインデックスが効きにくい）
+- **決定期限:** オンボーディング実装前（＝初回マイグレーション）
 
 ## 優先度B: 実装フェーズ中に解消可
 
@@ -116,6 +128,14 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **推奨:** MVP は b、公式投稿の利用が定着したら a へ
 - **決定期限:** オーナー限定投稿 `closure` の実装前
 - 参照: [wireframes/composer.md](../design/wireframes/composer.md) / [wireframes/owner.md](../design/wireframes/owner.md)
+
+### B6. 電話番号（SMS OTP）でのサインアップ 🟡 MVP見送り決定（2026-09-05）
+
+- **決定:** MVP の登録手段は **メールアドレスのみ**。ドキュメント（[mvp-scope.md](./mvp-scope.md) / [screen-flow.md](../design/screen-flow.md) / [wireframes/auth.md](../design/wireframes/auth.md)）から電話番号の導線を削除済み
+- **理由:** Supabase Auth の Phone Auth は SMS 送信を外部プロバイダ（Twilio / MessageBird / Vonage 等）に委譲する仕様で、**無料枠がなく従量課金**（日本向けSMSは1通あたり十数円規模）。[deployment.md](../operations/deployment.md) のフェーズ1コスト見積り（Vercel Hobby + Supabase Free = $0）と両立しない
+- **副作用:** `PHONE_ALREADY_EXISTS` は [error-catalog](../architecture/error-catalog.md) と `types/errors.ts` に**残す**（削除しても再追加コストのほうが高い。[D2](#d2-notificationstype--mention-の要否再確認) と同じ判断）
+- **再検討の条件:** 収益化して SMS 費用を吸収できる目処が立った時、またはメール到達率が実測で問題になった時
+- **決定期限:** 再検討タイミングは PMF 後
 
 ## 優先度C: MVP後で可
 
