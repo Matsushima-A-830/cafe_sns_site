@@ -201,7 +201,9 @@ password_requirements = ""
 
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
-email_sent = 2
+# E2E (signup-onboarding.spec.ts) は4ブラウザプロジェクト×複数テストでサインアップを繰り返すため、
+# デフォルトの2/時だとCIで即座に上限に達してしまう。ローカル専用設定なので大きく緩和する
+email_sent = 100
 # Number of SMS messages that can be sent per hour. Requires auth.sms to be enabled.
 sms_sent = 30
 # Number of anonymous sign-ins that can be made per hour per IP address. Requires enable_anonymous_sign_ins = true.
@@ -250,6 +252,12 @@ otp_expiry = 3600
 # pass = "env(SENDGRID_API_KEY)"
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
+
+# S_SIGNUP step2 は6桁コード入力のUIなので、デフォルトのマジックリンクテンプレートでは
+# {{ .Token }} が画面に出ない。確認コードを本文に載せるテンプレートに差し替える
+[auth.email.template.confirmation]
+subject = "【カフェSNS】確認コードのお知らせ"
+content_path = "./supabase/templates/confirmation.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

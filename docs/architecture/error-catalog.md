@@ -39,6 +39,7 @@
 | `OTP_INVALID` | 確認コード不一致 | signup verify |
 | `OTP_EXPIRED` | 確認コード期限切れ | signup verify |
 | `AGE_RESTRICTED` | 13歳未満のブロック | signup birthdate |
+| `BIRTHDATE_REQUIRED` | 生年月日未入力（onboarding/profile に生年月日無しで到達） | submitProfile |
 | `CONSENT_REQUIRED` | 保護者同意未完了で操作不可 | 各種投稿系Action |
 | `CONSENT_TOKEN_INVALID` | 保護者同意リンクトークン無効 | webhooks/consent |
 | `ACCOUNT_SUSPENDED` | 停止中アカウント | すべて |
@@ -111,7 +112,7 @@ export type ErrorCode =
   | 'CONFLICT' | 'RATE_LIMITED' | 'INTERNAL_ERROR' | 'EXTERNAL_SERVICE_ERROR'
   | 'EMAIL_ALREADY_EXISTS' | 'PHONE_ALREADY_EXISTS' | 'USERNAME_ALREADY_EXISTS'
   | 'INVALID_CREDENTIALS' | 'OTP_INVALID' | 'OTP_EXPIRED'
-  | 'AGE_RESTRICTED' | 'CONSENT_REQUIRED' | 'CONSENT_TOKEN_INVALID'
+  | 'AGE_RESTRICTED' | 'BIRTHDATE_REQUIRED' | 'CONSENT_REQUIRED' | 'CONSENT_TOKEN_INVALID'
   | 'ACCOUNT_SUSPENDED' | 'ACCOUNT_DELETED'
   | 'POST_NOT_FOUND' | 'POST_ALREADY_DELETED' | 'POST_TAGS_LIMIT_EXCEEDED'
   | 'POST_IMAGES_LIMIT_EXCEEDED' | 'POST_BODY_EMPTY' | 'NG_WORD_DETECTED'
