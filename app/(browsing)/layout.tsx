@@ -1,34 +1,13 @@
-import Link from 'next/link'
-import { logOut } from '@/app/_actions/auth'
-import { Button } from '@/components/ui/button'
-import { createClient } from '@/lib/supabase/server'
+import { AuthNav } from './auth-nav'
 
-export default async function BrowsingLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
+export default function BrowsingLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-full flex-col">
       <header className="border-b border-default bg-surface">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <div className="text-xl font-bold text-foreground">カフェSNS</div>
           <nav className="flex items-center gap-4 text-sm text-muted-foreground">
-            {user ? (
-              <form action={logOut}>
-                <Button type="submit" variant="ghost" size="sm">
-                  ログアウト
-                </Button>
-              </form>
-            ) : (
-              <>
-                <span>未ログイン</span>
-                <Button asChild size="sm">
-                  <Link href="/login">ログイン</Link>
-                </Button>
-              </>
-            )}
+            <AuthNav />
           </nav>
         </div>
       </header>

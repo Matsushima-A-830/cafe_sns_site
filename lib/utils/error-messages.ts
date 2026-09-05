@@ -18,6 +18,7 @@ const messages: Partial<Record<ErrorCode, string>> = {
   ACCOUNT_SUSPENDED: 'このアカウントは停止されています',
   ACCOUNT_DELETED: 'このアカウントは削除されています',
   AREA_CODE_UNKNOWN: '選択したエリアが見つかりませんでした',
+  CONSENT_REQUIRED: '保護者の同意が必要です',
 }
 
 export function errorMessage(code: ErrorCode): string {

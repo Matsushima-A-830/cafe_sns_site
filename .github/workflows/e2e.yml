@@ -45,14 +45,17 @@ jobs:
       - name: Apply migrations
         run: pnpm exec supabase db reset
 
-      # NEXT_PUBLIC_* はビルド時に静的に埋め込まれるため、build より前に $GITHUB_ENV へ出す
+      # NEXT_PUBLIC_* はビルド時に静的に埋め込まれるため、build より前に $GITHUB_ENV へ出す。
+      # eval で丸ごと展開すると鍵の値に &, ;, 空白等が混ざった場合にコマンド実行されうるため、
+      # 必要な3キーだけを grep で安全に抜き出す
       - name: Export Supabase env
         run: |
-          eval "$(pnpm exec supabase status -o env | sed -E 's/^([A-Z0-9_]+)="(.*)"$/\1=\2/')"
+          STATUS=$(pnpm exec supabase status -o env)
+          extract() { echo "$STATUS" | grep -E "^$1=" | sed -E 's/^[A-Z0-9_]+="(.*)"$/\1/'; }
           {
-            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
-            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
-            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "NEXT_PUBLIC_SUPABASE_URL=$(extract API_URL)"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$(extract ANON_KEY)"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$(extract SERVICE_ROLE_KEY)"
             echo "NEXT_PUBLIC_SITE_URL=http://localhost:3000"
           } >> "$GITHUB_ENV"
 

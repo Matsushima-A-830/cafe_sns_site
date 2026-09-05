@@ -50,9 +50,15 @@ export async function submitProfile(input: unknown): Promise<Result<null>> {
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
 
-  const metadata = user.user_metadata as SignupMetadata
+  const metadata = user.app_metadata as SignupMetadata
   if (!metadata.birth_date || !metadata.age_category) {
     return { ok: false, error: 'INVALID_INPUT', details: '生年月日が未入力です' }
+  }
+
+  // /signup/consent を飛ばして直接ここに来ると guardian_email が無いまま
+  // pending_consent の凍結アカウントができ、/account/pending には再入力導線が無いため詰む
+  if (metadata.age_category === 'minor' && !metadata.guardian_email) {
+    return { ok: false, error: 'CONSENT_REQUIRED' }
   }
 
   const status = metadata.age_category === 'minor' ? 'pending_consent' : 'active'
@@ -69,8 +75,13 @@ export async function submitProfile(input: unknown): Promise<Result<null>> {
   })
 
   if (error) {
-    if (error.code === POSTGRES_UNIQUE_VIOLATION)
-      return { ok: false, error: 'USERNAME_ALREADY_EXISTS' }
+    // PK は id (= 自分自身の auth id) なので、二重送信は profiles_pkey 違反であって
+    // ユーザーネーム重複ではない。制約名で区別しないと「使用済み」と誤表示する
+    if (error.code === POSTGRES_UNIQUE_VIOLATION) {
+      return error.message.includes('username')
+        ? { ok: false, error: 'USERNAME_ALREADY_EXISTS' }
+        : { ok: false, error: 'CONFLICT' }
+    }
     return { ok: false, error: 'INTERNAL_ERROR', details: error.message }
   }
 
@@ -92,10 +103,14 @@ export async function submitArea(input: unknown): Promise<Result<null>> {
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
 
+  // update は該当行が0件でもエラーにならない（PostgREST）。.single() で
+  // 実際に1行更新されたことを確認する
   const { error } = await supabase
     .from('profiles')
     .update({ home_area_code: parsed.data.areaCode ?? null })
     .eq('id', user.id)
+    .select('id')
+    .single()
 
   if (error) {
     // home_area_code は areas.code への FK。存在しないコードは一意制約ではなく外部キー制約に違反する
@@ -121,21 +136,31 @@ export async function submitInterests(input: unknown): Promise<Result<null>> {
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
 
-  const { error: insertError } = await supabase
+  // 前回の試行でタグ INSERT は成功したが直後の onboarded_at 更新だけ失敗した場合、
+  // 再送信での INSERT は enforce_user_interest_tags_rules トリガーの件数チェックに
+  // 一意制約より先に引っかかり P0001 (INTEREST_TAGS_LIMIT) になる。
+  // ここで弾くと永久にオンボーディングを完了できなくなるため、既に1件でも保存済みなら
+  // INSERT 自体をスキップして onboarded_at の更新に進む
+  const { count: existingCount, error: countError } = await supabase
     .from('user_interest_tags')
-    .insert(parsed.data.tagIds.map((tagId) => ({ user_id: user.id, tag_id: tagId })))
+    .select('tag_id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
 
-  // 前回の試行でタグ INSERT は成功したが直後の onboarded_at 更新が失敗した場合、
-  // 再送信は同じ (user_id, tag_id) の重複違反になる。ここで弾くと永久にオンボーディングを
-  // 完了できなくなるため、重複は「既に保存済み」として onboarded_at の更新に進む
-  if (insertError && insertError.code !== POSTGRES_UNIQUE_VIOLATION) {
-    return { ok: false, error: 'INTERNAL_ERROR', details: insertError.message }
+  if (countError) return { ok: false, error: 'INTERNAL_ERROR', details: countError.message }
+
+  if (!existingCount) {
+    const { error: insertError } = await supabase
+      .from('user_interest_tags')
+      .insert(parsed.data.tagIds.map((tagId) => ({ user_id: user.id, tag_id: tagId })))
+    if (insertError) return { ok: false, error: 'INTERNAL_ERROR', details: insertError.message }
   }
 
   const { error: updateError } = await supabase
     .from('profiles')
     .update({ onboarded_at: new Date().toISOString() })
     .eq('id', user.id)
+    .select('id')
+    .single()
 
   if (updateError) return { ok: false, error: 'INTERNAL_ERROR', details: updateError.message }
 

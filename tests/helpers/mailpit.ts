@@ -14,7 +14,8 @@ export async function fetchLatestOtp(email: string): Promise<string> {
     if (latest) {
       const msgRes = await fetch(`${MAILPIT_URL}/api/v1/message/${latest.ID}`)
       const msg = (await msgRes.json()) as { Text?: string; HTML?: string }
-      const match = /\b(\d{6})\b/.exec(msg.Text ?? msg.HTML ?? '')
+      // Text が空文字のケースに備えて || で繋ぐ（?? だと "" を素通ししてしまう）
+      const match = /\b(\d{6})\b/.exec(msg.Text || msg.HTML || '')
       if (match?.[1]) return match[1]
     }
 

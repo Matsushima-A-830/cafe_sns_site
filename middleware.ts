@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
+import { splitPathAndQuery } from '@/lib/utils/split-path-query'
 
 // docs/architecture/routing.md#middlewarets設計
 export async function middleware(request: NextRequest) {
@@ -11,10 +12,13 @@ export async function middleware(request: NextRequest) {
   const status = claims?.status ?? null
   const onboarded = claims?.onboarded ?? false
 
+  // `to` はパス + クエリ文字列（例: "/login?next=%2Fme"）。url.pathname に丸ごと代入すると
+  // "?" や "%" までパーセントエンコードされてしまうため、pathname と search を分けて設定する
   const redirect = (to: string) => {
+    const { pathname, search } = splitPathAndQuery(to)
     const url = request.nextUrl.clone()
-    url.pathname = to
-    url.search = ''
+    url.pathname = pathname
+    url.search = search ? `?${search}` : ''
     return NextResponse.redirect(url)
   }
 
@@ -35,17 +39,33 @@ export async function middleware(request: NextRequest) {
     path.startsWith('/new') ||
     path.startsWith('/report') ||
     path.startsWith('/cafes/new') ||
-    path.startsWith('/onboarding')
+    path.startsWith('/onboarding') ||
+    path.startsWith('/account')
 
   if (requiresAuth) {
     if (!isAuthed) return redirect(`/login?next=${encodeURIComponent(path)}`)
-    if (status === 'pending_consent' && !path.startsWith('/account/pending')) {
+    // pending_consent でも /onboarding は通す。未成年が同意待ちになるのは
+    // submitProfile の時点（オンボーディング1歩目）なので、ここで閉め出すと
+    // エリア・気分タグを一生収集できず、onboarded_at も永遠に立たない
+    if (
+      status === 'pending_consent' &&
+      !path.startsWith('/account/pending') &&
+      !path.startsWith('/onboarding')
+    ) {
       return redirect('/account/pending')
     }
   }
 
   // ---- オンボーディング未完了は /onboarding に閉じ込める ----
-  if (isAuthed && status === 'active' && !onboarded) {
+  // status === null は「profiles 行がまだ無い」（OTP確認後・プロフィール作成前）ケースも含む。
+  // ここを active のみに絞ると、profiles 行が無いユーザーが /me 等をすり抜けてしまう
+  if (
+    isAuthed &&
+    status !== 'suspended' &&
+    status !== 'deleted' &&
+    status !== 'pending_consent' &&
+    !onboarded
+  ) {
     if (requiresAuth && !path.startsWith('/onboarding')) {
       return redirect('/onboarding/profile')
     }

@@ -43,6 +43,11 @@ export function ProfileForm() {
     setFormError(undefined)
     const result = await submitProfile(values)
     if (!result.ok) {
+      // 未成年で保護者メール未登録（/signup/consent を飛ばした等）はそちらへ差し戻す
+      if (result.error === 'CONSENT_REQUIRED') {
+        router.push('/signup/consent')
+        return
+      }
       setFormError(errorMessage(result.error))
       return
     }
