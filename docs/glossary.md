@@ -38,6 +38,8 @@
 | NGワード | `ng word` | `ng_words` | 投稿禁止語 |
 | 常連 / 常連さん | `regular customer` / `regular` | `regular_customers` | オーナーが顧客に付与する認定関係（幹C） |
 | 気分 / シーン | `scene` / `mood` | `tags.category='occasion'` | 「ひとり時間」「朝カフェ」等の利用機会（幹A） |
+| 好きな気分 | `interest tag` | `user_interest_tags` | オンボーディングでユーザーが選ぶ1〜5個のシーン。レコメンドの入力（幹A） |
+| ユーザー設定 | `user settings` | `user_settings` | 通知・プライバシー・表示の永続設定（`S_SETTINGS`） |
 | オーナー限定投稿 | `official post` | `posts.is_official = true` | 認証済みオーナーが投稿する公式コンテンツ |
 | オーナー公式返信 | `official reply` | `comments.is_official = true` | オーナーによる公式コメント |
 | オーナー限定フォーマット | `official format` | `posts.official_format` | 豆知識/今日のおすすめ/臨時休業/新メニュー |

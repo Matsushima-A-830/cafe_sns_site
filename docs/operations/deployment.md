@@ -92,12 +92,33 @@ SENTRY_DSN=<開発時は空でも可>
 - **プロジェクト構成:**
   - `cafe-sns-dev` — Preview 用
   - `cafe-sns-prod` — Production 用
-- **拡張の有効化（初期セットアップ）:**
-  - `pgcrypto`（自動）
-  - `citext`
-  - `postgis`
-  - `pg_trgm`
-  - `pg_cron` — **Supabase Pro 以上でのみ利用可。MVP の Free 枠では使えない**。下書きの期限切れ削除は Edge Function + GitHub Actions の `schedule` で代替する（[pending-items A6](../product/pending-items.md)）
+- **拡張の有効化（初期マイグレーションに含める / 決定 2026-09-05）:**
+
+  | 拡張 | 用途 |
+  |---|---|
+  | `pgcrypto` | `gen_random_uuid()`（Supabase では既定で有効） |
+  | `citext` | `profiles.username` の大文字小文字を無視した一意性 |
+  | `postgis` | `geography(POINT,4326)`（`cafes.location` / `areas.center_location`） |
+  | `pg_trgm` | 日本語の部分一致検索（`posts.body_text` / `cafes.name_kana`）**— 検索の主役** |
+
+  **`pgroonga` は導入しない。** 全文検索は `simple` tsvector + `pg_trgm` の2本立てとする（[data-model/tables.md #全文検索の方式](../architecture/data-model/tables.md#全文検索の方式決定-2026-09-05)）。
+
+  **`pg_cron` は使わない。** Supabase Pro 以上でしか有効化できず、Free 前提のコスト見積りと両立しないため（下記「定期実行ジョブ」）。
+
+- **Storage バケットの作成:** `post-images` / `cafe-images` / `avatars`（public）と `owner-documents`（private）。構成とパス規約は [data-model/README.md #ストレージ設計](../architecture/data-model/README.md#ストレージ設計)
+
+### 定期実行ジョブ（`pg_cron` の代替 / 決定 2026-09-05）
+
+**Supabase Edge Function を GitHub Actions の `schedule` から叩く方式に確定。** あわせて、取りこぼしても壊れないよう**参照時にも除外する**（二重の安全策）。
+
+| ジョブ | 頻度 | 取りこぼし時の保険 |
+|---|---|---|
+| 期限切れ下書きの削除（`drafts.expires_at < now()`） | 日次 | 下書き一覧の取得クエリで `expires_at > now()` を必ず付ける |
+| オーナー分析の Materialized View 更新 | 日次 | 最終更新時刻を画面に出す（古いデータと分かる状態にする） |
+
+**GitHub Actions の `schedule` は実行が遅延・スキップされることがある**（混雑時、および60日間リポジトリ活動が無いと停止）。上の「保険」列を必ず併せて実装し、ジョブが動かなくても機能が壊れない状態を保つ。
+
+ワークフローと Edge Function の実体は DB 実装フェーズで追加する。
 
 ## CI/CD パイプライン
 
@@ -206,14 +227,14 @@ jobs:
 | `SUPABASE_SERVICE_ROLE_KEY` | ○ | ○ | ○ | Server-side only |
 | `NEXT_PUBLIC_SITE_URL` | ○ | ○ | ○ | 自サイトURL（OG等） |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | △ | △ | △ | Maps API。S_MAP 実装までは未設定で動く |
-| `AWS_S3_BUCKET` | △ | △ | △ | 画像バケット。**S3 を採用する場合のみ**（[pending-items A5](../product/pending-items.md) 未決） |
-| `AWS_S3_REGION` | △ | △ | △ | 同上 |
-| `AWS_ACCESS_KEY_ID` | △ | △ | △ | 同上 / Server-side only |
-| `AWS_SECRET_ACCESS_KEY` | △ | △ | △ | 同上 / Server-side only |
+| `AWS_S3_BUCKET` | ✕ | ✕ | ✕ | **MVP未使用**。画像は Supabase Storage（[pending-items A5](../product/pending-items.md) で決定）。S3 移行時に有効化 |
+| `AWS_S3_REGION` | ✕ | ✕ | ✕ | 同上 |
+| `AWS_ACCESS_KEY_ID` | ✕ | ✕ | ✕ | 同上 / Server-side only |
+| `AWS_SECRET_ACCESS_KEY` | ✕ | ✕ | ✕ | 同上 / Server-side only |
 | `RESEND_API_KEY` | ✕ | △ | ○ | 保護者同意メール等。本番は未成年フローに必須 |
 | `SENTRY_DSN` | ✕ | △ | ○ | エラー通知 |
 
-**AWS 系と Maps を必須にしない理由:** A5 が未決のうちに必須化すると、画像機能に触らない開発でも起動できなくなる。実際に使う箇所で「未設定なら機能を出さない」を判断する。
+**AWS 系を optional のまま残す理由:** MVP では使わないが、S3 移行時に `lib/env.ts` を書き換えずに済むよう定義だけ残す。Maps は S_MAP 実装まで未設定で動かせるほうが都合がよいので optional のままにする。
 
 ### 管理方針
 
@@ -429,4 +450,4 @@ git commit -m "feat: regular_customers テーブル追加"
 - **BrowserStack 契約タイミング** — MVPリリース直前に1ヶ月分（[product/pending-items A1](../product/pending-items.md#a1-safari対応方針)）
 - **メールサービス選定** — Resend / SendGrid 比較未実施（[product/pending-items B3](../product/pending-items.md#b3-保護者同意メールのテンプレート-送信基盤)）
 - **AWS移行の具体構成** — フェーズ2で決定（[product/pending-items C1](../product/pending-items.md#c1-本番awsアーキテクチャ詳細)）
-- **画像ストレージの正（S3 か Supabase Storage か）** — [pending-items A5](../product/pending-items.md) で決定。切替タイミングは Supabase Storage の帯域を見て判断
+- **画像ストレージの S3 切替タイミング** — MVP は Supabase Storage に確定（[pending-items A5](../product/pending-items.md)）。**Free の 1GB に近づいたら**判断する。容量はダッシュボードで月1回確認する

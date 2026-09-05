@@ -9,7 +9,7 @@ Supabase (PostgreSQL) を前提としたデータモデル設計です。詳細�
 3. **論理削除を基本**（`deleted_at`）にし、通報・監査のために履歴を残す。
 4. **カウンタ系（いいね数、コメント数等）はデノーマライズ**し、トリガーで維持。
 5. **地理情報はPostGIS**（`geography(POINT, 4326)`）を利用。
-6. **全文検索はPostgres FTS**（`tsvector` + GINインデックス）。日本語形態素解析には `pgroonga` の導入を検討（Supabase有効化可能）。
+6. **全文検索は `simple` tsvector + `pg_trgm` の2本立て**（決定 2026-09-05）。日本語の部分一致は pg_trgm が担う。PGroonga は導入せず、精度が課題化したら索引を張り替えて移行する（[tables.md #全文検索の方式](./tables.md#全文検索の方式決定-2026-09-05)）。
 7. **年齢確認は登録フローで実施**し、`profiles.birth_date` を必須項目とする。
 8. **拡張性のためのカラム余地** — `metadata jsonb` を主要テーブルに配置し、後回し機能（社会的証明カウンタ等）を追加できるようにする。
 
@@ -17,7 +17,7 @@ Supabase (PostgreSQL) を前提としたデータモデル設計です。詳細�
 
 | 分類 | テーブル |
 |---|---|
-| ユーザー | `profiles`, `follows`, `blocks` |
+| ユーザー | `profiles`, `user_settings`, `user_interest_tags`, `follows`, `blocks` |
 | エリア | `areas` |
 | カフェ | `cafes`, `cafe_business_hours`, `cafe_congestion_reports`, `cafe_owner_verifications` |
 | 幹C（オーナー連携） | `regular_customers` |
@@ -32,6 +32,8 @@ Supabase (PostgreSQL) を前提としたデータモデル設計です。詳細�
 
 ```mermaid
 erDiagram
+    profiles ||--|| user_settings : "configures"
+    profiles ||--o{ user_interest_tags : "likes_scenes"
     profiles ||--o{ posts : "authors"
     profiles ||--o{ comments : "authors"
     profiles ||--o{ likes : "gives"
@@ -67,6 +69,7 @@ erDiagram
     comments ||--o{ comments : "replies_to"
 
     tags ||--o{ post_tags : "used_in"
+    tags ||--o{ user_interest_tags : "chosen_as"
 
     badges ||--o{ user_badges : "awarded_as"
 ```
@@ -158,6 +161,46 @@ export async function checkAndAwardBadges(
 
 ---
 
+## ストレージ設計
+
+**MVP は Supabase Storage に一本化する（決定 2026-09-05）。** 本格展開の段階で S3 + CloudFront へ移行する（[pending-items A5](../../product/pending-items.md)）。
+
+### バケット構成
+
+| バケット | 公開 | 参照元の列 | 内容 |
+|---|---|---|---|
+| `post-images` | public | [`post_images.storage_path`](./tables.md#post_images) | 投稿画像（最大10枚/投稿・10MB/枚） |
+| `cafe-images` | public | [`cafes.main_image_path`](./tables.md#cafes) | カフェのメイン画像 |
+| `avatars` | public | [`profiles.avatar_url`](./tables.md#profiles) | アバター（2MB） |
+| `owner-documents` | **private** | [`cafe_owner_verifications.document_urls`](./tables.md#cafe_owner_verifications) | オーナー認証の提出書類 |
+
+### オブジェクトパスの規約
+
+```
+post-images/{author_id}/{post_id}/{uuid}.webp
+cafe-images/{cafe_id}/{uuid}.webp
+avatars/{user_id}/{uuid}.webp
+owner-documents/{user_id}/{verification_id}/{uuid}.{ext}
+```
+
+**先頭セグメントを所有者IDに固定する。** Supabase Storage のポリシーは `storage.foldername(name)[1] = auth.uid()::text` の形で書けるため、この規約がそのまま書き込み権限の担保になる。
+
+### 権限
+
+- **public バケット**は読み取り自由。書き込み・削除は上記パス規約で本人のみ
+- **`owner-documents`** は読み取りも本人 + admin のみ。参照は都度発行する署名付きURL（有効期限は短く）
+- `document_urls` には**公開URLではなくオブジェクトパスを保存する**（署名付きURLは期限切れするため、DBに焼き込まない）
+
+### 移行を1箇所に閉じる
+
+すべての読み書きは `lib/storage/` のラッパー経由にする。Server Actions やコンポーネントから Supabase Storage クライアントを直接呼ばない。S3 移行時の差し替え点をこのディレクトリだけに閉じるのが目的（[CLAUDE.md 開発哲学2](../../../CLAUDE.md)）。
+
+### 無料枠の制約
+
+Supabase Free の Storage は 1GB。投稿画像を 1枚 1MB に圧縮しても約1000枚で埋まる。**MVP検証には足りるが、公開後は容量監視が必須**。超えたら Pro（$25/月、100GB）へ上げるか S3 へ移行する。アップロード時の WebP 変換・リサイズは初期から入れる。
+
+---
+
 ## モデレーション設計
 
 - `reports.status` で通報のワークフロー管理（pending / reviewing / resolved / rejected）
@@ -221,7 +264,9 @@ export async function checkAndAwardBadges(
 
 - `posts (author_id, created_at DESC)` — プロフィール投稿一覧
 - `posts (cafe_id, created_at DESC)` — カフェ別投稿一覧
-- `posts USING GIN(body_search)` — 全文検索
+- `posts USING GIN(body_search)` — 英数字の語一致
+- `posts USING GIN(body_text gin_trgm_ops)` — 日本語の部分一致（検索の主役）
+- `user_interest_tags (tag_id, user_id)` — 「同じ気分の人」の逆引き
 - `cafes USING GIST(location)` — 地理検索
 - `post_tags (tag_id)` / `(post_id)` — タグ検索
 - `follows (follower_id)` / `(followee_id)` — タイムライン

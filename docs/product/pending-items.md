@@ -44,39 +44,42 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **将来 (C系):** Google Places API "popular times" 連携は投稿数が集まってから検討
 - **残作業:** Postgres関数の実装、投稿数増加時に Materialized View 化検討
 
-### A5. 画像ストレージの正をどちらにするか 🔴 未決
+### A5. 画像ストレージの正をどちらにするか ✅ 解消済（2026-09-05）
 
-- **課題:** ドキュメント間で S3 と Supabase Storage が混在している
-  - `CLAUDE.md` 技術スタック / `tables.md` `post_images.storage_path` → **AWS S3 + CloudFront**
-  - `tables.md` `cafe_owner_verifications.document_urls` / `owner.md` → **Supabase Storage 非公開バケット**
-  - `deployment.md` の Local 例 → 「未設定で Supabase Storage を使用」
-- **選択肢:**
-  - a) 公開画像は S3 + CloudFront、非公開の審査書類のみ Supabase Storage（現状のドキュメント通り、2系統を運用）
-  - b) MVP は Supabase Storage に一本化し、帯域が問題になった時点で S3 + CloudFront へ移行
-- **推奨:** b（MVPの運用コストと実装工数が小さい。`lib/storage/` のラッパー越しに使い、移行時の差し替え点を1箇所に閉じる）
-- **決定期限:** 投稿画像アップロード機能の実装前
+- **決定:** **MVP は Supabase Storage に一本化。本格展開の段階で S3 + CloudFront へ移行する。**
+- **理由:** 署名付きURL発行・IAM・CORS・バケットポリシーの実装を MVP から外せる。権限は Storage のポリシーで RLS と同じ考え方のまま書ける。オーナー審査書類も同じ仕組みに乗るため、2系統の並行運用を避けられる
+- **バケット構成・パス規約・権限:** [data-model/README.md #ストレージ設計](../architecture/data-model/README.md#ストレージ設計)
+- **移行に備える設計:** 読み書きはすべて `lib/storage/` のラッパー経由。Server Actions やコンポーネントから Storage クライアントを直接呼ばない
+- **残作業 / 監視:**
+  - Free の Storage は **1GB**（1枚1MBなら約1000枚）。公開後は月1回ダッシュボードで容量確認
+  - アップロード時の WebP 変換・リサイズを初期から入れる（容量が寿命に直結するため）
+  - S3 移行の判断は容量が 1GB に近づいた時点
 
-### A6. `pg_cron` が Supabase Free で使えない問題 🔴 未決
+### A6. `pg_cron` が Supabase Free で使えない問題 ✅ 解消済（2026-09-05）
 
-- **課題:** `drafts.expires_at`（30日）の自動削除に `pg_cron` を想定しているが、**`pg_cron` は Supabase Pro 以上**。`deployment.md` のコスト見積りは Free 前提で $0
-- **影響範囲:** 期限切れ下書きの削除、将来の集計バッチ（`cafe_congestion_hourly_avg` の Materialized View 更新等）
-- **選択肢:**
-  - a) Supabase Edge Function + 外部スケジューラ（GitHub Actions の `schedule`）で日次実行
-  - b) 参照時に遅延削除（下書き一覧の取得時に `expires_at < now()` を除外 + まとめて削除）
-  - c) Supabase Pro ($25/月) に上げる
-- **推奨:** a + b の併用（Free 枠のまま動き、取りこぼしがない）
-- **決定期限:** 下書き自動保存の実装前
-- **影響範囲の追記（2026-09-05）:** 下書き削除だけでなく **`S_OWNER_ANALYTICS` の「Materialized View から日次更新」**（[wireframes/owner.md](../design/wireframes/owner.md#s_owner_analytics投稿分析)）も同じスケジューラに依存する。MVPスコープ内の機能なので、A6 は「後回し可」ではない
+- **決定:** **Supabase Edge Function を GitHub Actions の `schedule` から叩く（a）+ 参照時にも除外する（b）の併用。** Supabase Pro への昇格（c）は採らない
+- **理由:** Free 枠のまま動き、スケジューラが遅延・停止しても機能が壊れない
+- **対象ジョブと保険:** [deployment.md #定期実行ジョブ](../operations/deployment.md#定期実行ジョブpg_cron-の代替--決定-2026-09-05)
+  - 期限切れ下書きの削除 → 下書き一覧の取得時に `expires_at > now()` を必ず付ける
+  - オーナー分析の Materialized View 更新 → 画面に最終更新時刻を出す
+- **注意:** GitHub Actions の `schedule` は混雑時に遅延・スキップされ、**60日間リポジトリ活動が無いと停止**する。上記の「保険」は必須
+- **影響範囲:** 下書き削除だけでなく `S_OWNER_ANALYTICS` の MV 日次更新（[wireframes/owner.md](../design/wireframes/owner.md#s_owner_analytics投稿分析)）も含む。MVPスコープ内
+- **残作業:** Edge Function とワークフローの実体を DB 実装フェーズで追加
 
-### A7. オンボーディングで選んだ「好きな気分」の保存先 🔴 未決（2026-09-05 追加）
+### A7. オンボーディングで選んだ「好きな気分」の保存先 ✅ 解消済（2026-09-05）
 
-- **課題:** `S_ONBOARD_INTERESTS` は occasion タグを1〜5個**必須**で選ばせ、ワイヤーフレームにも「気分起点の発見体験（幹A）の初期データがここでしか取れない」と明記されている。しかし **25テーブルのどこにも保存先がない**（`tags` は投稿に紐づく `post_tags` しか持たない）
-- **影響:** 保存先がないと「シーン別レコメンド」「あなたと同じ気分の人が保存したカフェ」（[positioning.md 幹A 施策3](./positioning.md)）が成立しない
-- **選択肢:**
-  - a) `user_interest_tags (user_id, tag_id, created_at)` を新設（PK 複合、RLS: SELECT 全員 or 本人 / INSERT・DELETE 本人）
-  - b) `profiles.metadata` の jsonb に `interest_tag_ids` として持つ
-- **推奨:** a（タグ別の集計・レコメンドで結合が必要になるため。jsonb だとインデックスが効きにくい）
-- **決定期限:** オンボーディング実装前（＝初回マイグレーション）
+- **決定:** **`user_interest_tags (user_id, tag_id, created_at)` を新設**（[tables.md](../architecture/data-model/tables.md#user_interest_tags)）
+- **理由:** 「同じ気分の人が保存したカフェ」（[positioning.md 幹A 施策3](./positioning.md)）はタグ単位の結合と集計が要る。`profiles.metadata` の jsonb では索引が効かず、この一番効かせたいクエリが重くなる
+- **上限:** UI と同じ1〜5個を BEFORE INSERT トリガーで担保。選べるのは `tags.category IN ('occasion','mood')` のみ
+- **残作業:** オンボーディング後に選び直す画面は MVP では持たない。`S_PROFILE_EDIT` への追加は後続で検討
+
+### A8. 設定画面（`S_SETTINGS`）の保存先 ✅ 解消済（2026-09-05）
+
+- **課題:** `S_SETTINGS` に永続化が必要な項目が8つ（位置情報 / おすすめ活用 / プッシュ / メール / いいね / コメント / フォロー / 文字サイズ）あり、`/settings/privacy` `/settings/notifications` `/settings/display` のルートもあるのに、列もテーブルも存在しなかった
+- **決定:** **`user_settings` を型付きの1:1テーブルとして新設**（[tables.md](../architecture/data-model/tables.md#user_settings)）。`profiles.metadata` の jsonb には持たせない
+- **理由:** 通知トリガーが SQL から直接この値を読む。jsonb だと毎回キャストとキー欠落の考慮が必要で、型と DEFAULT で守れない
+- **通知トグルの効かせ方:** 通知行を**作ってから隠すのではなく、作る前に判定する**（未読カウントがずれるため）
+- **プッシュ通知は MVP から外す** → 下記 B7
 
 ## 優先度B: 実装フェーズ中に解消可
 
@@ -137,6 +140,14 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **再検討の条件:** 収益化して SMS 費用を吸収できる目処が立った時、またはメール到達率が実測で問題になった時
 - **決定期限:** 再検討タイミングは PMF 後
 
+### B7. プッシュ通知（Web Push） 🟡 MVP見送り決定（2026-09-05）
+
+- **決定:** `S_SETTINGS` の「プッシュ通知」トグルを **MVP のワイヤーフレームから削除**した。通知はアプリ内通知（`notifications` テーブル）のみ
+- **理由:** Web Push は Service Worker + VAPID 鍵 + 購読情報テーブル + 送信基盤が一式必要で、トグル1個で済む規模ではない。[mvp-scope.md](./mvp-scope.md) の MVP 機能表にも元から含まれていない
+- **メール通知も同様に MVP では実装しない。** `user_settings.notify_email` の列だけ先に置き、既定 true のまま未使用とする
+- **再検討:** PWA 化（[C2](#c2-アプリ化の技術選定)）と合わせて判断するのが自然
+- **決定期限:** PWA 化の検討時
+
 ## 優先度C: MVP後で可
 
 ### C1. 本番AWSアーキテクチャ詳細
@@ -188,11 +199,12 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 
 ドキュメント整合性レビュー（2026-09-01）で検出した軽微な懸念。実装時に対応する。
 
-### D1. Supabase 必須拡張の有効化
+### D1. Supabase 必須拡張の有効化 ✅ 解消済（2026-09-05）
 
-- **対象拡張:** `citext`（大文字小文字無視のusername）/ `pgcrypto`（`gen_random_uuid`）/ `PostGIS`（`geography` 型）/ `pg_trgm`（`gin_trgm_ops` インデックス）/ 場合により `pgroonga`（日本語全文検索）
-- **対応タイミング:** DB初期化スクリプトに `CREATE EXTENSION IF NOT EXISTS ...` を含める
-- **注意:** Supabaseの管理画面 or migration SQLで有効化
+- **決定:** 有効化するのは **`pgcrypto` / `citext` / `postgis` / `pg_trgm` の4つ**。初回マイグレーションの先頭で `CREATE EXTENSION IF NOT EXISTS ...` する
+- **`pgroonga` は導入しない** — 全文検索は `simple` tsvector + `pg_trgm` の2本立てに確定（[tables.md #全文検索の方式](../architecture/data-model/tables.md#全文検索の方式決定-2026-09-05)）。素の PostgreSQL に `'japanese'` 設定は無いため、`to_tsvector('japanese', ...)` は使えない
+- **`pg_cron` も使わない** — Supabase Pro 以上のため（[A6](#a6-pg_cron-が-supabase-free-で使えない問題--解消済2026-09-05)）
+- 一覧と用途は [deployment.md](../operations/deployment.md#supabase-cloudbackend) 参照
 
 ### D2. `notifications.type = 'mention'` の要否再確認
 
@@ -202,16 +214,17 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 
 ### D3. Storage オブジェクトのオーファン掃除方針
 
-- **対象:**
-  - `post_images.storage_path` に紐づく S3 オブジェクト（投稿削除・退会時）
-  - `drafts.payload` 内の image_paths に紐づくオブジェクト（下書き期限切れ時）
+- **対象:**（保存先は Supabase Storage に確定 → [A5](#a5-画像ストレージの正をどちらにするか--解消済2026-09-05)）
+  - `post_images.storage_path`（投稿削除・退会時）
+  - `drafts.payload` 内の image_paths（下書き期限切れ時）
   - `cafe_owner_verifications.document_urls` の書類（審査完了・却下後の保管期限）
+  - `cafes.main_image_path`（差し替え時の旧ファイル）
   - `profiles.avatar_url`（アバター変更時の旧ファイル）
 - **対応案:**
-  - a) Supabase Storage の `on delete cascade` 相当を DB トリガーで実現
-  - b) 日次バッチで参照されていない S3 オブジェクトを削除
-  - c) DB削除時に Server Actions 経由で明示的に S3 delete を呼ぶ
-- **決定期限:** ストレージ量が実運用で膨らむ前
+  - a) DB トリガーで削除キューに積み、[A6 のスケジューラ](#a6-pg_cron-が-supabase-free-で使えない問題--解消済2026-09-05)がまとめて Storage から消す
+  - b) 日次バッチで参照されていないオブジェクトを走査して削除
+  - c) DB削除時に Server Actions から明示的に Storage delete を呼ぶ
+- **決定期限:** ストレージ量が実運用で膨らむ前。**Free 枠が 1GB しかないため、A5 の想定より早く効いてくる可能性がある**
 
 ### D4. `post_tags` の5個上限のDB制約
 

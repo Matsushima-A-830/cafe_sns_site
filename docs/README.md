@@ -32,7 +32,7 @@ docs/
 | ドキュメント | 内容 |
 |---|---|
 | [data-model/README.md](./architecture/data-model/README.md) | ER図・設計方針・RLS方針 |
-| [data-model/tables.md](./architecture/data-model/tables.md) | 25テーブルの列・制約・RLSポリシー |
+| [data-model/tables.md](./architecture/data-model/tables.md) | 27テーブルの列・制約・RLSポリシー / ストレージ設計 |
 | [routing.md](./architecture/routing.md) | Next.js App Router・URL・middleware方針 |
 | [error-catalog.md](./architecture/error-catalog.md) | Result型エラーコード一覧 |
 

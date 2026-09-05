@@ -48,9 +48,9 @@
 | スタイル | Tailwind CSS + shadcn/ui |
 | リッチテキスト | Tiptap（JSON保存） |
 | バックエンド | Supabase（Auth / Postgres / Storage / Realtime） |
-| 画像配信 | AWS S3 + CloudFront + Next/Image ※ MVP は Supabase Storage 併用も検討中（[pending-items A5](docs/product/pending-items.md)） |
+| 画像配信 | **MVP: Supabase Storage + Next/Image**（本格展開時に AWS S3 + CloudFront へ移行。[pending-items A5](docs/product/pending-items.md) で決定済）。読み書きは必ず `lib/storage/` のラッパー経由 |
 | 地図 | Google Maps Platform |
-| 検索 | Postgres全文検索（`tsvector` + GIN / 必要に応じて `pgroonga`） |
+| 検索 | Postgres の `simple` tsvector + **`pg_trgm`**（日本語の部分一致はこちらが主役）。`pgroonga` は導入しない（[tables.md #全文検索の方式](docs/architecture/data-model/tables.md)） |
 | ホスティング（開発） | Vercel |
 | ホスティング（本番想定） | AWS（詳細は [product/pending-items.md](docs/product/pending-items.md) C1） |
 
