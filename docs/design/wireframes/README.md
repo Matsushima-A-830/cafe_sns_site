@@ -153,7 +153,7 @@ Card:...    カードコンポーネントの略記
 | S_ACCOUNT_PENDING | 同意待ち | auth.md |
 | S_ONBOARD_PROFILE | プロフィール初期設定 | auth.md |
 | S_ONBOARD_AREA | ホームエリア選択 | auth.md |
-| S_ONBOARD_INTERESTS | 興味タグ選択 | auth.md |
+| S_ONBOARD_INTERESTS | 好きな気分の選択（必須） | auth.md |
 | S_MYPAGE | マイページ | mypage.md |
 | S_PROFILE_EDIT | プロフィール編集 | mypage.md |
 | S_FAVORITES | お気に入りカフェ | mypage.md |
@@ -197,7 +197,7 @@ Tailwindブレークポイントで以下のように分岐:
 
 ### タブレット時（`md:` 適用）の具体差分
 
-- サイドナビ: 表示、ただし幅 60px の**アイコンレール**（labelは非表示）
+- サイドナビ: 表示、ただし幅 64px の**アイコンレール**（labelは非表示）
 - 右補助カラム: **非表示**（メインフィード優先）
 - ボトムナビ: **非表示**（サイドナビで代替）
 - 投稿ボタン: ヘッダー右に **primary** 配置（アイコンレール底部ではなく）

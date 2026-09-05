@@ -85,6 +85,9 @@
 | 承認する | `approve` | cafe_owner_verifications | `approveClaim()` |
 | 却下する | `reject` | cafe_owner_verifications | `rejectClaim()` |
 | 混雑度を報告 | `report congestion` | cafe_congestion_reports | `reportCongestion()` |
+| 常連認定する | `award regular` | regular_customers | `awardRegular()` |
+| 常連認定を取り消す | `revoke regular` | regular_customers | `revokeRegular()` |
+| 申請を取り下げる | `withdraw` | cafe_owner_verifications | `withdrawClaim()` |
 
 ---
 
@@ -122,6 +125,7 @@
 | 審査中 | `pending` | 提出後 |
 | 承認 | `approved` | 認証完了 |
 | 却下 | `rejected` | 却下 |
+| 取り下げ | `withdrawn` | 申請者が自分で取り下げ |
 
 ### 通報状態 (`reports.status`)
 
@@ -132,14 +136,41 @@
 | 対応済 | `resolved` | 措置完了 |
 | 対応不要 | `rejected` | 違反なしと判断 |
 
+### 通報理由 (`reports.reason`)
+
+| 日本語 | コード |
+|---|---|
+| スパム / 宣伝 | `spam` |
+| 嫌がらせ / 誹謗中傷 | `harassment` |
+| 未成年に不適切 | `minor_risk` |
+| 著作権侵害 | `copyright` |
+| 個人情報を含む | `privacy` |
+| その他 | `other` |
+
+### 通知タイプ (`notifications.type`)
+
+`like` / `comment` / `follow` / `mention` / `badge` / `owner_verified` / `regular_awarded` / `official_post` / `report_resolved`
+（各タイプの発火元と宛先は [tables.md notifications](./architecture/data-model/tables.md#notifications) 参照）
+
 ### タグカテゴリ (`tags.category`)
 
 | 日本語 | コード | 例 |
 |---|---|---|
-| エリア | `area` | #渋谷 #表参道 |
+| エリア | `area` | #渋谷区 #表参道 |
 | 雰囲気 | `mood` | #静か #おしゃれ |
-| 利用機会 | `occasion` | #朝カフェ #デート |
-| その他 | `other` | (未分類) |
+| 利用機会 | `occasion` | #朝カフェ #デート #Wi-Fi #電源 |
+| その他 | `other` | #自家焙煎 #ペット可 |
+
+**`occasion` と `other` の境界:**
+
+- `occasion` = **その気分でカフェを探すときの入り口になる条件**。「作業したい」から探す人にとって #Wi-Fi #電源 は設備ではなく**シーンそのもの**なので occasion に置く（幹Aの「今、どんなカフェ気分？」に出す）
+- `other` = **候補を絞り込んだ後に効く、こだわり条件**。#自家焙煎 #ペット可 のように、それ単独では探し始めない条件
+- 判断に迷ったら「ホーム最上部の気分チップに出したいか？」で決める
+
+**`area` カテゴリの位置づけ:**
+
+エリアの正は [`areas` マスタテーブル](./architecture/data-model/tables.md#areas)。検索フィルタ・制覇マップ・カフェの紐付けはすべて `areas.code` を使う。
+`tags.category='area'` は**投稿本文に付くラベル用**で、厳選タグ30個には含めない（[seed/curated-tags-initial-set.md](./seed/curated-tags-initial-set.md)）。エリアで絞り込むUIをタグ側で作らないこと。
 
 ---
 
@@ -178,7 +209,7 @@
 |---|---|---|
 | タイムスタンプ | `timestamptz` (UTC) | DB保存、UI表示は JST 変換 |
 | 距離 | メートル | 「徒歩3分」= 240m相当 |
-| 画像サイズ | バイト | 上限 10MB = 10 * 1024 * 1024 |
+| 画像サイズ | バイト | 投稿画像 10MB / アバター 2MB |
 | ページング | 20件/ページ | 標準の limit |
 | デバウンス | 秒 | 下書き自動保存 = 15秒 |
 

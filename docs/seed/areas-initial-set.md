@@ -27,7 +27,7 @@ JP-{都道府県コード}-{エリアslug}
 
 ## MVP 初期セット（東京 45エリア）
 
-### 東京23区（23個、priority=50）
+### 東京23区（23個、`level='ward'`、priority=50）
 
 `parent_code = NULL`（トップレベル）。副地域が下に紐づく。
 
@@ -57,7 +57,7 @@ JP-{都道府県コード}-{エリアslug}
 | `JP-13-katsushika-ku` | katsushika-ku | 葛飾区 | |
 | `JP-13-edogawa-ku` | edogawa-ku | 江戸川区 | |
 
-### 主要副地域・人気エリア（22個、priority=100）
+### 主要副地域・人気エリア（22個、`level='sub_area'`、priority=100）
 
 `parent_code` で 23区に紐づく。若者・カフェ好き層に人気のエリアを優先。
 
@@ -86,65 +86,66 @@ JP-{都道府県コード}-{エリアslug}
 | `JP-13-yanaka` | yanaka | 谷中 | JP-13-taito-ku |
 | `JP-13-kichijoji` | kichijoji | 吉祥寺 | NULL（武蔵野市、23区外） |
 
-**注意:** 吉祥寺は武蔵野市のため 23区の親を持たない。将来的に `JP-13-musashino-shi` 等を追加する場合は parent 変更を検討。
+**注意:** 吉祥寺は武蔵野市のため 23区の親を持たない（`parent_code = NULL` だが `level='sub_area'`）。**「東京23区制覇」の母数は `parent_code IS NULL` ではなく `level='ward'` で数える**（吉祥寺の混入を防ぐため）。将来的に `JP-13-musashino-shi`（`level='ward'`）を追加する場合は parent を張り直す。
 
 ## Seed SQL 例
 
 ```sql
--- 23区
-insert into public.areas (code, prefecture_code, slug, label, label_kana, parent_code, priority) values
-  ('JP-13-chiyoda-ku',   'JP-13', 'chiyoda-ku',   '千代田区', 'チヨダク',   null, 50),
-  ('JP-13-chuo-ku',      'JP-13', 'chuo-ku',      '中央区',   'チュウオウク', null, 50),
-  ('JP-13-minato-ku',    'JP-13', 'minato-ku',    '港区',     'ミナトク',   null, 50),
-  ('JP-13-shinjuku-ku',  'JP-13', 'shinjuku-ku',  '新宿区',   'シンジュクク', null, 50),
-  ('JP-13-bunkyo-ku',    'JP-13', 'bunkyo-ku',    '文京区',   'ブンキョウク', null, 50),
-  ('JP-13-taito-ku',     'JP-13', 'taito-ku',     '台東区',   'タイトウク',  null, 50),
-  ('JP-13-sumida-ku',    'JP-13', 'sumida-ku',    '墨田区',   'スミダク',   null, 50),
-  ('JP-13-koto-ku',      'JP-13', 'koto-ku',      '江東区',   'コウトウク',  null, 50),
-  ('JP-13-shinagawa-ku', 'JP-13', 'shinagawa-ku', '品川区',   'シナガワク',  null, 50),
-  ('JP-13-meguro-ku',    'JP-13', 'meguro-ku',    '目黒区',   'メグロク',   null, 50),
-  ('JP-13-ota-ku',       'JP-13', 'ota-ku',       '大田区',   'オオタク',   null, 50),
-  ('JP-13-setagaya-ku',  'JP-13', 'setagaya-ku',  '世田谷区', 'セタガヤク',  null, 50),
-  ('JP-13-shibuya-ku',   'JP-13', 'shibuya-ku',   '渋谷区',   'シブヤク',   null, 50),
-  ('JP-13-nakano-ku',    'JP-13', 'nakano-ku',    '中野区',   'ナカノク',   null, 50),
-  ('JP-13-suginami-ku',  'JP-13', 'suginami-ku',  '杉並区',   'スギナミク',  null, 50),
-  ('JP-13-toshima-ku',   'JP-13', 'toshima-ku',   '豊島区',   'トシマク',   null, 50),
-  ('JP-13-kita-ku',      'JP-13', 'kita-ku',      '北区',     'キタク',    null, 50),
-  ('JP-13-arakawa-ku',   'JP-13', 'arakawa-ku',   '荒川区',   'アラカワク',  null, 50),
-  ('JP-13-itabashi-ku',  'JP-13', 'itabashi-ku',  '板橋区',   'イタバシク',  null, 50),
-  ('JP-13-nerima-ku',    'JP-13', 'nerima-ku',    '練馬区',   'ネリマク',   null, 50),
-  ('JP-13-adachi-ku',    'JP-13', 'adachi-ku',    '足立区',   'アダチク',   null, 50),
-  ('JP-13-katsushika-ku','JP-13', 'katsushika-ku','葛飾区',   'カツシカク',  null, 50),
-  ('JP-13-edogawa-ku',   'JP-13', 'edogawa-ku',   '江戸川区', 'エドガワク',  null, 50)
-on conflict (code) do update
-  set label = excluded.label, label_kana = excluded.label_kana, priority = excluded.priority;
-
--- 主要副地域（parent_code 付き、priority=100）
-insert into public.areas (code, prefecture_code, slug, label, label_kana, parent_code, priority) values
-  ('JP-13-omotesando',         'JP-13', 'omotesando',         '表参道',       'オモテサンドウ',   'JP-13-shibuya-ku',  100),
-  ('JP-13-harajuku',           'JP-13', 'harajuku',           '原宿',         'ハラジュク',       'JP-13-shibuya-ku',  100),
-  ('JP-13-ebisu',              'JP-13', 'ebisu',              '恵比寿',       'エビス',           'JP-13-shibuya-ku',  100),
-  ('JP-13-daikanyama',         'JP-13', 'daikanyama',         '代官山',       'ダイカンヤマ',     'JP-13-shibuya-ku',  100),
-  ('JP-13-jingumae',           'JP-13', 'jingumae',           '神宮前',       'ジングウマエ',     'JP-13-shibuya-ku',  100),
-  ('JP-13-shoto',              'JP-13', 'shoto',              '松濤',         'ショウトウ',       'JP-13-shibuya-ku',  100),
-  ('JP-13-shinjuku-sanchome',  'JP-13', 'shinjuku-sanchome',  '新宿三丁目',   'シンジュクサンチョウメ', 'JP-13-shinjuku-ku', 100),
-  ('JP-13-kagurazaka',         'JP-13', 'kagurazaka',         '神楽坂',       'カグラザカ',       'JP-13-shinjuku-ku', 100),
-  ('JP-13-nakameguro',         'JP-13', 'nakameguro',         '中目黒',       'ナカメグロ',       'JP-13-meguro-ku',   100),
-  ('JP-13-jiyugaoka',          'JP-13', 'jiyugaoka',          '自由が丘',     'ジユウガオカ',     'JP-13-meguro-ku',   100),
-  ('JP-13-shimokitazawa',      'JP-13', 'shimokitazawa',      '下北沢',       'シモキタザワ',     'JP-13-setagaya-ku', 100),
-  ('JP-13-sangenjaya',         'JP-13', 'sangenjaya',         '三軒茶屋',     'サンゲンジャヤ',   'JP-13-setagaya-ku', 100),
-  ('JP-13-futakotamagawa',     'JP-13', 'futakotamagawa',     '二子玉川',     'フタコタマガワ',   'JP-13-setagaya-ku', 100),
-  ('JP-13-azabu',              'JP-13', 'azabu',              '麻布',         'アザブ',           'JP-13-minato-ku',   100),
-  ('JP-13-roppongi',           'JP-13', 'roppongi',           '六本木',       'ロッポンギ',       'JP-13-minato-ku',   100),
-  ('JP-13-shirokane',          'JP-13', 'shirokane',          '白金',         'シロカネ',         'JP-13-minato-ku',   100),
-  ('JP-13-ginza',              'JP-13', 'ginza',              '銀座',         'ギンザ',           'JP-13-chuo-ku',     100),
-  ('JP-13-nihonbashi',         'JP-13', 'nihonbashi',         '日本橋',       'ニホンバシ',       'JP-13-chuo-ku',     100),
-  ('JP-13-asakusa',            'JP-13', 'asakusa',            '浅草',         'アサクサ',         'JP-13-taito-ku',    100),
-  ('JP-13-kuramae',            'JP-13', 'kuramae',            '蔵前',         'クラマエ',         'JP-13-taito-ku',    100),
-  ('JP-13-yanaka',             'JP-13', 'yanaka',             '谷中',         'ヤナカ',           'JP-13-taito-ku',    100),
-  ('JP-13-kichijoji',          'JP-13', 'kichijoji',          '吉祥寺',       'キチジョウジ',     null,                100)
+-- 23区（level='ward'）
+insert into public.areas (code, prefecture_code, slug, label, label_kana, level, parent_code, priority) values
+  ('JP-13-chiyoda-ku',   'JP-13', 'chiyoda-ku',   '千代田区', 'チヨダク',   'ward',  null, 50),
+  ('JP-13-chuo-ku',      'JP-13', 'chuo-ku',      '中央区',   'チュウオウク', 'ward',  null, 50),
+  ('JP-13-minato-ku',    'JP-13', 'minato-ku',    '港区',     'ミナトク',   'ward',  null, 50),
+  ('JP-13-shinjuku-ku',  'JP-13', 'shinjuku-ku',  '新宿区',   'シンジュクク', 'ward',  null, 50),
+  ('JP-13-bunkyo-ku',    'JP-13', 'bunkyo-ku',    '文京区',   'ブンキョウク', 'ward',  null, 50),
+  ('JP-13-taito-ku',     'JP-13', 'taito-ku',     '台東区',   'タイトウク',  'ward',  null, 50),
+  ('JP-13-sumida-ku',    'JP-13', 'sumida-ku',    '墨田区',   'スミダク',   'ward',  null, 50),
+  ('JP-13-koto-ku',      'JP-13', 'koto-ku',      '江東区',   'コウトウク',  'ward',  null, 50),
+  ('JP-13-shinagawa-ku', 'JP-13', 'shinagawa-ku', '品川区',   'シナガワク',  'ward',  null, 50),
+  ('JP-13-meguro-ku',    'JP-13', 'meguro-ku',    '目黒区',   'メグロク',   'ward',  null, 50),
+  ('JP-13-ota-ku',       'JP-13', 'ota-ku',       '大田区',   'オオタク',   'ward',  null, 50),
+  ('JP-13-setagaya-ku',  'JP-13', 'setagaya-ku',  '世田谷区', 'セタガヤク',  'ward',  null, 50),
+  ('JP-13-shibuya-ku',   'JP-13', 'shibuya-ku',   '渋谷区',   'シブヤク',   'ward',  null, 50),
+  ('JP-13-nakano-ku',    'JP-13', 'nakano-ku',    '中野区',   'ナカノク',   'ward',  null, 50),
+  ('JP-13-suginami-ku',  'JP-13', 'suginami-ku',  '杉並区',   'スギナミク',  'ward',  null, 50),
+  ('JP-13-toshima-ku',   'JP-13', 'toshima-ku',   '豊島区',   'トシマク',   'ward',  null, 50),
+  ('JP-13-kita-ku',      'JP-13', 'kita-ku',      '北区',     'キタク',    'ward',  null, 50),
+  ('JP-13-arakawa-ku',   'JP-13', 'arakawa-ku',   '荒川区',   'アラカワク',  'ward',  null, 50),
+  ('JP-13-itabashi-ku',  'JP-13', 'itabashi-ku',  '板橋区',   'イタバシク',  'ward',  null, 50),
+  ('JP-13-nerima-ku',    'JP-13', 'nerima-ku',    '練馬区',   'ネリマク',   'ward',  null, 50),
+  ('JP-13-adachi-ku',    'JP-13', 'adachi-ku',    '足立区',   'アダチク',   'ward',  null, 50),
+  ('JP-13-katsushika-ku','JP-13', 'katsushika-ku','葛飾区',   'カツシカク',  'ward',  null, 50),
+  ('JP-13-edogawa-ku',   'JP-13', 'edogawa-ku',   '江戸川区', 'エドガワク',  'ward',  null, 50)
 on conflict (code) do update
   set label = excluded.label, label_kana = excluded.label_kana,
+      level = excluded.level, priority = excluded.priority;
+
+-- 主要副地域（level='sub_area'、parent_code 付き、priority=100）
+insert into public.areas (code, prefecture_code, slug, label, label_kana, level, parent_code, priority) values
+  ('JP-13-omotesando',         'JP-13', 'omotesando',         '表参道',       'オモテサンドウ',   'sub_area', 'JP-13-shibuya-ku',  100),
+  ('JP-13-harajuku',           'JP-13', 'harajuku',           '原宿',         'ハラジュク',       'sub_area', 'JP-13-shibuya-ku',  100),
+  ('JP-13-ebisu',              'JP-13', 'ebisu',              '恵比寿',       'エビス',           'sub_area', 'JP-13-shibuya-ku',  100),
+  ('JP-13-daikanyama',         'JP-13', 'daikanyama',         '代官山',       'ダイカンヤマ',     'sub_area', 'JP-13-shibuya-ku',  100),
+  ('JP-13-jingumae',           'JP-13', 'jingumae',           '神宮前',       'ジングウマエ',     'sub_area', 'JP-13-shibuya-ku',  100),
+  ('JP-13-shoto',              'JP-13', 'shoto',              '松濤',         'ショウトウ',       'sub_area', 'JP-13-shibuya-ku',  100),
+  ('JP-13-shinjuku-sanchome',  'JP-13', 'shinjuku-sanchome',  '新宿三丁目',   'シンジュクサンチョウメ', 'sub_area', 'JP-13-shinjuku-ku', 100),
+  ('JP-13-kagurazaka',         'JP-13', 'kagurazaka',         '神楽坂',       'カグラザカ',       'sub_area', 'JP-13-shinjuku-ku', 100),
+  ('JP-13-nakameguro',         'JP-13', 'nakameguro',         '中目黒',       'ナカメグロ',       'sub_area', 'JP-13-meguro-ku',   100),
+  ('JP-13-jiyugaoka',          'JP-13', 'jiyugaoka',          '自由が丘',     'ジユウガオカ',     'sub_area', 'JP-13-meguro-ku',   100),
+  ('JP-13-shimokitazawa',      'JP-13', 'shimokitazawa',      '下北沢',       'シモキタザワ',     'sub_area', 'JP-13-setagaya-ku', 100),
+  ('JP-13-sangenjaya',         'JP-13', 'sangenjaya',         '三軒茶屋',     'サンゲンジャヤ',   'sub_area', 'JP-13-setagaya-ku', 100),
+  ('JP-13-futakotamagawa',     'JP-13', 'futakotamagawa',     '二子玉川',     'フタコタマガワ',   'sub_area', 'JP-13-setagaya-ku', 100),
+  ('JP-13-azabu',              'JP-13', 'azabu',              '麻布',         'アザブ',           'sub_area', 'JP-13-minato-ku',   100),
+  ('JP-13-roppongi',           'JP-13', 'roppongi',           '六本木',       'ロッポンギ',       'sub_area', 'JP-13-minato-ku',   100),
+  ('JP-13-shirokane',          'JP-13', 'shirokane',          '白金',         'シロカネ',         'sub_area', 'JP-13-minato-ku',   100),
+  ('JP-13-ginza',              'JP-13', 'ginza',              '銀座',         'ギンザ',           'sub_area', 'JP-13-chuo-ku',     100),
+  ('JP-13-nihonbashi',         'JP-13', 'nihonbashi',         '日本橋',       'ニホンバシ',       'sub_area', 'JP-13-chuo-ku',     100),
+  ('JP-13-asakusa',            'JP-13', 'asakusa',            '浅草',         'アサクサ',         'sub_area', 'JP-13-taito-ku',    100),
+  ('JP-13-kuramae',            'JP-13', 'kuramae',            '蔵前',         'クラマエ',         'sub_area', 'JP-13-taito-ku',    100),
+  ('JP-13-yanaka',             'JP-13', 'yanaka',             '谷中',         'ヤナカ',           'sub_area', 'JP-13-taito-ku',    100),
+  ('JP-13-kichijoji',          'JP-13', 'kichijoji',          '吉祥寺',       'キチジョウジ',     'sub_area', null,                100)
+on conflict (code) do update
+  set label = excluded.label, label_kana = excluded.label_kana, level = excluded.level,
       parent_code = excluded.parent_code, priority = excluded.priority;
 ```
 
@@ -152,15 +153,17 @@ on conflict (code) do update
 
 ### 検索フィルタ
 
-- トップレベル（priority=50, 23区）を大分類として表示
-- 選択後、そのエリアの副地域（priority=100）を展開表示
-- または最初から副地域込みで priority DESC 順の一覧表示
+- `level='ward'`（23区）を大分類として表示
+- 選択後、その配下の副地域（`level='sub_area'`）を展開表示
+- 「人気エリアから探す」導線では level を跨いで `priority DESC` 順に並べる（副地域が上位に出る）
 
 ### 制覇マップ
 
 - ユーザーが投稿した `area_visits.area_code` を areas テーブルと JOIN
-- 「23区制覇」 = 23個の `parent_code IS NULL AND prefecture_code = 'JP-13'` を全訪問
+- 「23区制覇」 = `level = 'ward' AND prefecture_code = 'JP-13'` の23件を全訪問
+  （`parent_code IS NULL` で数えると吉祥寺が混ざり24件になるため使わない）
 - 「渋谷区マスター」 = `parent_code = 'JP-13-shibuya-ku'` を全訪問（副地域 6個）
+- 副地域のカフェへ投稿した場合も親の区は訪問済みになる（[data-model/README.md のエリアコードの一貫性](../architecture/data-model/README.md#エリアコードの一貫性) 参照）
 
 ### 投稿時のエリア紐付け
 

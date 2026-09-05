@@ -26,7 +26,7 @@
 | architecture / ルーティング | [docs/architecture/routing.md](docs/architecture/routing.md) | App Router・middleware・SEO |
 | architecture / エラー | [docs/architecture/error-catalog.md](docs/architecture/error-catalog.md) | Result型エラーコード |
 | design / 画面遷移 | [docs/design/screen-flow.md](docs/design/screen-flow.md) | Mermaidフロー6種 |
-| design / ワイヤー | [docs/design/wireframes/README.md](docs/design/wireframes/README.md) | 35画面のモバイル/PCレイアウト |
+| design / ワイヤー | [docs/design/wireframes/README.md](docs/design/wireframes/README.md) | 37画面のモバイル/PCレイアウト |
 | **design / デザインシステム** | [docs/design/design-system.md](docs/design/design-system.md) | **余白/色/サイズ・brown系（実装時必読）** |
 | **operations / Git** | [docs/operations/git-workflow.md](docs/operations/git-workflow.md) | **ブランチ・コミット・PR規約（実装時必読）** |
 | **operations / デプロイ** | [docs/operations/deployment.md](docs/operations/deployment.md) | **環境・CI/CD・監視（実装時必読）** |
@@ -43,12 +43,12 @@
 |---|---|
 | ランタイム | Node.js 22 LTS |
 | パッケージマネージャ | pnpm |
-| フレームワーク | Next.js 15+ (App Router) |
+| フレームワーク | Next.js 16 (App Router) |
 | 言語 | TypeScript (strict) |
 | スタイル | Tailwind CSS + shadcn/ui |
 | リッチテキスト | Tiptap（JSON保存） |
 | バックエンド | Supabase（Auth / Postgres / Storage / Realtime） |
-| 画像配信 | AWS S3 + CloudFront + Next/Image |
+| 画像配信 | AWS S3 + CloudFront + Next/Image ※ MVP は Supabase Storage 併用も検討中（[pending-items A5](docs/product/pending-items.md)） |
 | 地図 | Google Maps Platform |
 | 検索 | Postgres全文検索（`tsvector` + GIN / 必要に応じて `pgroonga`） |
 | ホスティング（開発） | Vercel |
@@ -167,7 +167,7 @@ cafe_sns_site/
 └── public/                        # 静的アセット
 ```
 
-## 主要コマンド（実装後に整備）
+## 主要コマンド
 
 ```bash
 pnpm dev              # 開発サーバー起動 (http://localhost:3000)
@@ -176,15 +176,21 @@ pnpm start            # 本番サーバー起動
 
 pnpm test             # Vitest（watch モード）
 pnpm test:run         # Vitest（CI用、1回実行）
+pnpm test:coverage    # Vitest + カバレッジ
 pnpm test:e2e         # Playwright
+pnpm test:e2e:ui      # Playwright UIモード
 
-pnpm lint             # Biome lint
+pnpm lint             # Biome check
+pnpm lint:fix         # Biome check --write
 pnpm format           # Biome format --write
 pnpm typecheck        # tsc --noEmit
 
 pnpm db:start         # ローカルSupabase起動
-pnpm db:migrate       # マイグレーション適用
+pnpm db:stop          # ローカルSupabase停止
+pnpm db:migrate:new   # マイグレーションファイル作成
+pnpm db:migrate       # マイグレーション適用 (supabase db push)
 pnpm db:reset         # DB初期化 + seed
+pnpm db:diff          # スキーマ差分の確認
 pnpm db:types         # supabase gen types typescript
 ```
 

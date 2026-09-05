@@ -122,7 +122,7 @@ flowchart TD
 
     Activated --> Onboard1[/S_ONBOARD_PROFILE<br/>username / display_name / avatar/]
     Onboard1 --> Onboard2[/S_ONBOARD_AREA<br/>ホームエリア選択<br/>デフォルト効果/]
-    Onboard2 --> Onboard3[/S_ONBOARD_INTERESTS<br/>興味タグ選択<br/>厳選5～7個から/]
+    Onboard2 --> Onboard3[/S_ONBOARD_INTERESTS<br/>好きな気分を選択 必須<br/>occasion タグから1〜5個/]
     Onboard3 --> MyHome([S_MY_HOME へ])
 
     classDef block fill:#fdd,stroke:#a33
@@ -136,7 +136,7 @@ flowchart TD
 **設計メモ**
 - 保護者同意待ち中も閲覧はできる（ログイン不要機能と同等の範囲）
 - `profiles.status = 'pending_consent'` の間は投稿・いいね・コメント不可（RLSでガード）
-- 年齢判定はクライアント計算だが、DB側にも `CHECK (birth_date <= current_date - interval '13 years')` を配置
+- 年齢判定はクライアント計算だが、DB側にも BEFORE INSERT トリガー（`enforce_min_age`）を配置（`current_date` は IMMUTABLE でないため CHECK 制約は使えない。[tables.md profiles](../architecture/data-model/tables.md#profiles) 参照）
 
 ---
 

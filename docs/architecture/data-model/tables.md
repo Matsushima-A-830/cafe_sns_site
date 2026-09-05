@@ -54,8 +54,19 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 | updated_at | timestamptz | NOT NULL, DEFAULT now() | |
 
 **制約:**
-- `CHECK (birth_date <= current_date - interval '13 years')` — 13歳未満は不可
 - `CHECK (status IN ('active','pending_consent','suspended','deleted'))`
+- 13歳未満のブロックは **BEFORE INSERT OR UPDATE トリガー**で実装する。`current_date` は IMMUTABLE ではないため CHECK 制約には書けない:
+  ```sql
+  CREATE OR REPLACE FUNCTION public.enforce_min_age() RETURNS trigger
+  LANGUAGE plpgsql AS $$
+  BEGIN
+    IF NEW.birth_date > current_date - interval '13 years' THEN
+      RAISE EXCEPTION 'AGE_RESTRICTED';
+    END IF;
+    RETURN NEW;
+  END $$;
+  ```
+  アプリ層（サインアップの Zod スキーマ）でも同じ判定を行い、二重にガードする
 
 **RLS:**
 - SELECT: 全ユーザー可（ただし `guardian_email`, `metadata` は View で除外して公開）
@@ -105,7 +116,7 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 | name_kana | text | | フリガナ（検索用） |
 | prefecture | text | NOT NULL | 都道府県 |
 | city | text | NOT NULL | 市区町村 |
-| area_code | text | FK → [areas](#areas)(code) | エリアコード（例: `JP-13-shibuya`）— マスタテーブル参照 |
+| area_code | text | FK → [areas](#areas)(code) | エリアコード（例: `JP-13-shibuya-ku`）— マスタテーブル参照 |
 | address | text | | 住所 |
 | location | geography(POINT, 4326) | | 緯度経度 |
 | phone | text | | |
@@ -144,11 +155,12 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 
 | カラム | 型 | 制約 | 説明 |
 |---|---|---|---|
-| code | text | PK | 例: `JP-13-shibuya` |
+| code | text | PK | 例: `JP-13-shibuya-ku` |
 | prefecture_code | text | NOT NULL | 例: `JP-13` (東京都) — ISO 3166-2 |
-| slug | text | NOT NULL | 例: `shibuya`（URL・タグ用） |
-| label | text | NOT NULL | 例: `渋谷` |
-| label_kana | text | | 例: `シブヤ`（検索用） |
+| slug | text | NOT NULL | 例: `shibuya-ku`（URL・タグ用） |
+| label | text | NOT NULL | 例: `渋谷区` |
+| label_kana | text | | 例: `シブヤク`（検索用） |
+| level | text | NOT NULL | `ward`（市区町村レベル） / `sub_area`（副地域・人気エリア） |
 | parent_code | text | FK → areas(code) | 上位エリア（例: `JP-13-shibuya-ku` 配下に `JP-13-omotesando`） |
 | center_location | geography(POINT, 4326) | | 地図中心座標 |
 | priority | smallint | NOT NULL, DEFAULT 0 | 表示優先度（副都心系を上位に） |
@@ -158,9 +170,13 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 **制約:**
 - `UNIQUE (prefecture_code, slug)` — 都道府県内でslug重複禁止
 - `CHECK (code = prefecture_code || '-' || slug)` — コード整合性の自動チェック
+- `CHECK (level IN ('ward','sub_area'))`
+
+**`level` を持つ理由:** `parent_code IS NULL` を「市区町村レベル」の代わりに使うと、23区外で親を持たないエリア（例: 吉祥寺／武蔵野市）が混入して「東京23区制覇」の母数が狂う。レベルは明示的に持つ。
 
 **インデックス:**
 - `(prefecture_code, priority DESC)` — 都道府県別の表示順
+- `(prefecture_code, level)` — 制覇マップの母数集計
 - `(parent_code)` — 階層ナビゲーション
 - `GIST(center_location)` — 地図検索
 
@@ -213,7 +229,7 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 `S_CAFE_DETAIL` の混雑度セクションで、以下の3段階の表示切替を実装:
 
 1. **直近30分以内のレポートあり** → 「今の混雑度」として直近平均を表示
-2. **なければ** → 「同曜日同時間帯の過去4週間平均」を表示（`get_cafe_congestion_at()` Postgres関数）
+2. **なければ** → 「同曜日同時間帯の過去4週間平均」を表示（同じ `get_cafe_congestion_current()` 内でフォールバック）
 3. **データ全くなし** → 「情報なし / 最初の報告者になろう」
 
 **時間帯別グラフ:**
@@ -268,14 +284,26 @@ $$;
 | cafe_id | uuid | NOT NULL, FK → cafes(id) |
 | status | text | NOT NULL, DEFAULT 'pending' |
 | document_urls | jsonb | NOT NULL, DEFAULT '[]' |
+| contact_email | text | NOT NULL |
+| applicant_note | text | |
 | review_notes | text | |
 | reviewed_by | uuid | FK → profiles(id) |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 | reviewed_at | timestamptz | |
 
-**制約:** `CHECK (status IN ('pending','approved','rejected'))`
+**制約:**
+- `CHECK (status IN ('pending','approved','rejected','withdrawn'))`
+- `CHECK (jsonb_array_length(document_urls) >= 2)` — 書類2点以上（[error-catalog](../error-catalog.md) `DOCUMENTS_INSUFFICIENT`）
 
-**RLS:** SELECT は本人 + admin / INSERT 認証済み / UPDATE admin のみ
+**列の意味:**
+- `contact_email` — 運営からの追加確認先。`profiles` のログイン用メールとは別に持つ（[S_OWNER_CLAIM](../../design/wireframes/owner.md#s_owner_claimオーナー認証申請)）
+- `applicant_note` — 「屋号と本人氏名が異なる場合の説明」等の補足事項
+
+**RLS:**
+- SELECT: 本人 + admin
+- INSERT: 認証済み（`user_id = auth.uid()`）
+- UPDATE: admin（審査）、**または本人が `status = 'pending' → 'withdrawn'` に変更する場合のみ**（申請の取り下げ）
+- DELETE: 不可（履歴保持）
 
 ---
 
@@ -328,7 +356,7 @@ $$;
 | bookmark_count | int | NOT NULL, DEFAULT 0 | 同上 |
 | is_official | boolean | NOT NULL, DEFAULT false | 経営者による公式投稿フラグ（幹C） |
 | official_format | text | | オーナー限定フォーマット: `tip` / `today_special` / `closure` / `new_menu` / NULL |
-| metadata | jsonb | NOT NULL, DEFAULT '{}' | 社会的証明カウンタ等の追加余地 |
+| metadata | jsonb | NOT NULL, DEFAULT '{}' | 公式投稿のフォーマット別項目 + 社会的証明カウンタ等の追加余地（下記） |
 | published_at | timestamptz | | |
 | created_at | timestamptz | NOT NULL, DEFAULT now() | |
 | updated_at | timestamptz | NOT NULL, DEFAULT now() | |
@@ -337,7 +365,20 @@ $$;
 **制約:**
 - `CHECK (status IN ('published','archived','hidden'))`
 - `CHECK (official_format IS NULL OR official_format IN ('tip','today_special','closure','new_menu'))`
-- `CHECK (is_official = false OR (cafe_id IS NOT NULL AND EXISTS (SELECT 1 FROM cafes WHERE id = cafe_id AND verified_owner_id = author_id)))` — is_official=true は認証済みオーナーのみ許可
+- `CHECK (is_official = false OR cafe_id IS NOT NULL)` — 公式投稿は必ずカフェに紐づく
+- **「`is_official=true` は認証済みオーナーのみ」は CHECK 制約では表現できない**（CHECK にサブクエリは書けない）。RLS の INSERT/UPDATE ポリシーで担保する:
+  ```sql
+  CREATE POLICY posts_insert ON public.posts FOR INSERT TO authenticated
+  WITH CHECK (
+    author_id = auth.uid()
+    AND (
+      is_official = false
+      OR EXISTS (SELECT 1 FROM public.cafes c
+                 WHERE c.id = posts.cafe_id AND c.verified_owner_id = auth.uid())
+    )
+  );
+  ```
+  service_role 経由の書き込みは RLS を迂回するため、同等のチェックを BEFORE INSERT トリガーにも置く
 
 **インデックス:**
 - `(author_id, created_at DESC)`
@@ -372,6 +413,27 @@ body_search tsvector GENERATED ALWAYS AS (
     || ' ' || coalesce(title, ''))
 ) STORED
 ```
+
+**`metadata` のスキーマ（公式投稿）:** `official_format` ごとに追加項目を持つ。専用カラムを増やさず jsonb に寄せ、Zod スキーマ（`lib/validators/posts.ts`）で境界検証する。
+
+```json
+// today_special: 今日のおすすめ
+{ "v": 1, "menu_name": "季節限定マロンタルト", "price_yen": 580,
+  "valid_until": "2026-09-15" }        // 「今日のみ」「〜今週末」「期限なし(null)」
+
+// new_menu: 新メニュー
+{ "v": 1, "menu_name": "秋の限定ブレンド", "price_yen": 620,
+  "available_from": "2026-09-15" }
+
+// closure: 臨時休業・営業時間変更
+{ "v": 1, "closure_type": "closed" | "hours_changed",
+  "starts_on": "2026-09-15", "ends_on": "2026-09-15", "reason": "私用のため" }
+
+// tip: 豆知識 — 追加項目なし（title + body_json のみ）
+```
+
+- `price_yen` は表示専用。価格の比較・アンカリング表示はフェーズ2（[mvp-scope.md](../../product/mvp-scope.md)）
+- `closure` の期間は `cafe_business_hours` を上書きしない。営業時間そのものへの反映は `cafe_special_hours` テーブルの導入後（[pending-items B5](../../product/pending-items.md)）
 
 **下書きの取り扱い:** 未公開の投稿は `posts` ではなく [`drafts`](#drafts) テーブルに保存。公開時に `drafts` から `posts` へ移送し、`drafts` は削除する。
 
@@ -427,7 +489,7 @@ body_search tsvector GENERATED ALWAYS AS (
 
 `v` でスキーマバージョンを管理する。フォームのデータ構造変更時は `v` をインクリメントし、クライアント側でバージョン不一致の下書きは破棄して新規下書きとして扱う（サイレント破棄ではなく「古い下書きは使えません」のUI通知を推奨）。
 
-**運用:** Supabase scheduled function または pg_cron で `expires_at < now()` を日次削除
+**運用:** `expires_at < now()` を日次削除。`pg_cron` は Supabase Pro 以上のため、MVP（Free）では Edge Function + GitHub Actions の `schedule` で実行する（[pending-items A6](../../product/pending-items.md)）。取りこぼし対策として、下書き一覧の取得時にも `expires_at > now()` で絞る
 
 **RLS:** SELECT・INSERT・UPDATE・DELETE すべて `auth.uid() = author_id`
 
@@ -451,7 +513,7 @@ body_search tsvector GENERATED ALWAYS AS (
 
 **RLS:**
 - SELECT: `deleted_at IS NULL` かつブロック相手を除外
-- INSERT: 認証済み。`is_official = true` は該当カフェの `verified_owner_id = auth.uid()` の場合のみ許可
+- INSERT: 認証済み。`is_official = true` は該当カフェの `verified_owner_id = auth.uid()` の場合のみ許可（posts と同様、CHECK 制約ではなく RLS の `WITH CHECK` で表現する）
 - UPDATE: `auth.uid() = author_id`
 - DELETE: 作者 or 投稿主（論理削除）
 
@@ -545,7 +607,7 @@ body_search tsvector GENERATED ALWAYS AS (
 | reporter_id | uuid | NOT NULL, FK → profiles(id) |
 | target_type | text | NOT NULL | post / comment / user / cafe |
 | target_id | uuid | NOT NULL |
-| reason | text | NOT NULL | spam / harassment / minor_risk / other |
+| reason | text | NOT NULL | spam / harassment / minor_risk / copyright / privacy / other |
 | description | text | |
 | status | text | NOT NULL, DEFAULT 'pending' | pending / reviewing / resolved / rejected |
 | reviewer_id | uuid | FK → profiles(id) |
@@ -553,9 +615,25 @@ body_search tsvector GENERATED ALWAYS AS (
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 | resolved_at | timestamptz | |
 
+**制約:**
+- `CHECK (reason IN ('spam','harassment','minor_risk','copyright','privacy','other'))`
+- `CHECK (target_type IN ('post','comment','user','cafe'))`
+- `CHECK (status IN ('pending','reviewing','resolved','rejected'))`
+
 **インデックス:** `(status, created_at)` — モデレーションキュー
 
 **RLS:** SELECT 本人 + admin / INSERT 認証済み / UPDATE admin のみ
+
+**理由コードと UI ラベルの対応**（[wireframes/composer.md S_REPORT_FORM](../../design/wireframes/composer.md#s_report_form通報フォーム)）:
+
+| code | UIラベル |
+|---|---|
+| `spam` | スパム / 宣伝 |
+| `harassment` | 嫌がらせ / 誹謗中傷 |
+| `minor_risk` | 未成年に不適切 |
+| `copyright` | 著作権侵害 |
+| `privacy` | 個人情報を含む |
+| `other` | その他 |
 
 ---
 
@@ -583,14 +661,26 @@ body_search tsvector GENERATED ALWAYS AS (
 | id | uuid | PK, DEFAULT gen_random_uuid() |
 | recipient_id | uuid | NOT NULL, FK → profiles(id) |
 | actor_id | uuid | FK → profiles(id) |
-| type | text | NOT NULL | like / comment / follow / mention / badge / owner_verified |
+| type | text | NOT NULL | 下の CHECK 制約と同じ値域（説明は下表） |
 | entity_type | text | | post / comment / user 等 |
 | entity_id | uuid | |
 | payload | jsonb | NOT NULL, DEFAULT '{}' |
 | read_at | timestamptz | |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 
-**制約:** `CHECK (type IN ('like','comment','follow','mention','badge','owner_verified','regular_awarded'))`
+**制約:** `CHECK (type IN ('like','comment','follow','mention','badge','owner_verified','regular_awarded','official_post','report_resolved'))`
+
+| type | 発火元 | 宛先 |
+|---|---|---|
+| `like` | `likes` INSERT | 投稿者 |
+| `comment` | `comments` INSERT | 投稿者 / 親コメント作者 |
+| `follow` | `follows` INSERT | フォローされた人 |
+| `mention` | 本文中の @メンション（MVP未実装、[pending-items D2](../../product/pending-items.md)） | 対象ユーザー |
+| `badge` | `checkAndAwardBadges` | 獲得者 |
+| `owner_verified` | オーナー認証の承認 / 却下 | 申請者 |
+| `regular_awarded` | 常連認定（幹C） | 認定されたユーザー |
+| `official_post` | オーナー限定投稿の公開（幹C） | 当該カフェを「お気に入り」「行きたい」に入れているユーザー |
+| `report_resolved` | 通報の `status` が resolved / rejected に遷移 | 通報者 |
 
 **インデックス:** `(recipient_id, created_at DESC) WHERE read_at IS NULL` — 未読
 
@@ -634,7 +724,7 @@ body_search tsvector GENERATED ALWAYS AS (
 | カラム | 型 | 制約 |
 |---|---|---|
 | user_id | uuid | PK, FK → profiles(id) |
-| area_code | text | PK, FK → [areas](#areas)(code) | エリアコード（例: `JP-13-shibuya`） |
+| area_code | text | PK, FK → [areas](#areas)(code) | エリアコード（例: `JP-13-shibuya-ku`） |
 | first_visited_at | timestamptz | NOT NULL |
 | last_visited_at | timestamptz | NOT NULL |
 | visit_count | int | NOT NULL, DEFAULT 1 |

@@ -93,8 +93,8 @@
 
 **採用エディタ: Tiptap（リッチテキスト）**
 - 保存形式: JSON（ProseMirror）— XSS対策と表示柔軟性の両立
-- 対応機能: 見出し（h2/h3）・太字・斜体・下線・リンク・画像・引用・箇条書き・番号付きリスト
-- 意図的に非対応: テーブル・カラム分割・カスタム色・フォント指定（選択のパラドックス回避）
+- 対応機能: 見出し（h2/h3）・太字・斜体・リンク・画像・引用・箇条書き・番号付きリスト
+- 意図的に非対応: **下線**（リンクと視覚的に紛らわしい）・テーブル・カラム分割・カスタム色・フォント指定（選択のパラドックス回避）
 - モバイル対応: フローティングツールバーが選択範囲上に出現
 
 
@@ -132,12 +132,12 @@
 | 公開範囲                                |
 | ( ● ) 公開  ( ○ ) フォロワーのみ       |
 +----------------------------------------+
-| 自動保存済み ・ 15秒前 [下書き履歴]    |
+| 自動保存済み ・ 15秒前                 |
 +----------------------------------------+
 ```
 
-- Markdown or リッチテキストどちらでも書ける Toolbar 併用
-- 「下書き履歴」で以前のバージョンに戻せる（損失回避の強化）
+- 保存形式は Tiptap JSON 単一。Markdown 記法は**入力ショートカット**としてのみ受け付ける（`## ` で見出しになる等）。Markdown テキストとしては保存しない
+- 自動保存は15秒デバウンスで `drafts` を**上書き**する。バージョン履歴は持たない（[tables.md drafts](../../architecture/data-model/tables.md#drafts) は `UNIQUE (author_id, client_draft_key)` の1行）
 
 ### PC
 
@@ -261,6 +261,8 @@
 - `closure` — 臨時休業・営業時間変更
 - `new_menu` — 新メニュー
 
+**フォーマット固有の入力項目（有効期限・価格・提供開始日・休業期間）は `posts.metadata` に保存する。** 専用カラムは増やさない。スキーマは [tables.md posts の `metadata`](../../architecture/data-model/tables.md#posts) に定義。
+
 ### フォーマット別入力画面
 
 #### 今日のおすすめ (`today_special`)
@@ -341,7 +343,7 @@
 +----------------------------------------+
 ```
 
-**運用:** 期間中は `cafe_business_hours` に一時的な休業情報として反映（別途 `cafe_special_hours` テーブル追加を検討 → pending-items）
+**運用:** MVP では告知（公式投稿）のみで、`cafe_business_hours` の表示は書き換えない。営業時間そのものへの反映は `cafe_special_hours` テーブル導入後（[pending-items B5](../../product/pending-items.md)）
 
 #### 新メニュー (`new_menu`)
 
@@ -371,7 +373,7 @@
 - 認証済みオーナー以外は `S_POST_OFFICIAL` 導線をUIに出さない
 - DB側でも `is_official=true` の INSERT を RLS でオーナーのみに制限
 - カフェ詳細画面 (`S_CAFE_DETAIL`) の「オーナーから」セクションに表示される
-- 一般投稿とは区別して、通知タイプも `official_post` として送る
+- 一般投稿とは区別して、`notifications.type = 'official_post'` で通知する（[tables.md notifications](../../architecture/data-model/tables.md#notifications)）
 - 「行きたい」「お気に入り」に入れているユーザーには公式投稿の通知を優先的に送る
 
 ---
@@ -405,6 +407,8 @@
 | [通報する]                (primary)    |
 +----------------------------------------+
 ```
+
+**理由の選択肢は `reports.reason` と1対1で対応**（spam / harassment / minor_risk / copyright / privacy / other。[tables.md reports](../../architecture/data-model/tables.md#reports)）。
 
 **完了画面:**
 
