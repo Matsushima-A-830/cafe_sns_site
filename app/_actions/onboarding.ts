@@ -10,6 +10,7 @@ import {
 import type { Result } from '@/types/result'
 
 const POSTGRES_UNIQUE_VIOLATION = '23505'
+const POSTGRES_FOREIGN_KEY_VIOLATION = '23503'
 
 type SignupMetadata = {
   birth_date?: string
@@ -97,7 +98,9 @@ export async function submitArea(input: unknown): Promise<Result<null>> {
     .eq('id', user.id)
 
   if (error) {
-    if (error.code === POSTGRES_UNIQUE_VIOLATION) return { ok: false, error: 'AREA_CODE_UNKNOWN' }
+    // home_area_code は areas.code への FK。存在しないコードは一意制約ではなく外部キー制約に違反する
+    if (error.code === POSTGRES_FOREIGN_KEY_VIOLATION)
+      return { ok: false, error: 'AREA_CODE_UNKNOWN' }
     return { ok: false, error: 'INTERNAL_ERROR', details: error.message }
   }
 
@@ -122,8 +125,10 @@ export async function submitInterests(input: unknown): Promise<Result<null>> {
     .from('user_interest_tags')
     .insert(parsed.data.tagIds.map((tagId) => ({ user_id: user.id, tag_id: tagId })))
 
-  if (insertError) {
-    if (insertError.code === POSTGRES_UNIQUE_VIOLATION) return { ok: false, error: 'CONFLICT' }
+  // 前回の試行でタグ INSERT は成功したが直後の onboarded_at 更新が失敗した場合、
+  // 再送信は同じ (user_id, tag_id) の重複違反になる。ここで弾くと永久にオンボーディングを
+  // 完了できなくなるため、重複は「既に保存済み」として onboarded_at の更新に進む
+  if (insertError && insertError.code !== POSTGRES_UNIQUE_VIOLATION) {
     return { ok: false, error: 'INTERNAL_ERROR', details: insertError.message }
   }
 

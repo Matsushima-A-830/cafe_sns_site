@@ -11,6 +11,7 @@ import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { errorMessage } from '@/lib/utils/error-messages'
+import { safeRedirectPath } from '@/lib/utils/safe-redirect'
 import { type LoginInput, loginSchema } from '@/lib/validators/auth'
 
 export function LoginForm() {
@@ -30,7 +31,7 @@ export function LoginForm() {
       setFormError(errorMessage(result.error))
       return
     }
-    router.push(searchParams.get('next') ?? '/')
+    router.push(safeRedirectPath(searchParams.get('next')))
     router.refresh()
   })
 
