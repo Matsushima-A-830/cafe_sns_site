@@ -35,5 +35,9 @@ $$;
 comment on function public.replace_user_interest_tags(uuid[]) is
   '気分タグ（1〜5個、occasion/mood）を丸ごと入れ替える。delete/insert を1呼び出しに閉じ込め、片方だけの成功を防ぐ';
 
-grant execute on function public.replace_user_interest_tags(uuid[]) to authenticated, service_role;
+-- service_role には grant しない。service_role の JWT には sub (auth.uid()) が無いため、
+-- 呼んでも delete は無マッチ・insert は user_id NOT NULL 違反(23502)で必ず失敗する。
+-- 管理側からユーザーの気分タグをリセットしたくなったら、ユーザーIDを明示的に受け取る
+-- 別関数（security definer + 独自の認可チェック）を別途用意すること
+grant execute on function public.replace_user_interest_tags(uuid[]) to authenticated;
 revoke execute on function public.replace_user_interest_tags(uuid[]) from public;
