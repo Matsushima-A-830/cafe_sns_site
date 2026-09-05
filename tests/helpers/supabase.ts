@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import { createClient, type Session, type SupabaseClient } from '@supabase/supabase-js'
 
 type LocalCredentials = {
   url: string
@@ -106,7 +106,19 @@ export type AuthedUser = {
   /** ログイン済み（Postgres の `authenticated` ロール）で叩くクライアント */
   client: SupabaseClient
   userId: string
+  /** 再ログインして新しいアクセストークンを取り直す（クレイムの検証用） */
+  refreshSession: () => Promise<Session>
   cleanup: () => Promise<void>
+}
+
+export type ProfileOverrides = {
+  username?: string
+  display_name?: string
+  birth_date?: string
+  role?: 'user' | 'owner' | 'admin'
+  status?: 'active' | 'pending_consent' | 'suspended' | 'deleted'
+  onboarded_at?: string | null
+  home_area_code?: string | null
 }
 
 /**
@@ -135,8 +147,48 @@ export async function createAuthedUser(): Promise<AuthedUser> {
   return {
     client,
     userId,
+    refreshSession: async () => {
+      const again = await client.auth.signInWithPassword({ email, password })
+      if (again.error || !again.data.session) {
+        throw new Error(`再ログインに失敗: ${again.error?.message}`)
+      }
+      return again.data.session
+    },
     cleanup: async () => {
       await service.auth.admin.deleteUser(userId)
     },
   }
+}
+
+/**
+ * 認証済みユーザーに profiles 行を付ける。
+ * profiles は「生年月日の入力後にアプリが作る」設計なので、auth.users とは別に用意する。
+ */
+export async function createTestProfile(
+  user: AuthedUser,
+  overrides: ProfileOverrides = {},
+): Promise<void> {
+  const service = serviceRoleClient()
+  const suffix = user.userId.replace(/-/g, '').slice(0, 12)
+  const { error } = await service.from('profiles').insert({
+    id: user.userId,
+    username: overrides.username ?? `test_${suffix}`,
+    display_name: overrides.display_name ?? 'テストユーザー',
+    // 13歳以上でないと enforce_min_age に弾かれる
+    birth_date: overrides.birth_date ?? '2000-01-01',
+    ...overrides,
+  })
+  if (error) throw new Error(`テスト用 profiles の作成に失敗: ${error.message}`)
+}
+
+/** profiles 付きの認証済みユーザーを1回で用意する */
+export async function createAuthedProfile(overrides: ProfileOverrides = {}): Promise<AuthedUser> {
+  const user = await createAuthedUser()
+  try {
+    await createTestProfile(user, overrides)
+  } catch (error) {
+    await user.cleanup()
+    throw error
+  }
+  return user
 }

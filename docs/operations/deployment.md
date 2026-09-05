@@ -252,6 +252,29 @@ jobs:
 > ⚠️ このサンプルは実ファイル [`.github/workflows/deploy-migration.yml`](../../.github/workflows/deploy-migration.yml) の要約。
 > 齟齬が出たら実ファイルを正として、こちらを直す。
 
+## 本番の最初の admin を作る
+
+`profiles.role` の変更は admin 限定（`is_admin()`）なので、本番には admin を作る経路が無い。
+**最初の1人だけ service_role で手動昇格する**（pending-items A9）。
+
+1. 対象ユーザーに通常どおりサインアップしてもらい、`profiles` 行まで作られた状態にする
+2. Supabase Dashboard → SQL Editor（service_role 相当で実行される）で昇格する:
+
+   ```sql
+   update public.profiles set role = 'admin'
+   where username = '<昇格させる username>';
+   ```
+
+3. **本人に再ログインしてもらう。** `role` は JWT のカスタムクレイムに載るため、
+   既発行のアクセストークンが切れる（既定1時間）まで管理画面の導線が出ない
+
+`profiles` の `guard_privileged_profile_columns` トリガーは `auth.uid()` が NULL のとき素通りするので、
+この経路だけが通る。2人目以降は admin 自身が管理画面から昇格できる。
+
+> **ローカルは手動昇格しなくてよい。** `supabase/seed.sql` が開発用 admin
+> （`admin@example.test` / `password123`）を作る。この seed は `db reset` でしか流れないので
+> 本番には入らない。
+
 ## 環境変数管理
 
 ### 一覧

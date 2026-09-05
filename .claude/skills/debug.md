@@ -223,3 +223,11 @@ description: 実装中の詰まり所を体系的に解消する。RLS、Server 
 ## 学習の記録
 
 繰り返し発生する問題は [pending-items.md](../../docs/product/pending-items.md) に「解消済みの罠」として記録する。
+
+## `config.toml` を変えたのに反映されない
+
+`pnpm db:reset` は**マイグレーションと seed を流し直すだけで、`config.toml` は読み直さない。**
+Auth のフック設定（`[auth.hook.custom_access_token]`）など、コンテナの起動設定を変えた時は
+`pnpm db:stop && pnpm db:start` が要る。
+
+症状: フックを有効化したのに JWT のカスタムクレイム（`role` / `status` / `onboarded`）が載らない。

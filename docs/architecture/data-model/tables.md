@@ -82,8 +82,13 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 - UPDATE: `auth.uid() = id`（`role`, `status` は admin のみ変更可）
 - DELETE: 不可（`status='deleted'` で無効化）
 
-> **⚠️ 最初の admin は自力では作れない。** `role` の変更が admin 限定なので鶏と卵になる。
-> 開発用 admin の作り方（ローカル専用なので `seed.sql`）と本番での昇格手順を決めること（[pending-items A9](../../product/pending-items.md)）。
+**`role` / `status` の保護は BEFORE UPDATE トリガー（`guard_privileged_profile_columns`）で行う。**
+RLS の `WITH CHECK` は OLD 行を参照できず「どの列が変わったか」を判定できないため。
+このトリガーは **`auth.uid()` が NULL のとき素通りする** — service_role と直接接続を巻き込むと、
+本番に最初の admin を作る手段が消えるため（[pending-items A9](../../product/pending-items.md)）。
+
+**最初の admin:** ローカルは `seed.sql`、本番は service_role での手動昇格
+（[deployment.md #本番の最初の-admin-を作る](../../operations/deployment.md)）。
 
 ---
 
@@ -264,10 +269,8 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 - SELECT: 全ユーザー (`is_active = true`)
 - INSERT / UPDATE / DELETE: admin のみ
 
-> **現状（2026-09-05）:** 書き込みポリシーは**まだ置いていない**。ポリシー不在なので `anon` / `authenticated`
-> からの書き込みは全拒否になり、「admin のみ」の安全側の部分実装として成立している。
-> admin 判定には `profiles.role` が要るため、`profiles` を作る PR で `is_admin()` と一緒に追加する
-> （[pending-items A9](../../product/pending-items.md)）。`tags` / `badges` も同じ扱い。
+`is_admin()` を使った書き込みポリシーは `20260905130400_master_tables_admin_write.sql` で追加済み。
+`FOR ALL` なので admin だけは `is_active = false` のエリアも読める（ポリシーは OR 結合）。
 
 **運用:**
 - コード変更は禁止（外部参照が壊れる）— 変更が必要なら `is_active=false` にして新コードを作る
@@ -678,7 +681,7 @@ body_search tsvector GENERATED ALWAYS AS (
 
 **制約:** `CHECK (category IN ('area','mood','occasion','other'))` / `CHECK (usage_count >= 0)`
 
-**RLS:** SELECT 全ユーザー / INSERT・UPDATE admin のみ（MVP）。書き込みポリシー未設定の現状は [areas](#areas) と同じ
+**RLS:** SELECT 全ユーザー / INSERT・UPDATE admin のみ（`is_admin()`）
 
 **運用:** 「選択のパラドックス回避」の観点から、UIでは `is_curated=true` を優先表示、自由入力タグは制限（例: 1投稿5個まで）
 
@@ -861,7 +864,7 @@ body_search tsvector GENERATED ALWAYS AS (
 `type` の値そのものは列挙しない（フェーズ2でバッジ種別が増えるたびにマイグレーションを打つのは割に合わない）。
 確定した9種の `type` は [seed/badges-initial-set.md](../../seed/badges-initial-set.md) 参照
 
-**RLS:** SELECT 全ユーザー / INSERT admin のみ。書き込みポリシー未設定の現状は [areas](#areas) と同じ
+**RLS:** SELECT 全ユーザー / INSERT admin のみ（`is_admin()`）
 
 ---
 

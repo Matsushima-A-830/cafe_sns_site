@@ -108,6 +108,137 @@ export type Database = {
         }
         Relationships: []
       }
+      blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+          reason: string | null
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+          reason?: string | null
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'blocks_blocked_id_fkey'
+            columns: ['blocked_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'blocks_blocker_id_fkey'
+            columns: ['blocker_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      follows: {
+        Row: {
+          created_at: string
+          followee_id: string
+          follower_id: string
+        }
+        Insert: {
+          created_at?: string
+          followee_id: string
+          follower_id: string
+        }
+        Update: {
+          created_at?: string
+          followee_id?: string
+          follower_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'follows_followee_id_fkey'
+            columns: ['followee_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'follows_follower_id_fkey'
+            columns: ['follower_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          birth_date: string
+          created_at: string
+          display_name: string
+          guardian_consent_at: string | null
+          guardian_email: string | null
+          home_area_code: string | null
+          id: string
+          metadata: Json
+          onboarded_at: string | null
+          role: string
+          status: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          birth_date: string
+          created_at?: string
+          display_name: string
+          guardian_consent_at?: string | null
+          guardian_email?: string | null
+          home_area_code?: string | null
+          id: string
+          metadata?: Json
+          onboarded_at?: string | null
+          role?: string
+          status?: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          birth_date?: string
+          created_at?: string
+          display_name?: string
+          guardian_consent_at?: string | null
+          guardian_email?: string | null
+          home_area_code?: string | null
+          id?: string
+          metadata?: Json
+          onboarded_at?: string | null
+          role?: string
+          status?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'profiles_home_area_code_fkey'
+            columns: ['home_area_code']
+            isOneToOne: false
+            referencedRelation: 'areas'
+            referencedColumns: ['code']
+          },
+        ]
+      }
       tags: {
         Row: {
           category: string
@@ -144,11 +275,90 @@ export type Database = {
         }
         Relationships: []
       }
+      user_interest_tags: {
+        Row: {
+          created_at: string
+          tag_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          tag_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          tag_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'user_interest_tags_tag_id_fkey'
+            columns: ['tag_id']
+            isOneToOne: false
+            referencedRelation: 'tags'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'user_interest_tags_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      user_settings: {
+        Row: {
+          allow_recommendation: boolean
+          font_scale: string
+          notify_comment: boolean
+          notify_email: boolean
+          notify_follow: boolean
+          notify_like: boolean
+          updated_at: string
+          use_location: boolean
+          user_id: string
+        }
+        Insert: {
+          allow_recommendation?: boolean
+          font_scale?: string
+          notify_comment?: boolean
+          notify_email?: boolean
+          notify_follow?: boolean
+          notify_like?: boolean
+          updated_at?: string
+          use_location?: boolean
+          user_id: string
+        }
+        Update: {
+          allow_recommendation?: boolean
+          font_scale?: string
+          notify_comment?: boolean
+          notify_email?: boolean
+          notify_follow?: boolean
+          notify_like?: boolean
+          updated_at?: string
+          use_location?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'user_settings_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: true
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      is_admin: { Args: never; Returns: boolean }
       tiptap_to_plaintext: { Args: { doc: Json }; Returns: string }
     }
     Enums: {
