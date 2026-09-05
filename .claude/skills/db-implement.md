@@ -17,13 +17,16 @@ description: DBスキーマ・マイグレーション・RLSポリシー実装�
 
 ```
 supabase/migrations/
-├── 20260902_120000_init_schema.sql
-├── 20260902_130000_create_profiles.sql
-├── 20260902_140000_create_posts.sql
-├── 20260903_100000_add_area_code_to_cafes.sql
+├── 20260902120000_init_schema.sql
+├── 20260902130000_create_profiles.sql
+├── 20260902140000_create_posts.sql
+├── 20260903100000_add_area_code_to_cafes.sql
 ```
 
-- タイムスタンプ 14桁 (`YYYYMMDD_HHMMSS`) 接頭辞
+- タイムスタンプ 14桁 (`YYYYMMDDHHMMSS`) 接頭辞。**日付と時刻の間にアンダースコアを入れない**
+  - Supabase CLI は `^([0-9]+)_(.*)\.sql$` でバージョンを切り出す。`20260902_120000_x.sql` と書くと
+    バージョンが `20260902` になり、同じ日の2本目以降が**同一バージョンとして衝突する**
+  - `supabase migration new <name>` が正しい形式で作ってくれるので、原則こちらを使う
 - スネークケースで内容を表現
 - 1マイグレーション = 1論理変更（複数目的を混ぜない）
 
@@ -211,7 +214,14 @@ $$;
 
 ## seed データ
 
-`supabase/seed.sql` に初期データを投入。開発時 `pnpm db:reset` で自動流し込み。
+**マスタデータ（本番にも要るもの）はマイグレーションに置く。`supabase/seed.sql` には置かない。**
+
+`seed.sql` は `supabase db reset`（ローカル）でしか実行されず、本番の経路である `supabase db push` は
+流さない。`--include-seed` を付けても未適用マイグレーションが0件なら seed はスキップされる。
+`seed.sql` に置いてよいのは「ローカル / Preview だけで欲しいもの」（開発用 admin、ダミー投稿など）。
+
+マスタは `insert ... on conflict do update` の冪等なマイグレーションとして書き、
+**変更時は既存ファイルを編集せず新しいマイグレーションを追加する**（forward-only）。
 
 ```sql
 -- 厳選タグ

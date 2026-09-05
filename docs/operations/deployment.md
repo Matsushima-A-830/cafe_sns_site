@@ -133,11 +133,34 @@ SENTRY_DSN=<開発時は空でも可>
 
 | ファイル | トリガ | 内容 |
 |---|---|---|
-| `ci.yml` | PR / push | lint + typecheck + test + build |
+| `ci.yml` | PR / push | lint + typecheck + ユニットテスト + build |
+| `integration.yml` | PR / main push | Supabase を起動して `pnpm test:integration`（RLS 検証） |
 | `e2e.yml` | PR | Playwright E2E |
 | `migration-check.yml` | PR (supabase/migrations 変更時) | migration lint |
-| `deploy-migration.yml` | main push (supabase/migrations 変更時) | prod DB migration 適用 |
+| `deploy-migration.yml` | main push (supabase/migrations 変更時) | prod DB migration 適用（マスタデータもここに含まれる） |
 | `preview-cleanup.yml` | PR close | Preview 環境のクリーンアップ（**未作成**） |
+
+**マスタデータ（areas / tags / badges）はマイグレーションに置く。`supabase/seed.sql` には置かない。**
+
+マスタ3テーブルはアプリの動作に必須で、本番にも無いと画面が成立しない。一方 `seed.sql` は
+`supabase db reset`（ローカル）でしか実行されず、本番の経路である `db push` は流さない。
+**`db push --include-seed` も、未適用マイグレーションが0件だと seed をスキップする**ため、
+マスタ単独の変更が本番に届かない（実測で確認済み）。
+
+したがって:
+
+| データ | 置き場 | 本番へ届く経路 |
+|---|---|---|
+| マスタ（areas / tags / badges） | `supabase/migrations/*_seed_master_data.sql` | `db push`（承認ゲート付き） |
+| ローカル専用（開発用 admin、ダミー投稿など） | `supabase/seed.sql` | 届かない（届けない） |
+
+**マスタを変更する時は既存ファイルを編集せず、新しいマイグレーションを追加する**（forward-only）。
+`pnpm db:migrate:new add_xxx_tag` → `insert ... on conflict do update` を書く → PR。
+
+**テストの実行経路が2つに分かれている理由:** `tests/integration/**` は実 Supabase を叩くため、
+Docker を起動しない `ci.yml` では動かない。`vitest.config.ts` の `exclude` でユニット実行から外し、
+Supabase を起動する `integration.yml` で `pnpm test:integration` として流す。
+この分離をしないと、RLS テストを1本追加した時点で `ci.yml` が落ちる。
 
 ### `ci.yml` 例
 
@@ -215,15 +238,19 @@ jobs:
     runs-on: ubuntu-latest
     environment: production   # ← 承認ゲート
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: supabase/setup-cli@v1
       - run: supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       - run: supabase db push
 ```
 
 **environment: production** の設定で **手動承認ゲート** を設ける（DB変更は必ず人間確認）。
+
+> ⚠️ このサンプルは実ファイル [`.github/workflows/deploy-migration.yml`](../../.github/workflows/deploy-migration.yml) の要約。
+> 齟齬が出たら実ファイルを正として、こちらを直す。
 
 ## 環境変数管理
 

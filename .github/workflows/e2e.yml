@@ -1,10 +1,8 @@
 name: E2E
 
+# paths-ignore は付けない（理由は integration.yml と同じ）
 on:
   pull_request:
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
 
 concurrency:
   group: e2e-${{ github.ref }}

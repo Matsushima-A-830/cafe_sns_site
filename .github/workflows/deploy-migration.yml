@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
     paths:
+      # マスタデータもマイグレーションに入っているのでこれで足りる。
+      # supabase/seed.sql はローカル専用（db push は流さない）
       - 'supabase/migrations/**'
 
 concurrency:
