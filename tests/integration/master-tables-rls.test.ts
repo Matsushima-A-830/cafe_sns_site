@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   type AuthedUser,
   anonClient,
+  createAuthedProfile,
   createAuthedUser,
   serviceRoleClient,
 } from '../helpers/supabase'
@@ -182,5 +183,62 @@ describe('badges の RLS', () => {
 
     const after = await service.from('badges').select('code').eq('code', 'POST_FIRST')
     expect(after.data).toHaveLength(1)
+  })
+})
+
+// A9（最初の admin）の決着で is_admin() が入り、ようやく許可パスを検証できるようになった
+describe('マスタ3テーブルへの admin の書き込み', () => {
+  let admin: AuthedUser
+
+  beforeAll(async () => {
+    admin = await createAuthedProfile({ username: 'admin_master', role: 'admin' })
+  })
+
+  afterAll(async () => {
+    await service.from('areas').delete().eq('code', 'JP-13-admin-added')
+    await service.from('tags').delete().eq('slug', 'admin-added-tag')
+    await service.from('tags').delete().eq('slug', 'demoted-tag')
+    await admin?.cleanup()
+  })
+
+  it('admin はエリアを追加できる', async () => {
+    const { error } = await admin.client.from('areas').insert({
+      code: 'JP-13-admin-added',
+      prefecture_code: 'JP-13',
+      slug: 'admin-added',
+      label: 'admin が足したエリア',
+      level: 'sub_area',
+      parent_code: 'JP-13-shibuya-ku',
+    })
+
+    expect(error).toBeNull()
+  })
+
+  it('admin はタグを追加・更新できる', async () => {
+    const created = await admin.client
+      .from('tags')
+      .insert({ slug: 'admin-added-tag', label: 'admin タグ', category: 'mood' })
+    expect(created.error).toBeNull()
+
+    const { data, error } = await admin.client
+      .from('tags')
+      .update({ is_curated: true })
+      .eq('slug', 'admin-added-tag')
+      .select('is_curated')
+    expect(error).toBeNull()
+    expect(data).toEqual([{ is_curated: true }])
+  })
+
+  it('role を admin から落とすと書けなくなる', async () => {
+    await service.from('profiles').update({ role: 'user' }).eq('id', admin.userId)
+    try {
+      const { error } = await admin.client
+        .from('tags')
+        .insert({ slug: 'demoted-tag', label: '降格後', category: 'mood' })
+
+      expect(error?.code).toBe(RLS_VIOLATION)
+    } finally {
+      await service.from('profiles').update({ role: 'admin' }).eq('id', admin.userId)
+    }
   })
 })
