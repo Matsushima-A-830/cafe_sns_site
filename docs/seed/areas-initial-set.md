@@ -2,6 +2,12 @@
 
 `areas` テーブルに投入する初期データ。**東京中心のMVPからスタート、全国は段階的に拡張**。
 
+> **⚠️ このドキュメントは座標を持っていない。**
+> 以下の表は `code` / `slug` / `label` / `parent_code` のみで、`areas.center_location`（緯度経度）が未収集。
+> **seed は `center_location = NULL` で投入してよい**（列は nullable）が、その状態では `S_MAP` のエリア表示・
+> 新規カフェ登録時の `area_code` 自動判定・`S_ONBOARD_AREA` の「現在地から検索」が動かない。
+> 収集の段取りは [pending-items A3](../product/pending-items.md) を参照。
+
 ## コード体系（ISO 3166-2 準拠）
 
 ```

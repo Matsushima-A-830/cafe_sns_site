@@ -2,6 +2,18 @@
 
 MVP計画中に発生した「後で決める」項目を集約。実装フェーズに入る前・入りながら順次解消する。
 
+## 🔴 実装着手時点で未了のもの（2026-09-05 現在）
+
+初回マイグレーションを書き始めることは**できる**。ただし以下は途中で必ず当たるので、当たった時点で解消する。
+
+| # | 内容 | いつ効いてくるか | ブロックするもの |
+|---|---|---|---|
+| [A3](#a3-エリア定義制覇マップ用-部分解消設計は確定--座標データが未収集) | `areas.center_location` の座標45件が未収集 | `S_MAP` / カフェ登録の実装時 | 地図表示、エリア自動判定、現在地検索。**seed は座標なしで投入してよい** |
+| [A9](#a9-最初の-admin-アカウントをどう作るか--未決2026-09-05-追加) | 最初の admin を作る手段が無い（RLS で role 変更は admin のみ） | `seed.sql` を書く時 | 管理画面すべて（MVPスコープ内） |
+| [D9](#d9-badgescriteria-の-json-が全20件ぶん書かれていない-2026-09-05-追加) | `badges.criteria` が20件ぶん確定していない | バッジ seed 投入時 | バッジ付与ロジック。既存パターンからの類推で埋まる |
+
+これ以外の優先度A項目はすべて解消済み。
+
 ## 優先度A: MVPリリース前に決める必要あり
 
 ### A1. Safari対応方針 🟡 部分決定（2026-09-03）
@@ -21,17 +33,40 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **priority 導入:** `tags.priority` で表示順を制御（occasion=100 / mood=50 / other=10）
 - **残作業:** DB初期化時に seed SQL を実行
 
-### A3. エリア定義（制覇マップ用）✅ 解消済（2026-09-03）
+### A3. エリア定義（制覇マップ用）🟡 部分解消（設計は確定 / 座標データが未収集）
 
-- **解消:** [seed/areas-initial-set.md](../seed/areas-initial-set.md) にて確定
-- **コード体系:** ISO 3166-2 準拠（`JP-13-shibuya-ku`）
-- **マスタテーブル:** `areas` を新設、`parent_code` で階層化
-- **初期セット:** 東京45エリア（23区 + 主要副地域22）
-- **残作業:**
-  - DB初期化時に `areas` テーブル作成 + seed SQL 実行
-  - `areas.center_location` の座標データ収集（45エリアぶんの中心点）
-  - 新規カフェ登録時の `area_code` 自動判定ロジック（PostGIS `ST_Distance` で最寄りの `center_location` を選ぶ）
+- **確定済み:** コード体系・階層・初期セット45件は [seed/areas-initial-set.md](../seed/areas-initial-set.md) で確定
+  - コード体系: ISO 3166-2 準拠（`JP-13-shibuya-ku`）
+  - マスタテーブル: `areas` を新設、`parent_code` で階層化
+  - 初期セット: 東京45エリア（23区 + 主要副地域22）
 - **境界ポリゴン (`bounds`) は持たない（2026-09-05 決定）:** [tables.md areas](../architecture/data-model/tables.md#areas) は `center_location`（点）のみを持つ。エリア判定は最寄り中心点への距離で足り、行政界ポリゴンの調達・保守コストに見合わない。地図の初期表示範囲も中心点 + 固定ズームで代替する
+
+#### 🔴 未了: `areas.center_location` の座標データ（2026-09-05 に再確認）
+
+**`areas-initial-set.md` は `code / slug / label / parent_code` しか持っておらず、45件ぶんの緯度経度がどこにもない。**
+
+- **マイグレーションと seed は書ける** — 列は nullable なので `center_location = NULL` で投入できる。初回マイグレーションのブロッカーではない
+- **座標が入るまで動かない機能:**
+  - `S_MAP` のエリア指定表示（地図の中心が決まらない）
+  - 新規カフェ登録時の `area_code` 自動判定（`ST_Distance` の比較対象が無い）
+  - `S_ONBOARD_AREA` の「現在地から検索」（最寄りエリアを出せない）
+- **必要な作業:** 45件ぶんの中心点（各区役所 or 主要駅の座標）を収集して seed に入れる
+- **調達方法の候補:**
+  - a) 国土地理院や e-Stat の公開データから区役所座標を取る
+  - b) Google Geocoding API に区名・駅名を投げて一括取得（`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` と同じプロジェクトで従量課金）
+  - c) 45件を手作業で調べる（1〜2時間程度）
+- **決定期限:** `S_MAP` またはカフェ登録機能の実装前。**それまでは seed に座標なしで投入してよい**
+
+### A9. 最初の admin アカウントをどう作るか 🔴 未決（2026-09-05 追加）
+
+- **課題:** `profiles.role` の変更は RLS で **admin のみ**に制限されている（[tables.md profiles](../architecture/data-model/tables.md#profiles)）。この状態では**誰も最初の admin になれない**（鶏と卵）
+- **影響:** `S_ADMIN_REPORTS` / `S_ADMIN_REVIEW` / `S_ADMIN_OWNER_REVIEW` / NGワード管理 は MVP スコープ内なので、これが決まらないと管理機能を一切触れない
+- **選択肢:**
+  - a) `seed.sql` で開発用の admin を1件作る（ローカル・Preview 専用。本番の seed には含めない）
+  - b) 本番は service_role キーで一度だけ手動 UPDATE する運用にし、手順を `deployment.md` に残す
+  - c) 「最初の1人は admin」になる初回起動時トリガーを置く
+- **推奨:** a + b（ローカルは seed で自動、本番は手順化した手動昇格。c は本番で事故ると危険）
+- **決定期限:** `seed.sql` を書く時（＝初回マイグレーションと同時）
 
 ### A4. 混雑度データの入力方法 ✅ 解消済（2026-09-03）
 
@@ -239,6 +274,19 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **課題:** Next.js コミュニティでは `(marketing)` / `(public)` / `(guest)` が一般的
 - **影響:** 動作には影響なし。将来の共同開発時の学習コスト
 - **対応判断:** 実装開始時に決定。変更しないままでも問題なし
+- **推奨（2026-09-05）: `(browsing)` のまま進める。** 一般的な `(public)` は「未ログインでも見える」を含意するが、`(browsing)` 配下には `/cafes/new`（要ログイン）が入っており、名前と権限が一致しない。どの名前でも誤解は残るので、既に37画面のドキュメント全体で使われている現行名を変えないほうが安い
+
+### D9. `badges.criteria` の JSON が全20件ぶん書かれていない 🟡（2026-09-05 追加）
+
+- **課題:** [seed/badges-initial-set.md](../seed/badges-initial-set.md) には `post_count_with_tag` / `distinct_scene_tag_count` / `regular_customer_count` / `distinct_area_count` の**例**があるだけで、20件それぞれの `criteria` が確定していない。特に以下は型が未定義:
+  - `POST_FIRST` / `POST_10` / `POST_50` / `POST_100` → `post_count` 系
+  - `COM_10_FOLLOWERS` → `follower_count` 系
+  - `COM_100_LIKES` → `likes_received` 系
+  - `COM_FIRST_LIKE_GIVEN` → `likes_given` 系
+  - `AREA_3` / `AREA_10` → `distinct_area_count` に `scope` をどう与えるか（`tokyo_23` 以外）
+- **影響:** 既存パターンからの類推で埋まる範囲。設計判断というより記述作業
+- **対応:** `seed.sql` を書く時に20件ぶんを確定させ、`badges-initial-set.md` に反映する。あわせて `lib/badges/rules.ts` の判定関数と1対1で対応させる
+- **決定期限:** バッジ seed の投入時
 
 ### D6. `/new/success` を独立ルートにする必要性
 
