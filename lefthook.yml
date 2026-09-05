@@ -1,3 +1,13 @@
+# 各コマンドの先頭で nvm を読み込んでいるのは、git が hook を非対話シェルで
+# 起動するため .bashrc が読まれず node / pnpm が PATH に無いから。
+# `rc:` に切り出す方法は使えない — 生成される hook の `. .lefthookrc` は
+# shebang が #!/bin/sh (Ubuntu では dash) のとき PATH 検索になり
+# "not found" でシェルごと終了してしまう。
+#
+# 注意: このリポジトリは WSL 上にあるため、git 操作は WSL 側のシェルから行うこと。
+# Windows 側から commit すると Linux バイナリの lefthook を起動できず、
+# 検査が無音でスキップされる (docs/operations/git-workflow.md 参照)。
+
 pre-commit:
   parallel: true
   commands:
@@ -8,6 +18,11 @@ pre-commit:
         [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
         pnpm biome check --write {staged_files}
       stage_fixed: true
+
+    # node に依存しない純粋な bash スクリプトなので nvm は不要
+    design-system:
+      glob: "{app,components}/**/*.{ts,tsx,css}"
+      run: bash scripts/check-design-system.sh {staged_files}
 
 commit-msg:
   commands:

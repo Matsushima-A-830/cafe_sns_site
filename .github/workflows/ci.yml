@@ -33,6 +33,9 @@ jobs:
       - name: Biome
         run: pnpm lint
 
+      - name: Design system check
+        run: pnpm lint:design
+
       - name: Typecheck
         run: pnpm typecheck
 

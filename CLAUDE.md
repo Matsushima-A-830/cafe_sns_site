@@ -181,6 +181,7 @@ pnpm test:e2e         # Playwright
 pnpm test:e2e:ui      # Playwright UIモード
 
 pnpm lint             # Biome check
+pnpm lint:design      # デザインシステム禁止パターン検査（#000・インラインstyle・非8倍数余白）
 pnpm lint:fix         # Biome check --write
 pnpm format           # Biome format --write
 pnpm typecheck        # tsc --noEmit
@@ -241,13 +242,19 @@ bg-danger           (危険操作)
 
 具体色（`bg-brown-500` 等）を直接使うのは、意味論で表現できない特殊ケースのみ。詳細は [design/design-system.md #セマンティックトークン](docs/design/design-system.md#セマンティックトークン推奨-この命名で使う) 参照。
 
-### grep 検出用の禁止パターン
+### 禁止パターンの自動検出
 
-```
-text-black | bg-black | border-black | #000\b | #000000 | style=\{
-```
+`scripts/check-design-system.sh` が以下を検出する。**CI（`ci.yml`）と pre-commit hook の両方で実行される**ため、違反はコミットできない。
 
-CIか lint hook で自動検出することを推奨。
+| 検出内容 | 例 |
+|---|---|
+| `#000` 系の色 | `text-black` `bg-black` `black/50` `#000` `#000000` |
+| インライン style | `style={` |
+| 非8倍数の余白 | `p-5` `md:mt-7` `gap-9`（`h-5 w-5` 等のサイズ系は対象外） |
+| 余白の任意値 | `p-[13px]` `gap-[13px]` |
+| フォントの任意サイズ | `text-[15px]` |
+
+手元での実行は `pnpm lint:design`。
 
 ## 決定事項サマリ（横断ルール）
 
