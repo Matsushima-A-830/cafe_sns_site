@@ -29,9 +29,21 @@ export function AuthNav() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // 解決するまでの間、高さの確定した骨組みを描画してポップイン（CLS）を防ぐ
+  // 解決するまでの間、高さと横幅の確定した骨組みを描画してポップイン（CLS・兄弟要素の横ずれ）を防ぐ。
+  // 未ログイン状態（テキスト + ボタンの2要素）に近い幅で2つ並べておく
   if (isAuthed === null) {
-    return <div aria-hidden="true" className="h-8 w-24 animate-pulse rounded-md bg-muted" />
+    return (
+      <>
+        <div
+          aria-hidden="true"
+          className="h-4 w-20 animate-pulse rounded motion-reduce:animate-none bg-muted"
+        />
+        <div
+          aria-hidden="true"
+          className="h-8 w-16 animate-pulse rounded-md motion-reduce:animate-none bg-muted"
+        />
+      </>
+    )
   }
 
   if (isAuthed) {

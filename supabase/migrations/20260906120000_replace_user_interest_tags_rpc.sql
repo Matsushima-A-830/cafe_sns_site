@@ -19,15 +19,21 @@ language plpgsql
 set search_path = ''
 as $$
 begin
+  if p_tag_ids is null or array_length(p_tag_ids, 1) is null then
+    raise exception 'INTEREST_TAGS_EMPTY';
+  end if;
+
   delete from public.user_interest_tags where user_id = (select auth.uid());
 
+  -- distinct: 呼び出し側で重複IDが混ざると PK 違反(23505)で丸ごとロールバックし、
+  -- ユーザーは古いタグのままエラーだけを見ることになる
   insert into public.user_interest_tags (user_id, tag_id)
-  select (select auth.uid()), tag_id from unnest(p_tag_ids) as tag_id;
+  select distinct (select auth.uid()), tag_id from unnest(p_tag_ids) as tag_id;
 end;
 $$;
 
 comment on function public.replace_user_interest_tags(uuid[]) is
   '気分タグ（1〜5個、occasion/mood）を丸ごと入れ替える。delete/insert を1呼び出しに閉じ込め、片方だけの成功を防ぐ';
 
-grant execute on function public.replace_user_interest_tags(uuid[]) to authenticated;
-revoke execute on function public.replace_user_interest_tags(uuid[]) from anon, public;
+grant execute on function public.replace_user_interest_tags(uuid[]) to authenticated, service_role;
+revoke execute on function public.replace_user_interest_tags(uuid[]) from public;
