@@ -37,22 +37,31 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium webkit
 
+      # サインアップ〜オンボーディングの E2E は実際の Auth (OTPメール送信含む) を要るため、
+      # dummy 値ではなくローカル Supabase を使う (integration.yml と同じ構成)
+      - name: Start local Supabase
+        run: pnpm exec supabase start
+
+      - name: Apply migrations
+        run: pnpm exec supabase db reset
+
+      # NEXT_PUBLIC_* はビルド時に静的に埋め込まれるため、build より前に $GITHUB_ENV へ出す
+      - name: Export Supabase env
+        run: |
+          eval "$(pnpm exec supabase status -o env | sed -E 's/^([A-Z0-9_]+)="(.*)"$/\1=\2/')"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "NEXT_PUBLIC_SITE_URL=http://localhost:3000"
+          } >> "$GITHUB_ENV"
+
       # playwright.config.ts の webServer が `pnpm start` を叩くため、先にビルドが必要
       - name: Build
         run: pnpm build
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
-          NEXT_PUBLIC_SITE_URL: http://localhost:3000
-          SUPABASE_SERVICE_ROLE_KEY: dummy-service-role-key
 
       - name: Run Playwright tests
         run: pnpm test:e2e
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
-          NEXT_PUBLIC_SITE_URL: http://localhost:3000
-          SUPABASE_SERVICE_ROLE_KEY: dummy-service-role-key
 
       - name: Upload report
         if: always()
@@ -61,3 +70,8 @@ jobs:
           name: playwright-report
           path: playwright-report/
           retention-days: 7
+
+      # supabase status はエンドポイントと鍵を出すだけで、落ちた原因は分からない
+      - name: Dump Supabase container logs
+        if: failure()
+        run: docker ps -a --filter name=supabase --format '{{.Names}}' | xargs -r -I{} sh -c 'echo "===== {} ====="; docker logs --tail 200 {} 2>&1'
