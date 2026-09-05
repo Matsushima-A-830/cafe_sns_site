@@ -29,7 +29,10 @@ export function AuthNav() {
     return () => subscription.unsubscribe()
   }, [])
 
-  if (isAuthed === null) return null
+  // 解決するまでの間、高さの確定した骨組みを描画してポップイン（CLS）を防ぐ
+  if (isAuthed === null) {
+    return <div aria-hidden="true" className="h-8 w-24 animate-pulse rounded-md bg-muted" />
+  }
 
   if (isAuthed) {
     return (

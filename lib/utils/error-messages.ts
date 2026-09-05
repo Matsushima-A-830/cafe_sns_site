@@ -15,6 +15,7 @@ const messages: Partial<Record<ErrorCode, string>> = {
   OTP_INVALID: '確認コードが正しくありません',
   OTP_EXPIRED: '確認コードの有効期限が切れています。再送してください',
   AGE_RESTRICTED: '本サービスは13歳以上の方を対象としています',
+  BIRTHDATE_REQUIRED: '生年月日を入力してください',
   ACCOUNT_SUSPENDED: 'このアカウントは停止されています',
   ACCOUNT_DELETED: 'このアカウントは削除されています',
   AREA_CODE_UNKNOWN: '選択したエリアが見つかりませんでした',

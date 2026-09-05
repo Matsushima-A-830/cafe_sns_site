@@ -90,11 +90,14 @@ export async function submitProfile(input: unknown): Promise<Result<null>> {
   }
 
   // 一時保持していた下書き項目は不要になったので消す。custom_access_token_hook が
-  // JWT クレイムからは既に除去しているが、raw_app_meta_data 自体に残したままにしない
-  // （アカウントの生涯にわたって生年月日・保護者メールを保持し続けない）
-  await createAdminClient().auth.admin.updateUserById(user.id, {
+  // JWT クレイムからは既に除去しているため失敗してもクレイム漏洩にはならないが、
+  // raw_app_meta_data 自体に残ってしまうこと自体は多層防御の欠落なのでログに残す
+  const { error: cleanupError } = await createAdminClient().auth.admin.updateUserById(user.id, {
     app_metadata: { birth_date: null, age_category: null, guardian_email: null },
   })
+  if (cleanupError) {
+    console.error('signup draft の app_metadata クリーンアップに失敗', user.id, cleanupError)
+  }
 
   // status (pending_consent/active) が変わったので JWT クレイムを即時反映させる。
   // 更新しないと custom_access_token_hook が古い（profiles 行が無かった時点の）値のままになり、
@@ -147,21 +150,13 @@ export async function submitInterests(input: unknown): Promise<Result<null>> {
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
 
-  // 既存タグを先に削除してから INSERT する（置き換え）。
-  // 「1件でもあれば INSERT をスキップ」だと、オンボーディング済みユーザーが
-  // /onboarding/interests に戻ってタグを選び直しても保存されない（黙って無視される）。
-  // 削除してから INSERT すれば enforce_user_interest_tags_rules トリガーの件数チェックは
-  // 常に0件からになるため、リトライ時に P0001 (INTEREST_TAGS_LIMIT) に引っかかることもない
-  const { error: deleteError } = await supabase
-    .from('user_interest_tags')
-    .delete()
-    .eq('user_id', user.id)
-  if (deleteError) return { ok: false, error: 'INTERNAL_ERROR', details: deleteError.message }
-
-  const { error: insertError } = await supabase
-    .from('user_interest_tags')
-    .insert(parsed.data.tagIds.map((tagId) => ({ user_id: user.id, tag_id: tagId })))
-  if (insertError) return { ok: false, error: 'INTERNAL_ERROR', details: insertError.message }
+  // 既存タグを削除してから INSERT する（置き換え）。2回の別々の呼び出しだと
+  // delete 成功・insert 失敗の片方だけが確定してタグがゼロ件になりうるため、
+  // 1つの Postgres 関数にまとめてアトミックに実行する（失敗時は暗黙のロールバック）
+  const { error: replaceError } = await supabase.rpc('replace_user_interest_tags', {
+    p_tag_ids: parsed.data.tagIds,
+  })
+  if (replaceError) return { ok: false, error: 'INTERNAL_ERROR', details: replaceError.message }
 
   const { error: updateError } = await supabase
     .from('profiles')

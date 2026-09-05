@@ -29,13 +29,16 @@ export function ProfileForm() {
   } = useForm<ProfileInput>({ resolver: zodResolver(profileSchema) })
 
   useEffect(() => {
-    const saved = sessionStorage.getItem(DRAFT_KEY)
-    if (!saved) return
-    sessionStorage.removeItem(DRAFT_KEY)
+    // Safari のプライベートブラウジング等では sessionStorage へのアクセス自体が
+    // 例外を投げうる。ここで throw するとコンポーネントごとクラッシュして
+    // 画面が真っ白になるため、読み取り・パースの両方を try で包む
     try {
+      const saved = sessionStorage.getItem(DRAFT_KEY)
+      if (!saved) return
+      sessionStorage.removeItem(DRAFT_KEY)
       reset(JSON.parse(saved))
     } catch {
-      // 壊れた保存値は無視する
+      // 下書きが読めないだけなので無視する（空欄から再入力してもらう）
     }
   }, [reset])
 
@@ -56,7 +59,13 @@ export function ProfileForm() {
   }
 
   const redirectTo = (path: string, values: ProfileInput) => {
-    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(values))
+    // 下書きを保存できなくても遷移自体は必ず行う。入力を1回失う方が、
+    // ボタンが無反応になってサインアップが完全に止まるよりはるかにマシ
+    try {
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(values))
+    } catch {
+      // 容量超過やプライベートブラウジング等。下書きは諦める
+    }
     router.push(path)
   }
 

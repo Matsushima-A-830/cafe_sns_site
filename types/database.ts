@@ -359,6 +359,10 @@ export type Database = {
     Functions: {
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       is_admin: { Args: never; Returns: boolean }
+      replace_user_interest_tags: {
+        Args: { p_tag_ids: string[] }
+        Returns: undefined
+      }
       tiptap_to_plaintext: { Args: { doc: Json }; Returns: string }
     }
     Enums: {
