@@ -365,16 +365,19 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **自動化候補:** Dependabot 用 GitHub Actions workflow で PR 更新後に自動 biome migrate を実行
 - **決定期限:** Biome bump が頻繁に来るようになった時
 
-### D12. `cafes_insert_authenticated` に `profiles.status='active'` ガードがない ✅ 解消済（2026-09-06）
+### D12. `cafes_insert_authenticated` / `cafes_update_owner` に `profiles.status='active'` ガードがない ✅ 解消済（2026-09-06）
 
 - **課題:** [`20260906130000_create_cafes.sql`](../../supabase/migrations/20260906130000_create_cafes.sql) の
-  `cafes_insert_authenticated` は `created_by = auth.uid()` のみを検査しており、CLAUDE.md の必須ルール
-  「未成年アカウントは追加のガード（RLSで `profiles.status = 'active'` チェック）」を満たしていない。
-  `suspended` / `pending_consent` のアカウントでも新規カフェを登録できてしまう
-- **決定:** `20260906150000_guard_cafes_insert_active_user.sql` で `cafes_insert_authenticated` を
-  `is_active_user()` ヘルパー込みの `with check (created_by = (select auth.uid()) and (select public.is_active_user()))`
-  に置き換え。`tests/integration/cafes-rls.test.ts` に `status=suspended` ユーザーが登録できないことを確認するケースを追加
-- 参照: `/code-review` によるセルフレビュー（2026-09-06、cafe_business_hours / cafe_congestion_reports 実装時のレビューで発覚）
+  `cafes_insert_authenticated` は `created_by = auth.uid()` のみ、`cafes_update_owner` は `verified_owner_id = auth.uid()`
+  のみを検査しており、CLAUDE.md の必須ルール「未成年アカウントは追加のガード（RLSで `profiles.status = 'active'`
+  チェック）」を満たしていない。`suspended` / `pending_consent` のアカウントでも新規カフェの登録・既存カフェの更新が
+  できてしまう
+- **決定:** `20260906150000_guard_cafes_insert_active_user.sql` で `alter policy` を使い、`cafes_insert_authenticated` /
+  `cafes_update_owner` の両方に `is_active_user()` ヘルパーを組み込む（admin は既存の `cafe_business_hours` 系ポリシーと
+  同様に active チェックをバイパス）。`tests/integration/cafes-rls.test.ts` に `status=suspended` ユーザーが
+  INSERT / UPDATE のどちらもできないことを確認するケースを追加
+- 参照: `/code-review` によるセルフレビュー（2026-09-06、cafe_business_hours / cafe_congestion_reports 実装時のレビューで発覚。
+  当初はINSERTのみ修正したが、その後のフォローアップレビューでUPDATE側の同種ガード欠如を追加指摘）
 
 ## 削除・アーカイブ判断待ち
 

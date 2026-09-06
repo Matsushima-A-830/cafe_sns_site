@@ -217,7 +217,7 @@ Supabase Free の Storage は 1GB。投稿画像を 1枚 1MB に圧縮しても�
 | comments | 同上 | 認証済み | 作者のみ | 作者・投稿主 |
 | likes / bookmarks | 本人のみ | 本人 | 不可 | 本人 |
 | reports | 本人 + admin | 認証済み | admin | 不可 |
-| cafes | 全公開 | 認証済み + active | 認証済み owner or admin | admin |
+| cafes | 全公開 | 認証済み + active | owner(active) or admin | admin |
 | cafe_business_hours | 全公開 | owner(active) or admin | owner(active) or admin | owner(active) or admin |
 | cafe_congestion_reports | 本人 + admin（集計は関数経由で全公開） | 認証済み本人 + active | 不可 | 不可 |
 

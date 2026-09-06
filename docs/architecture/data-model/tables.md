@@ -215,8 +215,8 @@ RLS の `WITH CHECK` は OLD 行を参照できず「どの列が変わったか
 
 **RLS:**
 - SELECT: `status = 'active'` を全ユーザー、その他は admin
-- INSERT: 認証済みユーザー
-- UPDATE: `verified_owner_id = auth.uid()` or admin
+- INSERT: 認証済みユーザー（`status='active'` 必須）
+- UPDATE: `verified_owner_id = auth.uid()`（`status='active'` 必須）or admin
 - DELETE: admin のみ
 
 ---

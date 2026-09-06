@@ -197,6 +197,19 @@ describe('cafes の UPDATE', () => {
     expect(data).toEqual([{ description: 'ボブの店です' }])
   })
 
+  it('status=suspended のオーナーは自分のカフェでも更新できない（対象0件）', async () => {
+    const id = await insertCafe({ verified_owner_id: suspendedUser.userId })
+
+    const { data, error } = await suspendedUser.client
+      .from('cafes')
+      .update({ description: '停止中オーナーの更新' })
+      .eq('id', id)
+      .select()
+
+    expect(error).toBeNull()
+    expect(data).toEqual([])
+  })
+
   it('verified_owner_id ではないユーザーは更新できない（対象0件）', async () => {
     const id = await insertCafe({ verified_owner_id: bob.userId })
 
