@@ -8,6 +8,7 @@ const service = serviceRoleClient()
 
 let alice: AuthedUser
 let bob: AuthedUser
+let suspendedUser: AuthedUser
 let occasionTagIds: string[] = []
 let moodTagId: string
 let otherTagId: string
@@ -15,6 +16,10 @@ let otherTagId: string
 beforeAll(async () => {
   alice = await createAuthedProfile({ username: 'alice_interest' })
   bob = await createAuthedProfile({ username: 'bob_interest' })
+  suspendedUser = await createAuthedProfile({
+    username: 'suspended_interest',
+    status: 'suspended',
+  })
 
   const occasion = await service
     .from('tags')
@@ -34,6 +39,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await alice?.cleanup()
   await bob?.cleanup()
+  await suspendedUser?.cleanup()
 })
 
 describe('user_interest_tags の RLS', () => {
@@ -49,6 +55,14 @@ describe('user_interest_tags の RLS', () => {
     const { error } = await alice.client
       .from('user_interest_tags')
       .insert({ user_id: bob.userId, tag_id: occasionTagIds[1] })
+
+    expect(error?.code).toBe(RLS_VIOLATION)
+  })
+
+  it('status=suspended のユーザーは自分を user_id としても登録できない', async () => {
+    const { error } = await suspendedUser.client
+      .from('user_interest_tags')
+      .insert({ user_id: suspendedUser.userId, tag_id: occasionTagIds[1] })
 
     expect(error?.code).toBe(RLS_VIOLATION)
   })
