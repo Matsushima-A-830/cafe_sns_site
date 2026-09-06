@@ -188,6 +188,30 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **再検討:** PWA 化（[C2](#c2-アプリ化の技術選定)）と合わせて判断するのが自然
 - **決定期限:** PWA 化の検討時
 
+### B8. 登録者本人がカフェ情報を編集できない（未認証オーナー期間中）
+
+- **課題:** `cafes` の UPDATE は `verified_owner_id = auth.uid()` か admin のみ（[tables.md #cafes](../architecture/data-model/tables.md#cafes) 通りの実装）。誰でもカフェを新規登録できる一方、登録者自身は `verified_owner_id` が付くまで自分の登録内容を一切編集できない
+- **想定される影響:** MVP初期はユーザー登録カフェが大半になるはずで、店名の打ち間違い等の軽微な修正依頼が admin に集中する可能性がある
+- **選択肢:**
+  - a) 現状維持（admin が都度修正する）
+  - b) `created_by = auth.uid() and verified_owner_id is null` の間だけ本人にも UPDATE を許可する RLS ポリシーを追加
+- **決定期限:** カフェ登録・編集画面（`/cafes/new` 相当）の実装前
+- 参照: `/code-review` によるセルフレビュー（2026-09-06、cafes テーブル実装時）
+
+### B9. カフェの重複登録を防ぐ一意制約がない
+
+- **課題:** `cafes.name` にも `external_ids` にも一意制約がなく、同じ店が何度でも登録できる。`posts` 等の後続テーブルが `cafe_id` を FK で持つ設計のため、重複が発生してからのマージは高コストになる
+- **対応案:** `external_ids->>'google_place_id'` に部分一意インデックスを張る（`external_ids ? 'google_place_id'` の行のみ対象）
+- **決定期限:** カフェ登録画面の実装前。仕様変更になるため [tables.md #cafes](../architecture/data-model/tables.md#cafes) の更新が先
+- 参照: `/code-review` によるセルフレビュー（2026-09-06、cafes テーブル実装時）
+
+### B10. `cafes.name` に部分一致検索用インデックスがない
+
+- **課題:** `name_kana` には `GIN(name_kana gin_trgm_ops)` があるが `name` には無い。カフェ名検索の主な入力は店名そのもの（例:「ブルーボトル」）で、フリガナ入力は少数派と想定される
+- **対応方針:** カフェ検索機能の実装時に、`name` への trgm インデックス追加を再検討する
+- **決定期限:** カフェ検索実装前
+- 参照: `/code-review` によるセルフレビュー（2026-09-06、cafes テーブル実装時）
+
 ## 優先度C: MVP後で可
 
 ### C1. 本番AWSアーキテクチャ詳細
@@ -309,6 +333,26 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - b) リポジトリを Public 化して protection を無料で有効化
   - c) 現状維持（個人開発の自己規律で補完）
 - **決定期限:** チームメンバーが増える時、または PMF 後
+
+### D10. 統合テスト（RLS検証）が CI で実行されていない
+
+- **課題:** `ci.yml` は `pnpm test:run`（ユニット）のみで `pnpm test:integration` を実行しない。RLS はこのプロジェクトの認可の中核（アプリ層で認可を書かず RLS に委譲する方針）だが、その安全網はローカルでしか回っていない
+- **対応方針:** CI に Supabase CLI（`supabase start` 相当）を立てるジョブを追加し、`pnpm test:integration` を回す
+- **決定期限:** 別 issue / 別PR で対応。テーブル実装のたびに手動実行漏れが起きうるため優先度は中
+- 参照: `/code-review` によるセルフレビュー（2026-09-06、cafes テーブル実装時）
+
+### D11. `is_admin()` は `revoke ... from public` 後も anon から呼べる（意図と実態のズレ）
+
+- **課題:** [`20260905130000_create_profiles.sql`](../../supabase/migrations/20260905130000_create_profiles.sql) は
+  ```sql
+  revoke execute on function public.is_admin() from public;
+  grant execute on function public.is_admin() to authenticated, service_role;
+  ```
+  で `anon` を締め出したつもりだったが、実際には締め出せていない。`revoke ... from public` が消すのは **PUBLIC 疑似ロール**への権限だけで、Supabase が `public` スキーマの新規関数作成時にデフォルト権限で `anon`/`authenticated`/`service_role` へ**直接**付与する EXECUTE には効かない（`pg_default_acl` で実測確認済み）。結果として `anon` は今も `is_admin()` を呼べる
+- **実害:** 現状は無い。`anon` から呼んでも `auth.uid()` が `NULL` になるため常に `false` を返す
+- **対応方針:** `anon` を本当に締め出す意図なら、後続マイグレーションで `revoke execute on function public.is_admin() from anon;` を明示する。この場合、[cafes のロール別 SELECT ポリシー分割](../architecture/data-model/tables.md#cafes)（`anon` 経路では `is_admin()` を一切呼ばない設計）は「望ましい設計」から「無いと壊れる必須の構造」に格上げされる
+- **決定期限:** 実害が無いため急がないが、`is_admin()` を anon から呼ぶ新しいポリシーを書く前には確認する
+- 参照: `/code-review` によるセルフレビュー（2026-09-06、cafes テーブル実装時のレビューで発覚）
 
 ### D8. Biome バージョン Bump 時の手順
 

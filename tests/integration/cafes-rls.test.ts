@@ -8,6 +8,7 @@ import {
 
 const RLS_VIOLATION = '42501'
 const RAISED_BY_TRIGGER = 'P0001'
+const CHECK_VIOLATION = '23514'
 
 const anon = anonClient()
 const service = serviceRoleClient()
@@ -118,6 +119,25 @@ describe('cafes の INSERT', () => {
     expect(error?.code).toBe(RLS_VIOLATION)
   })
 
+  it('created_by を省略（NULL）した登録は弾かれる', async () => {
+    const { error } = await alice.client
+      .from('cafes')
+      .insert({ name: 'created_by 未指定カフェ', prefecture: '東京都', city: '渋谷区' })
+
+    expect(error?.code).toBe(RLS_VIOLATION)
+  })
+
+  it('status に不正な値は登録できない', async () => {
+    const { error } = await service.from('cafes').insert({
+      name: '不正ステータスカフェ',
+      prefecture: '東京都',
+      city: '渋谷区',
+      status: 'deleted',
+    })
+
+    expect(error?.code).toBe(CHECK_VIOLATION)
+  })
+
   it('登録時に自分を verified_owner_id として送り込めない（自称オーナー防止）', async () => {
     const { error } = await alice.client.from('cafes').insert({
       name: '自称オーナーカフェ',
@@ -200,6 +220,32 @@ describe('cafes の UPDATE', () => {
     expect(error).toBeNull()
     expect(data).toEqual([{ verified_owner_id: alice.userId }])
   })
+
+  it('未ログインは更新できない（対象0件）', async () => {
+    const id = await insertCafe({ verified_owner_id: bob.userId })
+
+    const { data, error } = await anon
+      .from('cafes')
+      .update({ description: '侵入' })
+      .eq('id', id)
+      .select()
+
+    expect(error).toBeNull()
+    expect(data).toEqual([])
+  })
+
+  it('updated_at はトリガーで自動更新される', async () => {
+    const id = await insertCafe({ verified_owner_id: bob.userId })
+    const before = await service.from('cafes').select('updated_at').eq('id', id).single()
+
+    await new Promise((resolve) => setTimeout(resolve, 10))
+    await bob.client.from('cafes').update({ description: '更新した' }).eq('id', id)
+
+    const after = await service.from('cafes').select('updated_at').eq('id', id).single()
+    expect(new Date(after.data?.updated_at as string).getTime()).toBeGreaterThan(
+      new Date(before.data?.updated_at as string).getTime(),
+    )
+  })
 })
 
 describe('cafes の DELETE', () => {
@@ -207,6 +253,15 @@ describe('cafes の DELETE', () => {
     const id = await insertCafe({ verified_owner_id: bob.userId })
 
     const { data, error } = await bob.client.from('cafes').delete().eq('id', id).select()
+
+    expect(error).toBeNull()
+    expect(data).toEqual([])
+  })
+
+  it('未ログインは削除できない（対象0件）', async () => {
+    const id = await insertCafe()
+
+    const { data, error } = await anon.from('cafes').delete().eq('id', id).select()
 
     expect(error).toBeNull()
     expect(data).toEqual([])

@@ -95,15 +95,23 @@ create trigger cafes_guard_verified_owner
 
 alter table public.cafes enable row level security;
 
--- is_admin() は他テーブルでは `to authenticated` のポリシーからしか呼ばれておらず、
--- anon への EXECUTE は Supabase のデフォルト権限（関数作成時に自動付与）に暗黙で
--- 依存していた。cafes_select_active は anon にも開くため、ここで明示しておく
--- （デフォルト権限が将来変更されても壊れないように）。
-grant execute on function public.is_admin() to anon;
-
-create policy cafes_select_active
+-- is_admin() は現状 anon からも呼べる（Supabase が public スキーマの新規関数に
+-- デフォルト権限で anon/authenticated/service_role へ直接 EXECUTE を付けるため。
+-- profiles.sql の `revoke ... from public` は PUBLIC 疑似ロールの権限を消すだけで、
+-- ロールへの直接付与には効かない）。
+-- が、そのプラットフォーム側の既定に将来変更があっても壊れないよう、
+-- anon 経路では is_admin() に一切触れない設計にしておく。
+-- 副次効果として、一覧を最も舐める anon の読み取りパスから
+-- profiles を1行引く SECURITY DEFINER 関数の呼び出しを完全に排除できる。
+create policy cafes_select_active_anon
   on public.cafes for select
-  using (status = 'active' or public.is_admin());
+  to anon
+  using (status = 'active');
+
+create policy cafes_select_active_authenticated
+  on public.cafes for select
+  to authenticated
+  using (status = 'active' or (select public.is_admin()));
 
 create policy cafes_insert_authenticated
   on public.cafes for insert
@@ -113,10 +121,10 @@ create policy cafes_insert_authenticated
 create policy cafes_update_owner
   on public.cafes for update
   to authenticated
-  using (verified_owner_id = (select auth.uid()) or public.is_admin())
-  with check (verified_owner_id = (select auth.uid()) or public.is_admin());
+  using (verified_owner_id = (select auth.uid()) or (select public.is_admin()))
+  with check (verified_owner_id = (select auth.uid()) or (select public.is_admin()));
 
 create policy cafes_delete_admin
   on public.cafes for delete
   to authenticated
-  using (public.is_admin());
+  using ((select public.is_admin()));
