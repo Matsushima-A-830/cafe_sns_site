@@ -16,6 +16,7 @@ const service = serviceRoleClient()
 let alice: AuthedUser
 let bob: AuthedUser
 let admin: AuthedUser
+let suspendedUser: AuthedUser
 
 const cafeIds: string[] = []
 
@@ -39,6 +40,7 @@ beforeAll(async () => {
   alice = await createAuthedProfile({ username: 'alice_cafe' })
   bob = await createAuthedProfile({ username: 'bob_cafe' })
   admin = await createAuthedProfile({ username: 'admin_cafe', role: 'admin' })
+  suspendedUser = await createAuthedProfile({ username: 'suspended_cafe', status: 'suspended' })
 })
 
 afterEach(async () => {
@@ -52,6 +54,7 @@ afterAll(async () => {
   await alice?.cleanup()
   await bob?.cleanup()
   await admin?.cleanup()
+  await suspendedUser?.cleanup()
 })
 
 describe('cafes の SELECT', () => {
@@ -114,6 +117,17 @@ describe('cafes の INSERT', () => {
       prefecture: '東京都',
       city: '渋谷区',
       created_by: bob.userId,
+    })
+
+    expect(error?.code).toBe(RLS_VIOLATION)
+  })
+
+  it('status=suspended のユーザーは自分を created_by としても登録できない', async () => {
+    const { error } = await suspendedUser.client.from('cafes').insert({
+      name: '停止中ユーザーのカフェ',
+      prefecture: '東京都',
+      city: '渋谷区',
+      created_by: suspendedUser.userId,
     })
 
     expect(error?.code).toBe(RLS_VIOLATION)

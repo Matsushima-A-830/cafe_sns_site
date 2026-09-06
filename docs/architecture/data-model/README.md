@@ -217,15 +217,11 @@ Supabase Free の Storage は 1GB。投稿画像を 1枚 1MB に圧縮しても�
 | comments | 同上 | 認証済み | 作者のみ | 作者・投稿主 |
 | likes / bookmarks | 本人のみ | 本人 | 不可 | 本人 |
 | reports | 本人 + admin | 認証済み | admin | 不可 |
-| cafes | 全公開 | 認証済み | 認証済み owner or admin | admin |
+| cafes | 全公開 | 認証済み + active | 認証済み owner or admin | admin |
 | cafe_business_hours | 全公開 | owner(active) or admin | owner(active) or admin | owner(active) or admin |
 | cafe_congestion_reports | 本人 + admin（集計は関数経由で全公開） | 認証済み本人 + active | 不可 | 不可 |
 
 詳細は tables.md の各テーブル節を参照。
-
-**残作業:** `cafes_insert_authenticated`（既存, PR #15）は `profiles.status='active'` チェックを持たない。
-`cafe_congestion_reports`/`cafe_business_hours` の実装時に `is_active_user()` ヘルパーを新設したので、
-次に `cafes` のポリシーを触る機会に合わせてガードを追加する（[pending-items.md](../../product/pending-items.md) D系）。
 
 ## エリアコードの一貫性
 
