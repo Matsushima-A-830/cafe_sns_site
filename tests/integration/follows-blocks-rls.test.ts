@@ -14,15 +14,24 @@ const service = serviceRoleClient()
 
 let alice: AuthedUser
 let bob: AuthedUser
+let suspendedUser: AuthedUser
+let pendingConsentUser: AuthedUser
 
 beforeAll(async () => {
   alice = await createAuthedProfile({ username: 'alice_follow' })
   bob = await createAuthedProfile({ username: 'bob_follow' })
+  suspendedUser = await createAuthedProfile({ username: 'suspended_follow', status: 'suspended' })
+  pendingConsentUser = await createAuthedProfile({
+    username: 'pending_follow',
+    status: 'pending_consent',
+  })
 })
 
 afterAll(async () => {
   await alice?.cleanup()
   await bob?.cleanup()
+  await suspendedUser?.cleanup()
+  await pendingConsentUser?.cleanup()
 })
 
 describe('follows の RLS', () => {
@@ -58,6 +67,23 @@ describe('follows の RLS', () => {
       .insert({ follower_id: alice.userId, followee_id: alice.userId })
 
     expect(error?.code).toBe(CHECK_VIOLATION)
+  })
+
+  it('status=suspended のユーザーは自分を follower としてもフォローできない', async () => {
+    const { error } = await suspendedUser.client
+      .from('follows')
+      .insert({ follower_id: suspendedUser.userId, followee_id: bob.userId })
+
+    expect(error?.code).toBe(RLS_VIOLATION)
+  })
+
+  // 未成年の保護者同意待ちアカウント。is_active_user() ガード導入の主目的
+  it('status=pending_consent のユーザーは自分を follower としてもフォローできない', async () => {
+    const { error } = await pendingConsentUser.client
+      .from('follows')
+      .insert({ follower_id: pendingConsentUser.userId, followee_id: bob.userId })
+
+    expect(error?.code).toBe(RLS_VIOLATION)
   })
 
   it('他人のフォローは解除できない（対象0件）', async () => {
