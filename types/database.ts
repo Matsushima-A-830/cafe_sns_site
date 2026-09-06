@@ -144,6 +144,94 @@ export type Database = {
           },
         ]
       }
+      cafes: {
+        Row: {
+          address: string | null
+          area_code: string | null
+          city: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          external_ids: Json
+          id: string
+          location: unknown
+          main_image_path: string | null
+          metadata: Json
+          name: string
+          name_kana: string | null
+          phone: string | null
+          prefecture: string
+          status: string
+          updated_at: string
+          verified_owner_id: string | null
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          area_code?: string | null
+          city: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          external_ids?: Json
+          id?: string
+          location?: unknown
+          main_image_path?: string | null
+          metadata?: Json
+          name: string
+          name_kana?: string | null
+          phone?: string | null
+          prefecture: string
+          status?: string
+          updated_at?: string
+          verified_owner_id?: string | null
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          area_code?: string | null
+          city?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          external_ids?: Json
+          id?: string
+          location?: unknown
+          main_image_path?: string | null
+          metadata?: Json
+          name?: string
+          name_kana?: string | null
+          phone?: string | null
+          prefecture?: string
+          status?: string
+          updated_at?: string
+          verified_owner_id?: string | null
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'cafes_area_code_fkey'
+            columns: ['area_code']
+            isOneToOne: false
+            referencedRelation: 'areas'
+            referencedColumns: ['code']
+          },
+          {
+            foreignKeyName: 'cafes_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cafes_verified_owner_id_fkey'
+            columns: ['verified_owner_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       follows: {
         Row: {
           created_at: string
