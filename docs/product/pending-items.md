@@ -365,18 +365,32 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **自動化候補:** Dependabot 用 GitHub Actions workflow で PR 更新後に自動 biome migrate を実行
 - **決定期限:** Biome bump が頻繁に来るようになった時
 
-### D12. `cafes_insert_authenticated` に `profiles.status='active'` ガードがない
+### D12. `cafes_insert_authenticated` / `cafes_update_owner` の `profiles.status='active'` ガード欠落 ✅ 解消済（2026-09-06）
 
 - **課題:** [`20260906130000_create_cafes.sql`](../../supabase/migrations/20260906130000_create_cafes.sql) の
-  `cafes_insert_authenticated` は `created_by = auth.uid()` のみを検査しており、CLAUDE.md の必須ルール
-  「未成年アカウントは追加のガード（RLSで `profiles.status = 'active'` チェック）」を満たしていない。
-  `suspended` / `pending_consent` のアカウントでも新規カフェを登録できてしまう
-- **対応方針:** `cafe_business_hours` / `cafe_congestion_reports` 実装時（20260906140000, 20260906140100）に
-  新設した `is_active_user()` ヘルパーを再利用し、`cafes_insert_authenticated` のポリシーを
-  `drop policy` → `create policy` で `with check (created_by = (select auth.uid()) and (select public.is_active_user()))`
-  に置き換える新規マイグレーションを追加する
-- **決定期限:** 次に `cafes` のポリシーを触る機会、または本番公開前には必ず対応
-- 参照: `/code-review` によるセルフレビュー（2026-09-06、cafe_business_hours / cafe_congestion_reports 実装時のレビューで発覚）
+  `cafes_insert_authenticated` は `created_by = auth.uid()` のみ、`cafes_update_owner` は `verified_owner_id = auth.uid()`
+  のみを検査しており、CLAUDE.md の必須ルール「未成年アカウントは追加のガード（RLSで `profiles.status = 'active'`
+  チェック）」を満たしていない。`suspended` / `pending_consent` のアカウントでも新規カフェの登録・既存カフェの更新が
+  できてしまう
+- **決定:** [`20260906150000_guard_cafes_write_active_user.sql`](../../supabase/migrations/20260906150000_guard_cafes_write_active_user.sql)
+  で `alter policy` を使い、`cafes_insert_authenticated` / `cafes_update_owner` の両方に `is_active_user()` ヘルパーを
+  組み込む（admin は既存の `cafe_business_hours` 系ポリシーと同様に active チェックをバイパス）。
+  `tests/integration/cafes-rls.test.ts` に `status=suspended` ユーザーが INSERT / UPDATE のどちらもできないことを
+  確認するケースを追加
+- 参照: `/code-review` によるセルフレビュー（2026-09-06、cafe_business_hours / cafe_congestion_reports 実装時のレビューで発覚。
+  当初はINSERTのみ修正したが、その後のフォローアップレビューでUPDATE側の同種ガード欠如を追加指摘）
+
+### D13. `follows_insert_own` / `user_interest_tags_insert_own` に `profiles.status='active'` ガードがない
+
+- **課題:** D12 と同種の問題。[`20260905130300_create_follows_and_blocks.sql`](../../supabase/migrations/20260905130300_create_follows_and_blocks.sql)
+  の `follows_insert_own` と [`20260905130200_create_user_interest_tags.sql`](../../supabase/migrations/20260905130200_create_user_interest_tags.sql)
+  の `user_interest_tags_insert_own` は本人チェックのみで `is_active_user()` を経由しておらず、`suspended` /
+  `pending_consent` のアカウントでもフォロー・興味タグの登録ができてしまう
+- **対応方針:** `cafes`（D12）と同じパターンで `alter policy` に `is_active_user()` を追加する新規マイグレーションを用意する
+- **判断保留の点:** `blocks_insert_own` は同じ構造だが、ブロックは被害者保護のための機能であり `suspended` /
+  `pending_consent` のユーザーにもブロック手段を残すべきという考え方もある。ガードを入れるかは要議論
+- **決定期限:** 次にこれらのテーブルのポリシーを触る機会、または本番公開前には必ず対応
+- 参照: `fix/cafes-insert-active-guard` ブランチの `/code-review`（2026-09-06、D12対応時のレビューで横展開の要否として指摘）
 
 ## 削除・アーカイブ判断待ち
 
