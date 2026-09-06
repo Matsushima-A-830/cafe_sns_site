@@ -144,6 +144,80 @@ export type Database = {
           },
         ]
       }
+      cafe_business_hours: {
+        Row: {
+          cafe_id: string
+          closes_at: string | null
+          day_of_week: number
+          is_closed: boolean
+          notes: string | null
+          opens_at: string | null
+        }
+        Insert: {
+          cafe_id: string
+          closes_at?: string | null
+          day_of_week: number
+          is_closed?: boolean
+          notes?: string | null
+          opens_at?: string | null
+        }
+        Update: {
+          cafe_id?: string
+          closes_at?: string | null
+          day_of_week?: number
+          is_closed?: boolean
+          notes?: string | null
+          opens_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'cafe_business_hours_cafe_id_fkey'
+            columns: ['cafe_id']
+            isOneToOne: false
+            referencedRelation: 'cafes'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      cafe_congestion_reports: {
+        Row: {
+          cafe_id: string
+          id: string
+          level: number
+          reported_at: string
+          user_id: string
+        }
+        Insert: {
+          cafe_id: string
+          id?: string
+          level: number
+          reported_at?: string
+          user_id: string
+        }
+        Update: {
+          cafe_id?: string
+          id?: string
+          level?: number
+          reported_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'cafe_congestion_reports_cafe_id_fkey'
+            columns: ['cafe_id']
+            isOneToOne: false
+            referencedRelation: 'cafes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cafe_congestion_reports_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       cafes: {
         Row: {
           address: string | null
@@ -446,7 +520,17 @@ export type Database = {
     }
     Functions: {
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      get_cafe_congestion_current: {
+        Args: { p_cafe_id: string; p_now?: string }
+        Returns: {
+          level_avg: number
+          sample_count: number
+          source: string
+        }[]
+      }
+      is_active_user: { Args: never; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
+      is_cafe_owner: { Args: { p_cafe_id: string }; Returns: boolean }
       replace_user_interest_tags: {
         Args: { p_tag_ids: string[] }
         Returns: undefined

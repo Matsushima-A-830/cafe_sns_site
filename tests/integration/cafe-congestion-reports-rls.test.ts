@@ -1,0 +1,296 @@
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import {
+  type AuthedUser,
+  anonClient,
+  createAuthedProfile,
+  serviceRoleClient,
+} from '../helpers/supabase'
+
+const RLS_VIOLATION = '42501'
+const CHECK_VIOLATION = '23514'
+
+const anon = anonClient()
+const service = serviceRoleClient()
+
+let alice: AuthedUser
+let bob: AuthedUser
+let admin: AuthedUser
+let suspended: AuthedUser
+
+const cafeIds: string[] = []
+
+async function insertCafe(overrides: Record<string, unknown> = {}) {
+  const { data, error } = await service
+    .from('cafes')
+    .insert({
+      name: 'テストカフェ',
+      prefecture: '東京都',
+      city: '渋谷区',
+      ...overrides,
+    })
+    .select('id')
+    .single()
+  if (error || !data) throw new Error(`テスト用 cafes の作成に失敗: ${error?.message}`)
+  cafeIds.push(data.id)
+  return data.id as string
+}
+
+beforeAll(async () => {
+  alice = await createAuthedProfile({ username: 'alice_congestion' })
+  bob = await createAuthedProfile({ username: 'bob_congestion' })
+  admin = await createAuthedProfile({ username: 'admin_congestion', role: 'admin' })
+  suspended = await createAuthedProfile({ username: 'suspended_congestion', status: 'suspended' })
+})
+
+afterEach(async () => {
+  if (cafeIds.length > 0) {
+    await service.from('cafes').delete().in('id', cafeIds)
+    cafeIds.length = 0
+  }
+})
+
+afterAll(async () => {
+  await alice?.cleanup()
+  await bob?.cleanup()
+  await admin?.cleanup()
+  await suspended?.cleanup()
+})
+
+describe('cafe_congestion_reports の SELECT', () => {
+  it('未ログインは読めない（位置情報に近い個人情報のため全公開しない）', async () => {
+    const cafeId = await insertCafe()
+    await service
+      .from('cafe_congestion_reports')
+      .insert({ cafe_id: cafeId, user_id: alice.userId, level: 3 })
+
+    const { data, error } = await anon
+      .from('cafe_congestion_reports')
+      .select('level')
+      .eq('cafe_id', cafeId)
+
+    expect(error).toBeNull()
+    expect(data).toEqual([])
+  })
+
+  it('本人は自分の投稿を読める', async () => {
+    const cafeId = await insertCafe()
+    await service
+      .from('cafe_congestion_reports')
+      .insert({ cafe_id: cafeId, user_id: alice.userId, level: 3 })
+
+    const { data, error } = await alice.client
+      .from('cafe_congestion_reports')
+      .select('level')
+      .eq('cafe_id', cafeId)
+
+    expect(error).toBeNull()
+    expect(data).toEqual([{ level: 3 }])
+  })
+
+  it('他人の投稿は読めない', async () => {
+    const cafeId = await insertCafe()
+    await service
+      .from('cafe_congestion_reports')
+      .insert({ cafe_id: cafeId, user_id: alice.userId, level: 3 })
+
+    const { data, error } = await bob.client
+      .from('cafe_congestion_reports')
+      .select('level')
+      .eq('cafe_id', cafeId)
+
+    expect(error).toBeNull()
+    expect(data).toEqual([])
+  })
+
+  it('admin は他人の投稿も読める', async () => {
+    const cafeId = await insertCafe()
+    await service
+      .from('cafe_congestion_reports')
+      .insert({ cafe_id: cafeId, user_id: alice.userId, level: 3 })
+
+    const { data, error } = await admin.client
+      .from('cafe_congestion_reports')
+      .select('level')
+      .eq('cafe_id', cafeId)
+
+    expect(error).toBeNull()
+    expect(data).toEqual([{ level: 3 }])
+  })
+})
+
+describe('cafe_congestion_reports の INSERT', () => {
+  it('認証済みユーザーは自分を user_id として報告できる', async () => {
+    const cafeId = await insertCafe()
+
+    const { error } = await alice.client
+      .from('cafe_congestion_reports')
+      .insert({ cafe_id: cafeId, user_id: alice.userId, level: 4 })
+
+    expect(error).toBeNull()
+  })
+
+  it('他人を user_id に仕立てて報告できない', async () => {
+    const cafeId = await insertCafe()
+
+    const { error } = await alice.client
+      .from('cafe_congestion_reports')
+      .insert({ cafe_id: cafeId, user_id: bob.userId, level: 4 })
+
+    expect(error?.code).toBe(RLS_VIOLATION)
+  })
+
+  it('未ログインは報告できない', async () => {
+    const cafeId = await insertCafe()
+
+    const { error } = await anon
+      .from('cafe_congestion_reports')
+      .insert({ cafe_id: cafeId, user_id: alice.userId, level: 4 })
+
+    expect(error?.code).toBe(RLS_VIOLATION)
+  })
+
+  it('level が範囲外だと報告できない', async () => {
+    const cafeId = await insertCafe()
+
+    const { error } = await alice.client
+      .from('cafe_congestion_reports')
+      .insert({ cafe_id: cafeId, user_id: alice.userId, level: 6 })
+
+    expect(error?.code).toBe(CHECK_VIOLATION)
+  })
+
+  it('status=suspended のユーザーは自分を user_id にしても報告できない', async () => {
+    const cafeId = await insertCafe()
+
+    const { error } = await suspended.client
+      .from('cafe_congestion_reports')
+      .insert({ cafe_id: cafeId, user_id: suspended.userId, level: 3 })
+
+    expect(error?.code).toBe(RLS_VIOLATION)
+  })
+})
+
+describe('cafe_congestion_reports の UPDATE・DELETE', () => {
+  it('本人でも更新できない（対象0件）', async () => {
+    const cafeId = await insertCafe()
+    const { data: inserted } = await service
+      .from('cafe_congestion_reports')
+      .insert({ cafe_id: cafeId, user_id: alice.userId, level: 3 })
+      .select('id')
+      .single()
+
+    const { data, error } = await alice.client
+      .from('cafe_congestion_reports')
+      .update({ level: 5 })
+      .eq('id', inserted?.id as string)
+      .select()
+
+    expect(error).toBeNull()
+    expect(data).toEqual([])
+  })
+
+  it('本人でも削除できない（対象0件）', async () => {
+    const cafeId = await insertCafe()
+    const { data: inserted } = await service
+      .from('cafe_congestion_reports')
+      .insert({ cafe_id: cafeId, user_id: alice.userId, level: 3 })
+      .select('id')
+      .single()
+
+    const { data, error } = await alice.client
+      .from('cafe_congestion_reports')
+      .delete()
+      .eq('id', inserted?.id as string)
+      .select()
+
+    expect(error).toBeNull()
+    expect(data).toEqual([])
+  })
+})
+
+describe('get_cafe_congestion_current', () => {
+  // p_now を固定して呼ぶことで、テスト実行タイミングと DB 側の now() のズレに
+  // 一切依存しない決定的なアサーションにする。境界（±1時間ちょうど）にデータを
+  // 置くテストほど、実時刻依存だと now() が1時間ティックした瞬間に境界の1件が
+  // 窓から外れて落ちうる（発生確率は低いが CI で高頻度に回すと実際に踏む）
+  const anchor = new Date('2026-06-15T12:00:00.000Z') // 月曜12:00 UTC。値自体に意味はない
+
+  it('直近30分以内のレポートがあれば recent を返す', async () => {
+    const cafeId = await insertCafe()
+    await service.from('cafe_congestion_reports').insert([
+      { cafe_id: cafeId, user_id: alice.userId, level: 2, reported_at: anchor.toISOString() },
+      { cafe_id: cafeId, user_id: bob.userId, level: 4, reported_at: anchor.toISOString() },
+    ])
+
+    const { data, error } = await anon.rpc('get_cafe_congestion_current', {
+      p_cafe_id: cafeId,
+      p_now: anchor.toISOString(),
+    })
+
+    expect(error).toBeNull()
+    expect(data?.[0]).toMatchObject({ level_avg: 3, source: 'recent', sample_count: 2 })
+  })
+
+  it('直近レポートがなく過去に同曜日同時間帯のデータがあれば historical を正しい件数で返す', async () => {
+    const cafeId = await insertCafe()
+    // ちょうど1週間前 = 同じ曜日・同じ時刻（同曜日同時間帯判定に必ず一致させるため）
+    const oneWeekAgo = new Date(anchor.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    await service.from('cafe_congestion_reports').insert([
+      { cafe_id: cafeId, user_id: alice.userId, level: 5, reported_at: oneWeekAgo },
+      { cafe_id: cafeId, user_id: bob.userId, level: 3, reported_at: oneWeekAgo },
+    ])
+
+    const { data, error } = await anon.rpc('get_cafe_congestion_current', {
+      p_cafe_id: cafeId,
+      p_now: anchor.toISOString(),
+    })
+
+    expect(error).toBeNull()
+    expect(data?.[0]).toMatchObject({ level_avg: 4, source: 'historical', sample_count: 2 })
+  })
+
+  it('同曜日の隣接する時間帯（±1時間）のレポートも過去平均に含まれる', async () => {
+    const cafeId = await insertCafe()
+    const oneWeekAgo = anchor.getTime() - 7 * 24 * 60 * 60 * 1000
+    await service.from('cafe_congestion_reports').insert([
+      {
+        cafe_id: cafeId,
+        user_id: alice.userId,
+        level: 3,
+        reported_at: new Date(oneWeekAgo).toISOString(),
+      },
+      {
+        cafe_id: cafeId,
+        user_id: bob.userId,
+        level: 5,
+        reported_at: new Date(oneWeekAgo - 60 * 60 * 1000).toISOString(),
+      },
+      {
+        cafe_id: cafeId,
+        user_id: admin.userId,
+        level: 1,
+        reported_at: new Date(oneWeekAgo + 60 * 60 * 1000).toISOString(),
+      },
+    ])
+
+    const { data, error } = await anon.rpc('get_cafe_congestion_current', {
+      p_cafe_id: cafeId,
+      p_now: anchor.toISOString(),
+    })
+
+    expect(error).toBeNull()
+    expect(data?.[0]).toMatchObject({ level_avg: 3, source: 'historical', sample_count: 3 })
+  })
+
+  it('直近レポートがなく過去データもなければ none を返す', async () => {
+    const cafeId = await insertCafe()
+
+    const { data, error } = await anon.rpc('get_cafe_congestion_current', {
+      p_cafe_id: cafeId,
+      p_now: anchor.toISOString(),
+    })
+
+    expect(error).toBeNull()
+    expect(data?.[0]).toMatchObject({ level_avg: null, source: 'none', sample_count: 0 })
+  })
+})
