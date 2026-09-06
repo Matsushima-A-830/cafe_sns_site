@@ -355,6 +355,19 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **決定期限:** 実害が無いため急がないが、`is_admin()` を anon から呼ぶ新しいポリシーを書く前には確認する
 - 参照: `/code-review` によるセルフレビュー（2026-09-06、cafes テーブル実装時のレビューで発覚）
 
+### D12. `cafes_insert_authenticated` に `profiles.status='active'` ガードがない
+
+- **課題:** [`20260906130000_create_cafes.sql`](../../supabase/migrations/20260906130000_create_cafes.sql) の
+  `cafes_insert_authenticated` は `created_by = auth.uid()` のみを検査しており、CLAUDE.md の必須ルール
+  「未成年アカウントは追加のガード（RLSで `profiles.status = 'active'` チェック）」を満たしていない。
+  `suspended` / `pending_consent` のアカウントでも新規カフェを登録できてしまう
+- **対応方針:** `cafe_business_hours` / `cafe_congestion_reports` 実装時（20260906140000, 20260906140100）に
+  新設した `is_active_user()` ヘルパーを再利用し、`cafes_insert_authenticated` のポリシーを
+  `drop policy` → `create policy` で `with check (created_by = (select auth.uid()) and (select public.is_active_user()))`
+  に置き換える新規マイグレーションを追加する
+- **決定期限:** 次に `cafes` のポリシーを触る機会、または本番公開前には必ず対応
+- 参照: `/code-review` によるセルフレビュー（2026-09-06、cafe_business_hours / cafe_congestion_reports 実装時のレビューで発覚）
+
 ### D8. Biome バージョン Bump 時の手順
 
 - **課題:** Dependabot が Biome を bump した PR は `biome.json` の `$schema` が古いバージョンURLのため lint 失敗する

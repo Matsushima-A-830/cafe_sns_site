@@ -291,7 +291,12 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 | is_closed | boolean | NOT NULL, DEFAULT false |
 | notes | text | |
 
-**RLS:** SELECT 全ユーザー / 更新は cafes と同じ権限
+**制約:**
+- `CHECK (is_closed OR (opens_at IS NOT NULL AND closes_at IS NOT NULL))` — 定休日でないのに営業時間が両方未設定の状態を防ぐ。深夜営業（22:00始まり〜翌02:00終わり等）は `opens_at > closes_at` として許容し、日をまたぐ判定はアプリ側で行う
+
+**`day_of_week` の基準:** 0=日曜〜6=土曜。カフェの現地時刻（JST）の暦日を指す。`opens_at`/`closes_at` が壁時計時刻（`time`型）である以上、その日を特定するのも常に JST。「今日の営業時間」を引く側は必ず JST で曜日を求めること（`cafe_congestion_reports` 側の曜日集計は UTC 基準の統計バケットであり別概念、揃えない）。
+
+**RLS:** SELECT 全ユーザー / INSERT・UPDATE・DELETE は `cafes.verified_owner_id` 本人（`status='active'` 必須）または admin
 
 ---
 
@@ -309,9 +314,9 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 
 **インデックス:**
 - `(cafe_id, reported_at DESC)` — 直近レポート表示用
-- `(cafe_id, extract(dow from reported_at), extract(hour from reported_at))` — 曜日・時間帯別集計用
+- `(cafe_id, extract(dow from reported_at at time zone 'utc'), extract(hour from reported_at at time zone 'utc'))` — 曜日・時間帯別集計用（UTC固定。`extract(... from timestamptz)` はセッションTZ依存でIMMUTABLEではなくインデックス式に使えないため）
 
-**RLS:** SELECT 全ユーザー / INSERT 認証済み / UPDATE・DELETE 不可
+**RLS（2026-09-06 修正）:** SELECT は「本人 + admin」のみ（`reports` と同じ方針）。生の行は `user_id`・`cafe_id`・`reported_at` が並び、突き合わせれば「誰が今どのカフェにいるか」が割れる位置情報に近い個人情報のため、全ユーザー公開にはしない。集計値は `get_cafe_congestion_current()` 経由で全ユーザーに公開する（関数は `security definer` でこの制限を回避）。INSERT は認証済み本人かつ `profiles.status='active'`。UPDATE・DELETE 不可。
 
 ### 表示ロジック（決定 2026-09-03）
 
@@ -328,37 +333,12 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 
 ### Postgres関数（MVP実装案）
 
-```sql
--- 現在の混雑度（直近30分 or 過去平均へフォールバック）
-create or replace function public.get_cafe_congestion_current(p_cafe_id uuid)
-returns table (level_avg numeric, source text, sample_count int)
-language sql stable as $$
-  with recent as (
-    select avg(level)::numeric as avg_level, count(*) as n
-    from public.cafe_congestion_reports
-    where cafe_id = p_cafe_id
-      and reported_at >= now() - interval '30 minutes'
-  ),
-  historical as (
-    select avg(level)::numeric as avg_level, count(*) as n
-    from public.cafe_congestion_reports
-    where cafe_id = p_cafe_id
-      and extract(dow from reported_at) = extract(dow from now())
-      and extract(hour from reported_at) between extract(hour from now())::int - 1
-                                             and extract(hour from now())::int + 1
-      and reported_at >= now() - interval '4 weeks'
-  )
-  select
-    coalesce(recent.avg_level, historical.avg_level) as level_avg,
-    case
-      when recent.n > 0 then 'recent'
-      when historical.n > 0 then 'historical'
-      else 'none'
-    end as source,
-    coalesce(recent.n, historical.n, 0)::int as sample_count
-  from recent, historical;
-$$;
-```
+実装は `supabase/migrations/20260906140100_create_cafe_congestion_reports.sql` を単一の情報源とする（要点のみ記載）:
+
+- `security definer`（SELECT ポリシーを「本人+admin」に絞ったため、invoker のままだと呼び出し元本人の投稿しか集計できない）
+- ±1時間の時間帯窓は `extract(hour ...) between h-1 and h+1` ではなく、`now()` に `interval` を加減してから曜日・時間を取り直す方式にする（`between` 方式は UTC 0時/23時で日をまたぐラップができず、JST 09:00 前後＝開店直後の投稿ピーク帯でサンプルが半減する不具合があった）
+- `sample_count` は `coalesce(recent.n, historical.n, 0)` にしない — `count(*)` は0件でも NULL ではなく0を返すため `historical.n` に絶対に落ちない。`source` と同じ条件分岐で明示的に選ぶ
+- 戻り値の `level_avg` は `source='none'` のとき NULL になるが、`supabase gen types` は `RETURNS TABLE` の列を non-nullable に生成するため、呼び出し側で型を信用せず NULL を扱うこと
 
 **将来（フェーズ2以降）:** Google Places API "popular times" 連携は [product/pending-items.md C系](../../product/pending-items.md) で検討。
 

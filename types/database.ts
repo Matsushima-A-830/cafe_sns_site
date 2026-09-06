@@ -528,6 +528,7 @@ export type Database = {
           source: string
         }[]
       }
+      is_active_user: { Args: never; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_cafe_owner: { Args: { p_cafe_id: string }; Returns: boolean }
       replace_user_interest_tags: {

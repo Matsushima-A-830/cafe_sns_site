@@ -31,34 +31,46 @@ create index cafe_congestion_reports_cafe_dow_hour_idx
   );
 
 -- ============================================
--- RLS: SELECT 全ユーザー / INSERT 認証済み本人 / UPDATE・DELETE 不可
+-- RLS
+--
+-- is_active_user() は cafe_business_hours 側のマイグレーションで定義済み
+-- （先に適用されるため。CLAUDE.md の profiles.status='active' ガード）。
+--
+-- SELECT は「本人 + admin」に限定する（reports テーブルと同じ方針）。
+-- 生の行には user_id・cafe_id・reported_at が並び、突き合わせれば
+-- 「誰が今どのカフェにいるか」まで割れてしまうため、位置情報に近い
+-- 個人情報として扱う。集計値は get_cafe_congestion_current() 経由で
+-- 全ユーザーに公開する（関数側は security definer でこの制限を回避する）。
+--   docs/architecture/data-model/tables.md #cafe_congestion_reports
 -- ============================================
 
 alter table public.cafe_congestion_reports enable row level security;
 
-create policy cafe_congestion_reports_select_all
+create policy cafe_congestion_reports_select_own
   on public.cafe_congestion_reports for select
-  using (true);
+  to authenticated
+  using (user_id = (select auth.uid()) or (select public.is_admin()));
 
 create policy cafe_congestion_reports_insert_own
   on public.cafe_congestion_reports for insert
   to authenticated
-  with check (user_id = (select auth.uid()));
+  with check (user_id = (select auth.uid()) and (select public.is_active_user()));
 
 -- UPDATE・DELETE はポリシーを置かない（＝拒否）。投稿し直しは新規INSERTで行う。
 
 -- ============================================
 -- get_cafe_congestion_current: 現在の混雑度（3段階フォールバック）
 --
--- security invoker（既定）のまま。SELECT が全ユーザーに開いているので
--- 呼び出し元のロールに関わらず同じ結果になる。
---   docs/architecture/data-model/tables.md #cafe_congestion_reports
+-- security definer にする: SELECT ポリシーを「本人 + admin」に絞ったため、
+-- invoker のままだと呼び出し元本人の投稿しか集計に乗らず、他ユーザーの
+-- 投稿を含む本来の集計にならない。is_admin() と同じ理由で RLS を回避する
 -- ============================================
 
 create or replace function public.get_cafe_congestion_current(p_cafe_id uuid)
 returns table (level_avg numeric, source text, sample_count int)
 language sql
 stable
+security definer
 set search_path = ''
 as $$
   with recent as (
@@ -71,10 +83,19 @@ as $$
     select avg(level)::numeric as avg_level, count(*) as n
     from public.cafe_congestion_reports
     where cafe_id = p_cafe_id
-      and extract(dow from reported_at at time zone 'utc') = extract(dow from now() at time zone 'utc')
-      and extract(hour from reported_at at time zone 'utc')
-        between extract(hour from now() at time zone 'utc')::int - 1
-            and extract(hour from now() at time zone 'utc')::int + 1
+      -- extract(hour ...) の between h-1 and h+1 は 0時/23時で日をまたぐ
+      -- ラップができない（0時なら -1 が発生せず前日23時分が抜け、23時なら
+      -- 24 が発生せず翌日0時分が抜ける）。now() 自体に interval を加減してから
+      -- 曜日・時間を取り直すことで、日またぎを自然に処理する
+      and (extract(dow from reported_at at time zone 'utc'), extract(hour from reported_at at time zone 'utc'))
+        in (
+          (extract(dow from (now() - interval '1 hour') at time zone 'utc'),
+           extract(hour from (now() - interval '1 hour') at time zone 'utc')),
+          (extract(dow from now() at time zone 'utc'),
+           extract(hour from now() at time zone 'utc')),
+          (extract(dow from (now() + interval '1 hour') at time zone 'utc'),
+           extract(hour from (now() + interval '1 hour') at time zone 'utc'))
+        )
       and reported_at >= now() - interval '4 weeks'
   )
   select
@@ -91,6 +112,11 @@ as $$
 $$;
 
 comment on function public.get_cafe_congestion_current(uuid) is
-  '直近30分の平均→なければ過去4週間の同曜日同時間帯平均→どちらもなければ none。S_CAFE_DETAIL の混雑度セクションが呼ぶ';
+  '直近30分の平均→なければ過去4週間の同曜日同時間帯平均→どちらもなければ none。
+   S_CAFE_DETAIL の混雑度セクションが呼ぶ。level_avg は source=none のとき NULL に
+   なるが、supabase gen types は RETURNS TABLE の列を non-nullable に生成するため、
+   呼び出し側で型を信用せず NULL を扱うこと（tables.md の tiptap_to_plaintext と
+   同じ注意点）';
 
+revoke execute on function public.get_cafe_congestion_current(uuid) from public;
 grant execute on function public.get_cafe_congestion_current(uuid) to anon, authenticated;

@@ -14,6 +14,8 @@ const service = serviceRoleClient()
 
 let alice: AuthedUser
 let bob: AuthedUser
+let admin: AuthedUser
+let suspended: AuthedUser
 
 const cafeIds: string[] = []
 
@@ -36,6 +38,8 @@ async function insertCafe(overrides: Record<string, unknown> = {}) {
 beforeAll(async () => {
   alice = await createAuthedProfile({ username: 'alice_congestion' })
   bob = await createAuthedProfile({ username: 'bob_congestion' })
+  admin = await createAuthedProfile({ username: 'admin_congestion', role: 'admin' })
+  suspended = await createAuthedProfile({ username: 'suspended_congestion', status: 'suspended' })
 })
 
 afterEach(async () => {
@@ -48,16 +52,63 @@ afterEach(async () => {
 afterAll(async () => {
   await alice?.cleanup()
   await bob?.cleanup()
+  await admin?.cleanup()
+  await suspended?.cleanup()
 })
 
 describe('cafe_congestion_reports の SELECT', () => {
-  it('未ログインでも読める', async () => {
+  it('未ログインは読めない（位置情報に近い個人情報のため全公開しない）', async () => {
     const cafeId = await insertCafe()
     await service
       .from('cafe_congestion_reports')
       .insert({ cafe_id: cafeId, user_id: alice.userId, level: 3 })
 
     const { data, error } = await anon
+      .from('cafe_congestion_reports')
+      .select('level')
+      .eq('cafe_id', cafeId)
+
+    expect(error).toBeNull()
+    expect(data).toEqual([])
+  })
+
+  it('本人は自分の投稿を読める', async () => {
+    const cafeId = await insertCafe()
+    await service
+      .from('cafe_congestion_reports')
+      .insert({ cafe_id: cafeId, user_id: alice.userId, level: 3 })
+
+    const { data, error } = await alice.client
+      .from('cafe_congestion_reports')
+      .select('level')
+      .eq('cafe_id', cafeId)
+
+    expect(error).toBeNull()
+    expect(data).toEqual([{ level: 3 }])
+  })
+
+  it('他人の投稿は読めない', async () => {
+    const cafeId = await insertCafe()
+    await service
+      .from('cafe_congestion_reports')
+      .insert({ cafe_id: cafeId, user_id: alice.userId, level: 3 })
+
+    const { data, error } = await bob.client
+      .from('cafe_congestion_reports')
+      .select('level')
+      .eq('cafe_id', cafeId)
+
+    expect(error).toBeNull()
+    expect(data).toEqual([])
+  })
+
+  it('admin は他人の投稿も読める', async () => {
+    const cafeId = await insertCafe()
+    await service
+      .from('cafe_congestion_reports')
+      .insert({ cafe_id: cafeId, user_id: alice.userId, level: 3 })
+
+    const { data, error } = await admin.client
       .from('cafe_congestion_reports')
       .select('level')
       .eq('cafe_id', cafeId)
@@ -106,6 +157,16 @@ describe('cafe_congestion_reports の INSERT', () => {
       .insert({ cafe_id: cafeId, user_id: alice.userId, level: 6 })
 
     expect(error?.code).toBe(CHECK_VIOLATION)
+  })
+
+  it('status=suspended のユーザーは自分を user_id にしても報告できない', async () => {
+    const cafeId = await insertCafe()
+
+    const { error } = await suspended.client
+      .from('cafe_congestion_reports')
+      .insert({ cafe_id: cafeId, user_id: suspended.userId, level: 3 })
+
+    expect(error?.code).toBe(RLS_VIOLATION)
   })
 })
 

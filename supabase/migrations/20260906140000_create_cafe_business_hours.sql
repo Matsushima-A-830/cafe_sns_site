@@ -15,12 +15,21 @@ create table public.cafe_business_hours (
   notes        text,
 
   primary key (cafe_id, day_of_week),
-  constraint cafe_business_hours_day_of_week_check check (day_of_week between 0 and 6)
+  constraint cafe_business_hours_day_of_week_check check (day_of_week between 0 and 6),
+  -- 定休日でないのに営業時間が両方 NULL の状態（「開いているが何時か不明」）を防ぐ。
+  -- 深夜営業（22:00始まり〜翌02:00終わり等）は opens_at > closes_at として許容し、
+  -- 日をまたぐ判定はアプリ側で行う（DB側で順序を強制しない）
+  constraint cafe_business_hours_hours_present_check
+    check (is_closed or (opens_at is not null and closes_at is not null))
 );
 
 comment on column public.cafe_business_hours.day_of_week is
-  '0=日曜〜6=土曜（Postgres の extract(dow from ... at time zone ''utc'') と同じ基準。
-   get_cafe_congestion_current() 等の曜日集計とズレさせない）';
+  '0=日曜〜6=土曜。カフェの現地時刻（JST）の暦日を指す — opens_at/closes_at が
+   壁時計時刻（time型）である以上、その日を特定するのも常に JST でなければならない。
+   get_cafe_congestion_current() 側の曜日集計は UTC 基準だが、あれは統計バケットの
+   区切りに過ぎず「今日は何曜日か」という現地の意味を持たない別概念なので揃えない。
+   「今日の営業時間」を引く側は必ず JST（例: now() at time zone ''Asia/Tokyo''）で
+   曜日を求めること';
 
 -- ============================================
 -- is_cafe_owner: 呼び出し元が指定カフェの verified_owner_id 本人か
@@ -56,6 +65,34 @@ revoke execute on function public.is_cafe_owner(uuid) from public;
 grant execute on function public.is_cafe_owner(uuid) to authenticated;
 
 -- ============================================
+-- is_active_user: 呼び出し元が status='active' の本人か
+--
+-- CLAUDE.md の必須ルール「未成年アカウントは追加のガード（RLSで
+-- profiles.status = 'active' チェック）」。cafe_congestion_reports の
+-- INSERT ポリシーからも参照するため、先に適用されるこのマイグレーションで
+-- 定義する。is_admin() と同じ理由で security definer にする。
+-- ============================================
+
+create or replace function public.is_active_user()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = (select auth.uid()) and status = 'active'
+  );
+$$;
+
+comment on function public.is_active_user() is
+  '呼び出し元が status=active の本人か。suspended / pending_consent のユーザーの書き込みを弾くのに使う';
+
+revoke execute on function public.is_active_user() from public;
+grant execute on function public.is_active_user() to authenticated;
+
+-- ============================================
 -- RLS
 -- ============================================
 
@@ -71,15 +108,27 @@ create policy cafe_business_hours_select_all
 create policy cafe_business_hours_insert_owner
   on public.cafe_business_hours for insert
   to authenticated
-  with check (public.is_cafe_owner(cafe_id) or (select public.is_admin()));
+  with check (
+    (public.is_cafe_owner(cafe_id) and (select public.is_active_user()))
+    or (select public.is_admin())
+  );
 
 create policy cafe_business_hours_update_owner
   on public.cafe_business_hours for update
   to authenticated
-  using (public.is_cafe_owner(cafe_id) or (select public.is_admin()))
-  with check (public.is_cafe_owner(cafe_id) or (select public.is_admin()));
+  using (
+    (public.is_cafe_owner(cafe_id) and (select public.is_active_user()))
+    or (select public.is_admin())
+  )
+  with check (
+    (public.is_cafe_owner(cafe_id) and (select public.is_active_user()))
+    or (select public.is_admin())
+  );
 
 create policy cafe_business_hours_delete_owner
   on public.cafe_business_hours for delete
   to authenticated
-  using (public.is_cafe_owner(cafe_id) or (select public.is_admin()));
+  using (
+    (public.is_cafe_owner(cafe_id) and (select public.is_active_user()))
+    or (select public.is_admin())
+  );

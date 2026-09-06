@@ -15,6 +15,7 @@ const service = serviceRoleClient()
 let alice: AuthedUser
 let bob: AuthedUser
 let admin: AuthedUser
+let suspendedOwner: AuthedUser
 
 const cafeIds: string[] = []
 
@@ -38,6 +39,7 @@ beforeAll(async () => {
   alice = await createAuthedProfile({ username: 'alice_hours' })
   bob = await createAuthedProfile({ username: 'bob_hours' })
   admin = await createAuthedProfile({ username: 'admin_hours', role: 'admin' })
+  suspendedOwner = await createAuthedProfile({ username: 'suspended_hours', status: 'suspended' })
 })
 
 afterEach(async () => {
@@ -51,6 +53,7 @@ afterAll(async () => {
   await alice?.cleanup()
   await bob?.cleanup()
   await admin?.cleanup()
+  await suspendedOwner?.cleanup()
 })
 
 describe('cafe_business_hours の SELECT', () => {
@@ -114,6 +117,26 @@ describe('cafe_business_hours の INSERT', () => {
     expect(error).toBeNull()
   })
 
+  it('status=suspended のオーナーは自分のカフェでも登録できない', async () => {
+    const cafeId = await insertCafe({ verified_owner_id: suspendedOwner.userId })
+
+    const { error } = await suspendedOwner.client
+      .from('cafe_business_hours')
+      .insert({ cafe_id: cafeId, day_of_week: 0, is_closed: true })
+
+    expect(error?.code).toBe(RLS_VIOLATION)
+  })
+
+  it('定休日でないのに営業時間が両方未設定だと登録できない', async () => {
+    const cafeId = await insertCafe({ verified_owner_id: bob.userId })
+
+    const { error } = await bob.client
+      .from('cafe_business_hours')
+      .insert({ cafe_id: cafeId, day_of_week: 1, is_closed: false })
+
+    expect(error?.code).toBe(CHECK_VIOLATION)
+  })
+
   it('day_of_week が範囲外だと登録できない', async () => {
     const cafeId = await insertCafe({ verified_owner_id: bob.userId })
 
@@ -141,6 +164,23 @@ describe('cafe_business_hours の UPDATE', () => {
 
     expect(error).toBeNull()
     expect(data).toEqual([{ is_closed: false }])
+  })
+
+  it('status=suspended のオーナーは自分のカフェでも更新できない（対象0件）', async () => {
+    const cafeId = await insertCafe({ verified_owner_id: suspendedOwner.userId })
+    await service
+      .from('cafe_business_hours')
+      .insert({ cafe_id: cafeId, day_of_week: 2, is_closed: true })
+
+    const { data, error } = await suspendedOwner.client
+      .from('cafe_business_hours')
+      .update({ is_closed: false, opens_at: '10:00', closes_at: '20:00' })
+      .eq('cafe_id', cafeId)
+      .eq('day_of_week', 2)
+      .select()
+
+    expect(error).toBeNull()
+    expect(data).toEqual([])
   })
 
   it('verified_owner_id ではないユーザーは更新できない（対象0件）', async () => {
