@@ -161,6 +161,21 @@ describe('get_cafe_congestion_current', () => {
     expect(data?.[0]).toMatchObject({ level_avg: 3, source: 'recent', sample_count: 2 })
   })
 
+  it('直近レポートがなく過去に同曜日同時間帯のデータがあれば historical を正しい件数で返す', async () => {
+    const cafeId = await insertCafe()
+    // ちょうど1週間前 = 同じ曜日・同じ時刻（同曜日同時間帯判定に必ず一致させるため）
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    await service.from('cafe_congestion_reports').insert([
+      { cafe_id: cafeId, user_id: alice.userId, level: 5, reported_at: oneWeekAgo },
+      { cafe_id: cafeId, user_id: bob.userId, level: 3, reported_at: oneWeekAgo },
+    ])
+
+    const { data, error } = await anon.rpc('get_cafe_congestion_current', { p_cafe_id: cafeId })
+
+    expect(error).toBeNull()
+    expect(data?.[0]).toMatchObject({ level_avg: 4, source: 'historical', sample_count: 2 })
+  })
+
   it('直近レポートがなく過去データもなければ none を返す', async () => {
     const cafeId = await insertCafe()
 

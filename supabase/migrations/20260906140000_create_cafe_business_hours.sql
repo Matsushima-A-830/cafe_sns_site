@@ -23,12 +23,40 @@ comment on column public.cafe_business_hours.day_of_week is
    get_cafe_congestion_current() 等の曜日集計とズレさせない）';
 
 -- ============================================
--- RLS
+-- is_cafe_owner: 呼び出し元が指定カフェの verified_owner_id 本人か
 --
 -- 「更新は cafes と同じ権限」（tables.md）を INSERT/UPDATE/DELETE の
--- 3操作すべてに適用する。曜日ごとに7行を都度 upsert する運用が自然なため。
--- cafes 自身は verified_owner_id を持つが本テーブルは持たないので、
--- cafes を EXISTS で参照して権限を判定する。
+-- 3操作すべてに適用するため、同じ判定を1ファイル内で4回書くことになる
+-- （3回同じパターンが出たら抽象化する原則。CLAUDE.md）ので関数に切り出す。
+--
+-- is_admin() と同じく security definer にする: invoker のままだと
+-- 判定用の EXISTS が public.cafes の SELECT RLS 越しになり、cafes.status
+-- が 'hidden'（authenticated は status='active' or admin しか見えない）の
+-- カフェではオーナー本人ですら自分の営業時間を管理できなくなってしまう。
+-- ============================================
+
+create or replace function public.is_cafe_owner(p_cafe_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.cafes
+    where id = p_cafe_id and verified_owner_id = (select auth.uid())
+  );
+$$;
+
+comment on function public.is_cafe_owner(uuid) is
+  '呼び出し元が指定カフェの verified_owner_id 本人か。cafes の SELECT RLS を
+   バイパスするため security definer（is_admin() と同じ理由）';
+
+revoke execute on function public.is_cafe_owner(uuid) from public;
+grant execute on function public.is_cafe_owner(uuid) to authenticated;
+
+-- ============================================
+-- RLS
 -- ============================================
 
 alter table public.cafe_business_hours enable row level security;
@@ -43,39 +71,15 @@ create policy cafe_business_hours_select_all
 create policy cafe_business_hours_insert_owner
   on public.cafe_business_hours for insert
   to authenticated
-  with check (
-    exists (
-      select 1 from public.cafes c
-      where c.id = cafe_id
-        and (c.verified_owner_id = (select auth.uid()) or (select public.is_admin()))
-    )
-  );
+  with check (public.is_cafe_owner(cafe_id) or (select public.is_admin()));
 
 create policy cafe_business_hours_update_owner
   on public.cafe_business_hours for update
   to authenticated
-  using (
-    exists (
-      select 1 from public.cafes c
-      where c.id = cafe_id
-        and (c.verified_owner_id = (select auth.uid()) or (select public.is_admin()))
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.cafes c
-      where c.id = cafe_id
-        and (c.verified_owner_id = (select auth.uid()) or (select public.is_admin()))
-    )
-  );
+  using (public.is_cafe_owner(cafe_id) or (select public.is_admin()))
+  with check (public.is_cafe_owner(cafe_id) or (select public.is_admin()));
 
 create policy cafe_business_hours_delete_owner
   on public.cafe_business_hours for delete
   to authenticated
-  using (
-    exists (
-      select 1 from public.cafes c
-      where c.id = cafe_id
-        and (c.verified_owner_id = (select auth.uid()) or (select public.is_admin()))
-    )
-  );
+  using (public.is_cafe_owner(cafe_id) or (select public.is_admin()));

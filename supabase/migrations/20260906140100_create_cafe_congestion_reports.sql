@@ -84,7 +84,9 @@ as $$
       when historical.n > 0 then 'historical'
       else 'none'
     end as source,
-    coalesce(recent.n, historical.n, 0)::int as sample_count
+    -- count(*) は0件時も NULL ではなく0を返すため、recent.n は coalesce では
+    -- 絶対に読み飛ばされない。source の分岐と同じ条件で明示的に選ぶ
+    (case when recent.n > 0 then recent.n else historical.n end)::int as sample_count
   from recent, historical;
 $$;
 
