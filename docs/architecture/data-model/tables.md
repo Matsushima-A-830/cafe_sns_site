@@ -313,8 +313,8 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 | reported_at | timestamptz | NOT NULL, DEFAULT now() |
 
 **インデックス:**
-- `(cafe_id, reported_at DESC)` — 直近レポート表示用
-- `(cafe_id, extract(dow from reported_at at time zone 'utc'), extract(hour from reported_at at time zone 'utc'))` — 曜日・時間帯別集計用（UTC固定。`extract(... from timestamptz)` はセッションTZ依存でIMMUTABLEではなくインデックス式に使えないため）
+- `(cafe_id, reported_at DESC)` — `get_cafe_congestion_current()` の recent/historical 両CTEが使う唯一のインデックス。生の行のSELECTは本人+adminのみなので「一覧表示用」ではなく集計関数専用（2026-09-06 RLS変更に伴い用途を訂正）
+- 曜日・時間帯（dow/hour）専用の複合インデックスは意図的に持たない。実データ量でEXPLAINすると、dow/hourは3項ORに展開されヒープ側Filterで評価され、専用インデックスは読まれず書き込みコストだけ払う。投稿数が増えて `cafe_congestion_hourly_avg` (Materialized View) へ移行する際に集計クエリに合わせて設計し直す
 
 **RLS（2026-09-06 修正）:** SELECT は「本人 + admin」のみ（`reports` と同じ方針）。生の行は `user_id`・`cafe_id`・`reported_at` が並び、突き合わせれば「誰が今どのカフェにいるか」が割れる位置情報に近い個人情報のため、全ユーザー公開にはしない。集計値は `get_cafe_congestion_current()` 経由で全ユーザーに公開する（関数は `security definer` でこの制限を回避）。INSERT は認証済み本人かつ `profiles.status='active'`。UPDATE・DELETE 不可。
 

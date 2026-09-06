@@ -18,17 +18,15 @@ create table public.cafe_congestion_reports (
   constraint cafe_congestion_reports_level_check check (level between 1 and 5)
 );
 
+-- get_cafe_congestion_current() の recent/historical 両CTEが使う唯一のインデックス。
+-- historical 側は dow/hour を3タプルの IN に展開するが、実データ量で EXPLAIN すると
+-- プランナは「cafe_id + reported_at >= 4週間前」でこのインデックスをビットマップ
+-- スキャンし、dow/hour 条件はヒープ側の Filter で評価する（3項 OR に展開されるため）。
+-- dow/hour 専用の複合インデックスを別途持たせても読まれず書き込みコストだけ払う
+-- ことになるので作らない。投稿数が増えて cafe_congestion_hourly_avg (Materialized
+-- View) へ移行する際に、その集計クエリに合わせて改めて設計すること
 create index cafe_congestion_reports_cafe_reported_at_idx
   on public.cafe_congestion_reports (cafe_id, reported_at desc);
-
--- extract(dow/hour from timestamptz) はセッションのタイムゾーンに依存するため
--- IMMUTABLE ではない（インデックス式には使えない）。UTC固定にして式を安定させる
-create index cafe_congestion_reports_cafe_dow_hour_idx
-  on public.cafe_congestion_reports (
-    cafe_id,
-    extract(dow from reported_at at time zone 'utc'),
-    extract(hour from reported_at at time zone 'utc')
-  );
 
 -- ============================================
 -- RLS

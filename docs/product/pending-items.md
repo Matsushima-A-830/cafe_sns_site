@@ -355,6 +355,16 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **決定期限:** 実害が無いため急がないが、`is_admin()` を anon から呼ぶ新しいポリシーを書く前には確認する
 - 参照: `/code-review` によるセルフレビュー（2026-09-06、cafes テーブル実装時のレビューで発覚）
 
+### D8. Biome バージョン Bump 時の手順
+
+- **課題:** Dependabot が Biome を bump した PR は `biome.json` の `$schema` が古いバージョンURLのため lint 失敗する
+- **対応手順（Bump 時に必ず実施）:**
+  1. `biome.json` の `$schema` を新バージョン URL に更新
+  2. `pnpm exec biome migrate --write` で設定移行
+  3. `pnpm biome check --write` で再フォーマット
+- **自動化候補:** Dependabot 用 GitHub Actions workflow で PR 更新後に自動 biome migrate を実行
+- **決定期限:** Biome bump が頻繁に来るようになった時
+
 ### D12. `cafes_insert_authenticated` に `profiles.status='active'` ガードがない
 
 - **課題:** [`20260906130000_create_cafes.sql`](../../supabase/migrations/20260906130000_create_cafes.sql) の
@@ -367,16 +377,6 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   に置き換える新規マイグレーションを追加する
 - **決定期限:** 次に `cafes` のポリシーを触る機会、または本番公開前には必ず対応
 - 参照: `/code-review` によるセルフレビュー（2026-09-06、cafe_business_hours / cafe_congestion_reports 実装時のレビューで発覚）
-
-### D8. Biome バージョン Bump 時の手順
-
-- **課題:** Dependabot が Biome を bump した PR は `biome.json` の `$schema` が古いバージョンURLのため lint 失敗する
-- **対応手順（Bump 時に必ず実施）:**
-  1. `biome.json` の `$schema` を新バージョン URL に更新
-  2. `pnpm exec biome migrate --write` で設定移行
-  3. `pnpm biome check --write` で再フォーマット
-- **自動化候補:** Dependabot 用 GitHub Actions workflow で PR 更新後に自動 biome migrate を実行
-- **決定期限:** Biome bump が頻繁に来るようになった時
 
 ## 削除・アーカイブ判断待ち
 
