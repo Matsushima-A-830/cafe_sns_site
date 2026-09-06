@@ -209,14 +209,23 @@ describe('cafe_congestion_reports の UPDATE・DELETE', () => {
 })
 
 describe('get_cafe_congestion_current', () => {
+  // p_now を固定して呼ぶことで、テスト実行タイミングと DB 側の now() のズレに
+  // 一切依存しない決定的なアサーションにする。境界（±1時間ちょうど）にデータを
+  // 置くテストほど、実時刻依存だと now() が1時間ティックした瞬間に境界の1件が
+  // 窓から外れて落ちうる（発生確率は低いが CI で高頻度に回すと実際に踏む）
+  const anchor = new Date('2026-06-15T12:00:00.000Z') // 月曜12:00 UTC。値自体に意味はない
+
   it('直近30分以内のレポートがあれば recent を返す', async () => {
     const cafeId = await insertCafe()
     await service.from('cafe_congestion_reports').insert([
-      { cafe_id: cafeId, user_id: alice.userId, level: 2, reported_at: new Date().toISOString() },
-      { cafe_id: cafeId, user_id: bob.userId, level: 4, reported_at: new Date().toISOString() },
+      { cafe_id: cafeId, user_id: alice.userId, level: 2, reported_at: anchor.toISOString() },
+      { cafe_id: cafeId, user_id: bob.userId, level: 4, reported_at: anchor.toISOString() },
     ])
 
-    const { data, error } = await anon.rpc('get_cafe_congestion_current', { p_cafe_id: cafeId })
+    const { data, error } = await anon.rpc('get_cafe_congestion_current', {
+      p_cafe_id: cafeId,
+      p_now: anchor.toISOString(),
+    })
 
     expect(error).toBeNull()
     expect(data?.[0]).toMatchObject({ level_avg: 3, source: 'recent', sample_count: 2 })
@@ -225,25 +234,24 @@ describe('get_cafe_congestion_current', () => {
   it('直近レポートがなく過去に同曜日同時間帯のデータがあれば historical を正しい件数で返す', async () => {
     const cafeId = await insertCafe()
     // ちょうど1週間前 = 同じ曜日・同じ時刻（同曜日同時間帯判定に必ず一致させるため）
-    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+    const oneWeekAgo = new Date(anchor.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
     await service.from('cafe_congestion_reports').insert([
       { cafe_id: cafeId, user_id: alice.userId, level: 5, reported_at: oneWeekAgo },
       { cafe_id: cafeId, user_id: bob.userId, level: 3, reported_at: oneWeekAgo },
     ])
 
-    const { data, error } = await anon.rpc('get_cafe_congestion_current', { p_cafe_id: cafeId })
+    const { data, error } = await anon.rpc('get_cafe_congestion_current', {
+      p_cafe_id: cafeId,
+      p_now: anchor.toISOString(),
+    })
 
     expect(error).toBeNull()
     expect(data?.[0]).toMatchObject({ level_avg: 4, source: 'historical', sample_count: 2 })
   })
 
   it('同曜日の隣接する時間帯（±1時間）のレポートも過去平均に含まれる', async () => {
-    // between h-1 and h+1 方式は UTC 0時/23時でしか日またぎのラップに失敗しないため、
-    // 「今」がその境界を跨ぐとは限らずここでは再現できない。代わりに ±1時間の隣接
-    // バケットが正しく窓に含まれる契約自体を固定する（interval 加減方式ならこの
-    // アサーションは常に成立する）
     const cafeId = await insertCafe()
-    const oneWeekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+    const oneWeekAgo = anchor.getTime() - 7 * 24 * 60 * 60 * 1000
     await service.from('cafe_congestion_reports').insert([
       {
         cafe_id: cafeId,
@@ -265,7 +273,10 @@ describe('get_cafe_congestion_current', () => {
       },
     ])
 
-    const { data, error } = await anon.rpc('get_cafe_congestion_current', { p_cafe_id: cafeId })
+    const { data, error } = await anon.rpc('get_cafe_congestion_current', {
+      p_cafe_id: cafeId,
+      p_now: anchor.toISOString(),
+    })
 
     expect(error).toBeNull()
     expect(data?.[0]).toMatchObject({ level_avg: 3, source: 'historical', sample_count: 3 })
@@ -274,7 +285,10 @@ describe('get_cafe_congestion_current', () => {
   it('直近レポートがなく過去データもなければ none を返す', async () => {
     const cafeId = await insertCafe()
 
-    const { data, error } = await anon.rpc('get_cafe_congestion_current', { p_cafe_id: cafeId })
+    const { data, error } = await anon.rpc('get_cafe_congestion_current', {
+      p_cafe_id: cafeId,
+      p_now: anchor.toISOString(),
+    })
 
     expect(error).toBeNull()
     expect(data?.[0]).toMatchObject({ level_avg: null, source: 'none', sample_count: 0 })

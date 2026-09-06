@@ -337,6 +337,7 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 
 - `security definer`（SELECT ポリシーを「本人+admin」に絞ったため、invoker のままだと呼び出し元本人の投稿しか集計できない）
 - ±1時間の時間帯窓は `extract(hour ...) between h-1 and h+1` ではなく、`now()` に `interval` を加減してから曜日・時間を取り直す方式にする（`between` 方式は UTC 0時/23時で日をまたぐラップができず、JST 09:00 前後＝開店直後の投稿ピーク帯でサンプルが半減する不具合があった）
+- 第2引数 `p_now timestamptz default now()` で基準時刻を注入可能にする。実運用は省略して実時刻を使うが、統合テストはこれを固定値で渡すことで「テストがデータを作ってから RPC を呼ぶまでの間に本当に1時間ティックして境界のバケットが窓から外れる」フレークを構造的に排除する
 - `sample_count` は `coalesce(recent.n, historical.n, 0)` にしない — `count(*)` は0件でも NULL ではなく0を返すため `historical.n` に絶対に落ちない。`source` と同じ条件分岐で明示的に選ぶ
 - 戻り値の `level_avg` は `source='none'` のとき NULL になるが、`supabase gen types` は `RETURNS TABLE` の列を non-nullable に生成するため、呼び出し側で型を信用せず NULL を扱うこと
 

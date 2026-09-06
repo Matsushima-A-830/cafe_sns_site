@@ -62,9 +62,17 @@ create policy cafe_congestion_reports_insert_own
 -- security definer にする: SELECT ポリシーを「本人 + admin」に絞ったため、
 -- invoker のままだと呼び出し元本人の投稿しか集計に乗らず、他ユーザーの
 -- 投稿を含む本来の集計にならない。is_admin() と同じ理由で RLS を回避する
+--
+-- p_now は「基準時刻」を明示的に注入できるようにするための引数（デフォルトは
+-- 実運用と同じ now()）。理由: ±1時間の窓は今の時刻ちょうどの±1時間なので、
+-- テストが `Date.now()` でデータを作ってから RPC を呼ぶまでの間に本当に
+-- 時刻が1時間進むと、期待していた境界のバケットが窓から外れて落ちる
+-- （境界に置いたデータほど発生しやすい。CI で高頻度に回すと稀に踏む）。
+-- p_now を注入できればテストはデータ作成と同じ値を渡せるので、実行タイミング
+-- に一切依存しない決定的なテストが書ける
 -- ============================================
 
-create or replace function public.get_cafe_congestion_current(p_cafe_id uuid)
+create or replace function public.get_cafe_congestion_current(p_cafe_id uuid, p_now timestamptz default now())
 returns table (level_avg numeric, source text, sample_count int)
 language sql
 stable
@@ -75,7 +83,7 @@ as $$
     select avg(level)::numeric as avg_level, count(*) as n
     from public.cafe_congestion_reports
     where cafe_id = p_cafe_id
-      and reported_at >= now() - interval '30 minutes'
+      and reported_at >= p_now - interval '30 minutes'
   ),
   historical as (
     select avg(level)::numeric as avg_level, count(*) as n
@@ -83,18 +91,18 @@ as $$
     where cafe_id = p_cafe_id
       -- extract(hour ...) の between h-1 and h+1 は 0時/23時で日をまたぐ
       -- ラップができない（0時なら -1 が発生せず前日23時分が抜け、23時なら
-      -- 24 が発生せず翌日0時分が抜ける）。now() 自体に interval を加減してから
+      -- 24 が発生せず翌日0時分が抜ける）。p_now 自体に interval を加減してから
       -- 曜日・時間を取り直すことで、日またぎを自然に処理する
       and (extract(dow from reported_at at time zone 'utc'), extract(hour from reported_at at time zone 'utc'))
         in (
-          (extract(dow from (now() - interval '1 hour') at time zone 'utc'),
-           extract(hour from (now() - interval '1 hour') at time zone 'utc')),
-          (extract(dow from now() at time zone 'utc'),
-           extract(hour from now() at time zone 'utc')),
-          (extract(dow from (now() + interval '1 hour') at time zone 'utc'),
-           extract(hour from (now() + interval '1 hour') at time zone 'utc'))
+          (extract(dow from (p_now - interval '1 hour') at time zone 'utc'),
+           extract(hour from (p_now - interval '1 hour') at time zone 'utc')),
+          (extract(dow from p_now at time zone 'utc'),
+           extract(hour from p_now at time zone 'utc')),
+          (extract(dow from (p_now + interval '1 hour') at time zone 'utc'),
+           extract(hour from (p_now + interval '1 hour') at time zone 'utc'))
         )
-      and reported_at >= now() - interval '4 weeks'
+      and reported_at >= p_now - interval '4 weeks'
   )
   select
     coalesce(recent.avg_level, historical.avg_level) as level_avg,
@@ -109,12 +117,12 @@ as $$
   from recent, historical;
 $$;
 
-comment on function public.get_cafe_congestion_current(uuid) is
+comment on function public.get_cafe_congestion_current(uuid, timestamptz) is
   '直近30分の平均→なければ過去4週間の同曜日同時間帯平均→どちらもなければ none。
-   S_CAFE_DETAIL の混雑度セクションが呼ぶ。level_avg は source=none のとき NULL に
-   なるが、supabase gen types は RETURNS TABLE の列を non-nullable に生成するため、
-   呼び出し側で型を信用せず NULL を扱うこと（tables.md の tiptap_to_plaintext と
-   同じ注意点）';
+   S_CAFE_DETAIL の混雑度セクションが呼ぶ（p_now は省略して実時刻を使う）。
+   level_avg は source=none のとき NULL になるが、supabase gen types は
+   RETURNS TABLE の列を non-nullable に生成するため、呼び出し側で型を信用せず
+   NULL を扱うこと（tables.md の tiptap_to_plaintext と同じ注意点）';
 
-revoke execute on function public.get_cafe_congestion_current(uuid) from public;
-grant execute on function public.get_cafe_congestion_current(uuid) to anon, authenticated;
+revoke execute on function public.get_cafe_congestion_current(uuid, timestamptz) from public;
+grant execute on function public.get_cafe_congestion_current(uuid, timestamptz) to anon, authenticated;

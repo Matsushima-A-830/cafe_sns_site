@@ -521,7 +521,7 @@ export type Database = {
     Functions: {
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       get_cafe_congestion_current: {
-        Args: { p_cafe_id: string }
+        Args: { p_cafe_id: string; p_now?: string }
         Returns: {
           level_avg: number
           sample_count: number
