@@ -29,6 +29,31 @@ comment on column public.drafts.payload is
 create index drafts_author_expires_idx on public.drafts (author_id, expires_at);
 
 -- ============================================
+-- 15秒デバウンスの自動保存で毎回叩かれる last_saved_at / expires_at の更新
+--
+-- 両方とも default は行作成時の1回しか値を持たない。UPDATE のたびに
+-- payload だけ upsert すると、毎日編集し続けている下書きでも初回作成から
+-- 30日で expires_at を迎えて消えてしまう。UPDATE 時は常に「今保存した」
+-- 「あと30日」に揃える（クライアントからの明示指定は無視する）
+-- ============================================
+
+create or replace function public.refresh_drafts_saved_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.last_saved_at = now();
+  new.expires_at = now() + interval '30 days';
+  return new;
+end;
+$$;
+
+create trigger drafts_refresh_saved_at
+  before update on public.drafts
+  for each row execute function public.refresh_drafts_saved_at();
+
+-- ============================================
 -- RLS
 -- ============================================
 

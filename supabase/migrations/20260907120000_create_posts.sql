@@ -9,7 +9,10 @@
 
 create table public.posts (
   id             uuid primary key default gen_random_uuid(),
-  author_id      uuid not null references public.profiles (id),
+  -- 退会（auth.users 削除 → profiles カスケード）で本人の投稿も道連れに消す。
+  -- NOT NULL のため on delete set null は選べず、他の profiles 参照FK
+  -- （post_images 等）と同じ cascade 運用に揃える
+  author_id      uuid not null references public.profiles (id) on delete cascade,
   cafe_id        uuid references public.cafes (id),
   post_type      text not null default 'short',
   title          text,
@@ -70,6 +73,32 @@ create index posts_published_idx on public.posts (published_at desc) where statu
 create trigger posts_updated_at
   before update on public.posts
   for each row execute function public.set_updated_at();
+
+-- ============================================
+-- published_at の自動設定
+--
+-- 列にも default にも値の出所が無く、posts_published_idx とタイムライン
+-- （published_at desc）は published_at が入っている前提で設計されている。
+-- status='published' になった瞬間（初回作成時 or archived/hidden からの復帰時）に
+-- 未設定なら now() を補う。明示的に予約投稿等で値を送ってきた場合は上書きしない
+-- ============================================
+
+create or replace function public.set_posts_published_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if new.status = 'published' and new.published_at is null then
+    new.published_at = now();
+  end if;
+  return new;
+end;
+$$;
+
+create trigger posts_set_published_at
+  before insert or update of status on public.posts
+  for each row execute function public.set_posts_published_at();
 
 -- ============================================
 -- is_official の書き込みガード

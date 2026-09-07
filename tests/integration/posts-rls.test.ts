@@ -236,6 +236,15 @@ describe('posts の INSERT', () => {
     expect(error?.code).toBe(CHECK_VIOLATION)
   })
 
+  it('published_at 未指定でも status=published なら自動で now() が入る', async () => {
+    const before = Date.now()
+    const id = await insertPost(alice.userId)
+
+    const { data } = await service.from('posts').select('published_at').eq('id', id).single()
+    expect(data?.published_at).not.toBeNull()
+    expect(new Date(data?.published_at as string).getTime()).toBeGreaterThanOrEqual(before - 1000)
+  })
+
   // is_official=true かつ cafe_id 未指定は CHECK 制約でも弾ける組み合わせだが、
   // guard_posts_official_owner トリガー（BEFORE INSERT）が CHECK より先に走り、
   // cafe_id=null では EXISTS が常に偽になるため実際にはトリガーが先に FORBIDDEN を返す
@@ -784,6 +793,36 @@ describe('drafts の RLS', () => {
     const deleted = await alice.client.from('drafts').delete().eq('id', inserted.data?.id).select()
     expect(deleted.error).toBeNull()
     expect(deleted.data).toHaveLength(1)
+  })
+
+  it('UPDATE のたびに last_saved_at / expires_at が今から30日後に更新される', async () => {
+    const past = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString()
+    const inserted = await service
+      .from('drafts')
+      .insert({
+        author_id: alice.userId,
+        client_draft_key: 'device-1',
+        payload: { v: 1 },
+        last_saved_at: past,
+        expires_at: past,
+      })
+      .select('id')
+      .single()
+
+    const before = Date.now()
+    const { data, error } = await alice.client
+      .from('drafts')
+      .update({ payload: { v: 2 } })
+      .eq('id', inserted.data?.id)
+      .select('last_saved_at, expires_at')
+      .single()
+
+    expect(error).toBeNull()
+    expect(new Date(data?.last_saved_at as string).getTime()).toBeGreaterThanOrEqual(before - 1000)
+    const daysUntilExpiry =
+      (new Date(data?.expires_at as string).getTime() - before) / (24 * 60 * 60 * 1000)
+    expect(daysUntilExpiry).toBeGreaterThan(29)
+    expect(daysUntilExpiry).toBeLessThan(31)
   })
 
   it('status=suspended のユーザーは下書きを作成・更新できない', async () => {
