@@ -49,17 +49,26 @@ $$;
 comment on function public.is_post_author(uuid) is
   '呼び出し元が指定投稿の author_id 本人か。posts の SELECT RLS をバイパスするため security definer';
 
+-- post_images_select_visible / post_tags_select_visible が anon にも
+-- 使わせる（auth.uid() が null になるだけで常に false を返すため安全）
 revoke execute on function public.is_post_author(uuid) from public;
-grant execute on function public.is_post_author(uuid) to authenticated;
+grant execute on function public.is_post_author(uuid) to anon, authenticated;
 
 -- ============================================
 -- 画像枚数の上限（1投稿10枚）
 -- docs/architecture/error-catalog.md POST_IMAGES_LIMIT_EXCEEDED
+--
+-- security definer にする理由: invoker のままだと count(*) が
+-- post_images_select_visible（posts_select 継承）越しになる。posts を
+-- archived にしてから挿入すれば posts_select が偽になり毎回 count=0 に
+-- なるため、上限が完全に無効化されてしまう（published に戻せば無制限に
+-- 貯められる）。is_post_author() と同じ理由でカウントは RLS をバイパスする
 -- ============================================
 
 create or replace function public.enforce_post_images_limit()
 returns trigger
 language plpgsql
+security definer
 set search_path = ''
 as $$
 declare
@@ -89,11 +98,18 @@ alter table public.post_images enable row level security;
 -- 画像だけが posts_select を素通りして見えてしまう。EXISTS のサブクエリは
 -- 呼び出し元のロールで実行されるため posts_select の RLS がそのまま効く
 -- （is_blocked_either_way のような security definer は不要 — あちらは
--- blocks 自体の SELECT RLS がブロッカー本人しか許さない特殊事情への対処だった）
+-- blocks 自体の SELECT RLS がブロッカー本人しか許さない特殊事情への対処だった）。
+-- ただしこれだけだと posts_select が status='published' を要求するため、
+-- 作者本人でも自分の archived/hidden な投稿の編集画面で画像が0枚に見えてしまう
+-- （is_post_author を導入した理由そのもの）。is_post_author の OR で作者には
+-- 常に見せる
 create policy post_images_select_visible
   on public.post_images for select
   to anon, authenticated
-  using (exists (select 1 from public.posts p where p.id = post_images.post_id));
+  using (
+    exists (select 1 from public.posts p where p.id = post_images.post_id)
+    or public.is_post_author(post_id)
+  );
 
 create policy post_images_insert_own
   on public.post_images for insert

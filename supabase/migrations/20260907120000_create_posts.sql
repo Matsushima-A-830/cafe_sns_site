@@ -42,7 +42,11 @@ create table public.posts (
     check (official_format is null or official_format in ('tip', 'today_special', 'closure', 'new_menu')),
   -- 公式投稿は必ずカフェに紐づく。「認証済みオーナーのみ」は CHECK ではサブクエリを
   -- 書けないため表現できず、guard_posts_official_owner トリガーと RLS で担保する
-  constraint posts_official_requires_cafe_check check (is_official = false or cafe_id is not null)
+  constraint posts_official_requires_cafe_check check (is_official = false or cafe_id is not null),
+  -- official_format は公式投稿専用の項目。is_official=false なのに
+  -- official_format だけ埋まっている一般投稿を防ぐ
+  constraint posts_official_format_requires_official_check
+    check (official_format is null or is_official)
 );
 
 comment on column public.posts.body_text is
@@ -76,11 +80,18 @@ create trigger posts_updated_at
 -- verified_owner_id が author_id 本人のときだけ」を守る。cafes.sql の
 -- guard_cafes_verified_owner と同じ考え方
 -- （docs/architecture/data-model/tables.md #posts）
+--
+-- security definer にする理由: cafes の SELECT RLS（cafes_select_active_*）は
+-- status='active' のカフェしか見せない。invoker のままだと、臨時休業
+-- （official_format='closure'）を出したいまさにそのとき — カフェが closed/hidden
+-- になった直後 — に、認証済みオーナー本人からも cafes 行が見えず EXISTS が
+-- 常に偽になって FORBIDDEN を返してしまう。is_cafe_owner() と同じ理由
 -- ============================================
 
 create or replace function public.guard_posts_official_owner()
 returns trigger
 language plpgsql
+security definer
 set search_path = ''
 as $$
 begin
@@ -169,10 +180,10 @@ create policy posts_insert
     and (select public.is_active_user())
     and (
       is_official = false
-      or exists (
-        select 1 from public.cafes c
-        where c.id = posts.cafe_id and c.verified_owner_id = (select auth.uid())
-      )
+      -- is_cafe_owner()（cafe_business_hours.sql で定義済み）は security definer で
+      -- cafes の RLS をバイパスする。guard_posts_official_owner と同じ理由で、
+      -- raw EXISTS だと closed/hidden なカフェのオーナーが弾かれてしまうため使う
+      or public.is_cafe_owner(posts.cafe_id)
     )
   );
 

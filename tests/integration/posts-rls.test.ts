@@ -227,6 +227,15 @@ describe('posts の INSERT', () => {
     expect(error?.code).toBe(CHECK_VIOLATION)
   })
 
+  it('is_official=false なのに official_format だけ設定した投稿は登録できない', async () => {
+    const { error } = await service.from('posts').insert({
+      author_id: alice.userId,
+      body_json: bodyJson,
+      official_format: 'today_special',
+    })
+    expect(error?.code).toBe(CHECK_VIOLATION)
+  })
+
   // is_official=true かつ cafe_id 未指定は CHECK 制約でも弾ける組み合わせだが、
   // guard_posts_official_owner トリガー（BEFORE INSERT）が CHECK より先に走り、
   // cafe_id=null では EXISTS が常に偽になるため実際にはトリガーが先に FORBIDDEN を返す
@@ -253,6 +262,48 @@ describe('posts の INSERT', () => {
 
     expect(error).toBeNull()
     if (data) postIds.push(data.id)
+  })
+
+  // 臨時休業（official_format='closure'）を出したいのはまさにカフェが
+  // closed/hidden になった直後。guard_posts_official_owner と posts_insert の
+  // is_cafe_owner() チェックが cafes の RLS（status='active' のみ公開）を
+  // バイパスできていないと、このケースが FORBIDDEN で弾かれてしまう
+  it('カフェが status=closed でも認証済みオーナーは is_official=true で投稿できる', async () => {
+    const closedCafe = await service
+      .from('cafes')
+      .insert({
+        name: '臨時休業テスト用カフェ',
+        prefecture: '東京都',
+        city: '渋谷区',
+        status: 'closed',
+        verified_owner_id: ownerOfCafe.userId,
+      })
+      .select('id')
+      .single()
+    if (closedCafe.error || !closedCafe.data) {
+      throw new Error(`テスト用 cafes(closed) の作成に失敗: ${closedCafe.error?.message}`)
+    }
+
+    try {
+      const { data, error } = await ownerOfCafe.client
+        .from('posts')
+        .insert({
+          author_id: ownerOfCafe.userId,
+          cafe_id: closedCafe.data.id,
+          body_json: bodyJson,
+          is_official: true,
+          official_format: 'closure',
+        })
+        .select('id')
+        .single()
+
+      expect(error).toBeNull()
+      // cafes.cafe_id は on delete 指定なし（RESTRICT）。posts の afterEach 一括削除より
+      // 先にこのテスト内で cafe を消すため、post 自身もここで消しておく
+      if (data) await service.from('posts').delete().eq('id', data.id)
+    } finally {
+      await service.from('cafes').delete().eq('id', closedCafe.data.id)
+    }
   })
 
   // トリガーと RLS の両方が同じ条件を守るため、authenticated 経由ではトリガーが
@@ -426,6 +477,34 @@ describe('post_images', () => {
     expect(data).toEqual([])
   })
 
+  it('作者本人は自分の archived な投稿の画像を読める（編集画面用）', async () => {
+    const id = await insertPost(alice.userId, { status: 'archived' })
+    await service
+      .from('post_images')
+      .insert({ post_id: id, storage_path: `post-images/${alice.userId}/${id}/a.webp` })
+
+    const { data, error } = await alice.client.from('post_images').select('id').eq('post_id', id)
+    expect(error).toBeNull()
+    expect(data).toHaveLength(1)
+  })
+
+  it('archived にしてから挿入しても上限10枚は迂回できない', async () => {
+    const id = await insertPost(alice.userId, { status: 'archived' })
+    const rows = Array.from({ length: 10 }, (_, i) => ({
+      post_id: id,
+      storage_path: `post-images/${alice.userId}/${id}/${i}.webp`,
+    }))
+    const filled = await service.from('post_images').insert(rows)
+    expect(filled.error).toBeNull()
+
+    const { error } = await service
+      .from('post_images')
+      .insert({ post_id: id, storage_path: `post-images/${alice.userId}/${id}/eleventh.webp` })
+
+    expect(error?.code).toBe(RAISED_BY_TRIGGER)
+    expect(error?.message).toContain('POST_IMAGES_LIMIT_EXCEEDED')
+  })
+
   it('ブロックされている投稿者の画像は読めない', async () => {
     const id = await insertPost(bob.userId, { visibility: 'public' })
     await service
@@ -584,6 +663,29 @@ describe('post_tags', () => {
 
     const { data } = await bob.client.from('post_tags').select('tag_id').eq('post_id', id)
     expect(data).toEqual([])
+  })
+
+  it('作者本人は自分の followers限定投稿のタグを読める（編集画面用）', async () => {
+    const id = await insertPost(alice.userId, { visibility: 'followers' })
+    await service.from('post_tags').insert({ post_id: id, tag_id: occasionTagIds[0] })
+
+    const { data, error } = await alice.client.from('post_tags').select('tag_id').eq('post_id', id)
+    expect(error).toBeNull()
+    expect(data).toHaveLength(1)
+  })
+
+  it('archived にしてから挿入しても上限5個は迂回できない', async () => {
+    const id = await insertPost(alice.userId, { status: 'archived' })
+    const rows = occasionTagIds.slice(0, 5).map((tag_id) => ({ post_id: id, tag_id }))
+    const filled = await service.from('post_tags').insert(rows)
+    expect(filled.error).toBeNull()
+
+    const { error } = await service
+      .from('post_tags')
+      .insert({ post_id: id, tag_id: occasionTagIds[5] })
+
+    expect(error?.code).toBe(RAISED_BY_TRIGGER)
+    expect(error?.message).toContain('POST_TAGS_LIMIT_EXCEEDED')
   })
 
   it('status=suspended の作者は自分の投稿にもタグを付けられない', async () => {
