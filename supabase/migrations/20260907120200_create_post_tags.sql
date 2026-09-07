@@ -48,14 +48,17 @@ create trigger post_tags_enforce_limit
 
 alter table public.post_tags enable row level security;
 
-create policy post_tags_select_all
+-- post_images_select_visible と同じ理由。`using (true)` だと posts_select が
+-- 隠す投稿（archived/hidden・followers限定・ブロック相手）のタグだけが漏れる
+create policy post_tags_select_visible
   on public.post_tags for select
-  using (true);
+  to anon, authenticated
+  using (exists (select 1 from public.posts p where p.id = post_tags.post_id));
 
 create policy post_tags_insert_own
   on public.post_tags for insert
   to authenticated
-  with check (public.is_post_author(post_id));
+  with check (public.is_post_author(post_id) and (select public.is_active_user()));
 
 create policy post_tags_delete_own
   on public.post_tags for delete

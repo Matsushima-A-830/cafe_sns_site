@@ -416,6 +416,43 @@ describe('post_images', () => {
     expect(data).toHaveLength(1)
   })
 
+  it('投稿が posts_select で見えない（archived）場合は画像も読めない', async () => {
+    const id = await insertPost(alice.userId, { status: 'archived' })
+    await service
+      .from('post_images')
+      .insert({ post_id: id, storage_path: `post-images/${alice.userId}/${id}/a.webp` })
+
+    const { data } = await bob.client.from('post_images').select('id').eq('post_id', id)
+    expect(data).toEqual([])
+  })
+
+  it('ブロックされている投稿者の画像は読めない', async () => {
+    const id = await insertPost(bob.userId, { visibility: 'public' })
+    await service
+      .from('post_images')
+      .insert({ post_id: id, storage_path: `post-images/${bob.userId}/${id}/a.webp` })
+    await service.from('blocks').insert({ blocker_id: alice.userId, blocked_id: bob.userId })
+
+    const { data } = await alice.client.from('post_images').select('id').eq('post_id', id)
+    expect(data).toEqual([])
+  })
+
+  it('status=suspended の作者は自分の投稿にも画像を追加できない', async () => {
+    const suspended = await createAuthedProfile({ username: 'suspend_post_images' })
+    try {
+      const id = await insertPost(suspended.userId)
+      await service.from('profiles').update({ status: 'suspended' }).eq('id', suspended.userId)
+
+      const { error } = await suspended.client
+        .from('post_images')
+        .insert({ post_id: id, storage_path: `post-images/${suspended.userId}/${id}/a.webp` })
+
+      expect(error?.code).toBe(RLS_VIOLATION)
+    } finally {
+      await suspended.cleanup()
+    }
+  })
+
   it('11枚目は追加できない（上限10枚）', async () => {
     const id = await insertPost(alice.userId)
     const rows = Array.from({ length: 10 }, (_, i) => ({
@@ -540,6 +577,30 @@ describe('post_tags', () => {
     expect(error).toBeNull()
     expect(data).toHaveLength(1)
   })
+
+  it('投稿が posts_select で見えない（followers限定・非フォロワー）場合はタグも読めない', async () => {
+    const id = await insertPost(alice.userId, { visibility: 'followers' })
+    await service.from('post_tags').insert({ post_id: id, tag_id: occasionTagIds[0] })
+
+    const { data } = await bob.client.from('post_tags').select('tag_id').eq('post_id', id)
+    expect(data).toEqual([])
+  })
+
+  it('status=suspended の作者は自分の投稿にもタグを付けられない', async () => {
+    const suspended = await createAuthedProfile({ username: 'suspend_post_tags' })
+    try {
+      const id = await insertPost(suspended.userId)
+      await service.from('profiles').update({ status: 'suspended' }).eq('id', suspended.userId)
+
+      const { error } = await suspended.client
+        .from('post_tags')
+        .insert({ post_id: id, tag_id: occasionTagIds[0] })
+
+      expect(error?.code).toBe(RLS_VIOLATION)
+    } finally {
+      await suspended.cleanup()
+    }
+  })
 })
 
 describe('drafts の RLS', () => {
@@ -621,5 +682,34 @@ describe('drafts の RLS', () => {
     const deleted = await alice.client.from('drafts').delete().eq('id', inserted.data?.id).select()
     expect(deleted.error).toBeNull()
     expect(deleted.data).toHaveLength(1)
+  })
+
+  it('status=suspended のユーザーは下書きを作成・更新できない', async () => {
+    const suspended = await createAuthedProfile({ username: 'suspend_drafts' })
+    try {
+      await service.from('profiles').update({ status: 'suspended' }).eq('id', suspended.userId)
+
+      const inserted = await suspended.client.from('drafts').insert({
+        author_id: suspended.userId,
+        client_draft_key: 'device-1',
+        payload: { v: 1 },
+      })
+      expect(inserted.error?.code).toBe(RLS_VIOLATION)
+
+      const existing = await service
+        .from('drafts')
+        .insert({ author_id: suspended.userId, client_draft_key: 'device-1', payload: { v: 1 } })
+        .select('id')
+        .single()
+
+      const updated = await suspended.client
+        .from('drafts')
+        .update({ payload: { v: 2 } })
+        .eq('id', existing.data?.id)
+        .select()
+      expect(updated.error?.code).toBe(RLS_VIOLATION)
+    } finally {
+      await suspended.cleanup()
+    }
   })
 })

@@ -84,14 +84,21 @@ create trigger post_images_enforce_limit
 
 alter table public.post_images enable row level security;
 
-create policy post_images_select_all
+-- posts 側の可視性（status/visibility/ブロック）をそのまま継承する。
+-- `using (true)` にすると archived/hidden・followers限定・ブロック相手の投稿の
+-- 画像だけが posts_select を素通りして見えてしまう。EXISTS のサブクエリは
+-- 呼び出し元のロールで実行されるため posts_select の RLS がそのまま効く
+-- （is_blocked_either_way のような security definer は不要 — あちらは
+-- blocks 自体の SELECT RLS がブロッカー本人しか許さない特殊事情への対処だった）
+create policy post_images_select_visible
   on public.post_images for select
-  using (true);
+  to anon, authenticated
+  using (exists (select 1 from public.posts p where p.id = post_images.post_id));
 
 create policy post_images_insert_own
   on public.post_images for insert
   to authenticated
-  with check (public.is_post_author(post_id));
+  with check (public.is_post_author(post_id) and (select public.is_active_user()));
 
 create policy post_images_delete_own
   on public.post_images for delete

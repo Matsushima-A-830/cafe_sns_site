@@ -39,16 +39,18 @@ create policy drafts_select_own
   to authenticated
   using (author_id = (select auth.uid()));
 
+-- CLAUDE.md「未成年アカウントは追加のガード」を posts/post_images/post_tags と
+-- 同様に適用する。suspended/pending_consent は新規下書きの作成・更新もできない
 create policy drafts_insert_own
   on public.drafts for insert
   to authenticated
-  with check (author_id = (select auth.uid()));
+  with check (author_id = (select auth.uid()) and (select public.is_active_user()));
 
 create policy drafts_update_own
   on public.drafts for update
   to authenticated
   using (author_id = (select auth.uid()))
-  with check (author_id = (select auth.uid()));
+  with check (author_id = (select auth.uid()) and (select public.is_active_user()));
 
 create policy drafts_delete_own
   on public.drafts for delete
