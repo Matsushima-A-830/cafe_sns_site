@@ -291,13 +291,15 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - c) DB削除時に Server Actions から明示的に Storage delete を呼ぶ
 - **決定期限:** ストレージ量が実運用で膨らむ前。**Free 枠が 1GB しかないため、A5 の想定より早く効いてくる可能性がある**
 
-### D4. `post_tags` の5個上限のDB制約
+### D4. `post_tags` の5個上限のDB制約 ✅ 解消済（2026-09-07）
 
-- **課題:** UIで「タグ最大5個」を謳っているが、`post_tags` テーブルに `CHECK` 制約や BEFORE INSERT トリガーがない
-- **対応案:**
-  - a) BEFORE INSERT トリガーで `COUNT(*) < 5` をチェック
-  - b) アプリ層バリデーションのみ（現状想定）
-- **推奨:** a を実装。悪意ある直接API呼び出しへの保護
+- **課題（経緯）:** UIで「タグ最大5個」を謳っているが、`post_tags` テーブルに `CHECK` 制約や BEFORE INSERT
+  トリガーがなかった
+- **決定:** [`20260907120200_create_post_tags.sql`](../../supabase/migrations/20260907120200_create_post_tags.sql)
+  の BEFORE INSERT トリガー `enforce_post_tags_limit()` で `COUNT(*) >= 5` を拒否する（`post_images` の10枚上限も
+  同じパターンで実装）。カウントは `posts_select` を継承する SELECT RLS 越しだと投稿を `archived` にして迂回
+  できてしまうため `SECURITY DEFINER` にしてある
+- `tests/integration/posts-rls.test.ts` に上限到達時のエラー・`archived` にしてからの迂回不可を確認するケースを追加
 
 ### D5. Route Group 名 `browsing` の命名見直し
 
@@ -393,6 +395,23 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **`blocks_insert_own` の判断結果:** 見送り。ブロックは被害者保護のための機能であり、`suspended` / `pending_consent`
   のユーザーにもブロック手段を残す方針とし、ガードは追加しなかった
 - 参照: `fix/cafes-insert-active-guard` ブランチの `/code-review`（2026-09-06、D12対応時のレビューで横展開の要否として指摘）
+
+### D14. `posts.body_text` にタイトルが含まれず、ブログのタイトルが `pg_trgm` の部分一致対象外
+
+- **課題:** [tables.md #全文検索の方式](../architecture/data-model/tables.md#全文検索の方式) は「日本語の部分一致は
+  `pg_trgm` が主役、`simple` tsvector（`body_search`）は英数字の語一致の補助」と定義しているが、実装
+  （[`20260907120000_create_posts.sql`](../../supabase/migrations/20260907120000_create_posts.sql)）では
+  `title` は `body_search` にしか入っておらず `body_text`（`gin_trgm_ops` 索引側）には含まれない。`simple` 設定は
+  空白区切りでしかトークン化しないため日本語のタイトルはほぼ効かず、結果としてブログのタイトルは
+  日本語部分一致検索に一切引っかからない状態になっている
+- **影響:** MVPの主動線は幹A（気分タグ起点の発見）で全文検索はあくまで補助のため、現時点でユーザー影響は顕在化していない
+- **対応案:** `body_text` の生成式に `title` を含める（`coalesce(title, '') || ' ' || tiptap_to_plaintext(body_json)`
+  のように）。生成列は他の生成列を参照できないため、`body_search` 側の式とは別に `body_text` 側の式も変更が必要
+- **対応判断:** ブログ検索（タイトル検索）を実装するタイミングで解消する。それまでは「ブログのタイトルは
+  部分一致検索に乗らない」既知の制約として扱う
+- 参照: `feat/posts-schema` ブランチの `/code-review`（2026-09-07、posts初期実装のレビューで指摘。同時に指摘された
+  「上限トリガーの同時INSERTレース」は許容範囲のトレードオフとして対応見送り — 低頻度操作であり、レースが起きても
+  実害は「上限を1〜2件超える」程度）
 
 ## 削除・アーカイブ判断待ち
 
