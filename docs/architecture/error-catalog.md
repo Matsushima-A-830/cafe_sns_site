@@ -7,7 +7,9 @@
 - **短い ALL_CAPS スネークケース** — `INVALID_INPUT`, `NOT_FOUND` 等
 - **意味を階層化しない** — `USER_PROFILE_INVALID_NAME` のような長い名前は避け、`INVALID_INPUT` + `details` で表現
 - **クライアント表示は変換テーブル経由** — サーバーはコードのみ返し、UIメッセージはフロント側で決める（i18n対応の余地）
-- **HTTP status とは分離** — Result 型は常に `200 OK` で返し、Route Handlers の HTTP status は別途決める
+- **HTTP status とは分離** — Result 型は常に `200 OK` で返す。**Route Handlers も同様に一律 `200 OK` を返し**、成否は
+  body の `ok`/`error` で判定する（Server Actions と同じ規約に統一。監視・CDN側でHTTPステータスから失敗を判別できない点は
+  承知の上での選択。`POST /api/uploads/sign` の実装で最初に適用した）
 
 ---
 

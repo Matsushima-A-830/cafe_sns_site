@@ -24,7 +24,7 @@ export type PostImageUploadTarget = {
 }
 
 type UploadValidationError = 'FILE_TOO_LARGE' | 'UNSUPPORTED_MEDIA_TYPE'
-type CreateUploadUrlError =
+export type CreateUploadUrlError =
   | UploadValidationError
   | 'UNAUTHENTICATED'
   | 'FORBIDDEN'
