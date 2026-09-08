@@ -20,6 +20,7 @@ export type PostImageUploadTarget = {
 }
 
 type UploadValidationError = 'FILE_TOO_LARGE' | 'UNSUPPORTED_MEDIA_TYPE'
+type CreateUploadUrlError = UploadValidationError | 'FORBIDDEN' | 'UPLOAD_FAILED'
 
 /**
  * post-images/{author_id}/{post_id}/{uuid}.webp 規約でパスを生成する。
@@ -48,16 +49,26 @@ export function validatePostImageUpload(file: {
 }
 
 /**
- * 署名付きアップロードURLを発行する。認可は storage.objects の RLS に委譲し、
- * ここでは事前にサイズ・形式のみ弾く（authorId は呼び出し元がセッションのユーザーIDを渡す前提）。
+ * 署名付きアップロードURLを発行する。認可は storage.objects の RLS に委譲するが、
+ * postId 側は先頭セグメント(author_id)チェックだけでは検証できない（他人の postId でも
+ * 自分のフォルダ配下になら発行できてしまう）ため、is_post_author() で本人の投稿か確認する。
+ * post_images テーブルの10枚上限トリガーを迂回した孤立オブジェクトの温床になるのを防ぐ
  *   docs/architecture/routing.md POST /api/uploads/sign
  */
 export async function createPostImageUploadUrl(
   supabase: Client,
   params: { authorId: string; postId: string; contentType: string; fileSize: number },
-): Promise<Result<PostImageUploadTarget, UploadValidationError | 'UPLOAD_FAILED'>> {
+): Promise<Result<PostImageUploadTarget, CreateUploadUrlError>> {
   const validated = validatePostImageUpload(params)
   if (!validated.ok) return validated
+
+  const isAuthor = await supabase.rpc('is_post_author', { p_post_id: params.postId })
+  if (isAuthor.error) {
+    return { ok: false, error: 'UPLOAD_FAILED', details: isAuthor.error.message }
+  }
+  if (!isAuthor.data) {
+    return { ok: false, error: 'FORBIDDEN' }
+  }
 
   const path = buildPostImagePath(params.authorId, params.postId)
   const { data, error } = await supabase.storage.from(POST_IMAGE_BUCKET).createSignedUploadUrl(path)

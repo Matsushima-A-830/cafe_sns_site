@@ -15,6 +15,7 @@ const service = serviceRoleClient()
 let alice: AuthedUser
 let bob: AuthedUser
 let postId: string
+let bobPostId: string
 
 function asDbClient(user: AuthedUser) {
   return user.client as unknown as SupabaseClient<Database>
@@ -32,10 +33,19 @@ beforeAll(async () => {
   if (post.error || !post.data)
     throw new Error(`テスト用 posts の作成に失敗: ${post.error?.message}`)
   postId = post.data.id
+
+  const bobPost = await service
+    .from('posts')
+    .insert({ author_id: bob.userId, body_json: bodyJson })
+    .select('id')
+    .single()
+  if (bobPost.error || !bobPost.data)
+    throw new Error(`テスト用 posts の作成に失敗: ${bobPost.error?.message}`)
+  bobPostId = bobPost.data.id
 })
 
 afterAll(async () => {
-  await service.from('posts').delete().eq('id', postId)
+  await service.from('posts').delete().in('id', [postId, bobPostId])
   await alice.cleanup()
   await bob.cleanup()
 })
@@ -74,10 +84,21 @@ describe('createPostImageUploadUrl', () => {
     expect(cleanup.ok).toBe(true)
   })
 
-  it('他人の author_id 配下には署名付きURLを発行できない（storage.objects の RLS）', async () => {
+  it('他人の投稿の postId を指定すると FORBIDDEN（is_post_author）', async () => {
     const result = await createPostImageUploadUrl(asDbClient(bob), {
-      authorId: alice.userId,
-      postId,
+      authorId: bob.userId,
+      postId, // alice の投稿
+      contentType: 'image/webp',
+      fileSize: 1024,
+    })
+
+    expect(result).toEqual({ ok: false, error: 'FORBIDDEN' })
+  })
+
+  it('本人の投稿でも authorId が自分のIDと違えば storage.objects の RLS で拒否される', async () => {
+    const result = await createPostImageUploadUrl(asDbClient(bob), {
+      authorId: alice.userId, // bob 本人の postId だが authorId を詐称
+      postId: bobPostId,
       contentType: 'image/webp',
       fileSize: 1024,
     })
