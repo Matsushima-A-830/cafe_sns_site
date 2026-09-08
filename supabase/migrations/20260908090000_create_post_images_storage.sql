@@ -19,10 +19,15 @@ on conflict (id) do nothing;
 --   docs/architecture/data-model/README.md #オブジェクトパスの規約
 -- ============================================
 
-create policy post_images_objects_select_public
+-- 公開URL（/object/public/...）経由の読み取りは RLS を通らないため、このポリシーが
+-- 実際に効くのは list()/get() などの認証済みAPI経由の呼び出しだけ。`using (true)` にすると
+-- 匿名ユーザーが他人の author_id フォルダを列挙でき、posts の SELECT RLS で隠しているはずの
+-- archived/hidden/論理削除済み投稿の画像パスまで辿れてしまう。アプリは post_images.storage_path
+-- を DB から引くため list() 自体が不要 — 自分のフォルダに限定しても公開読み取りは壊れない
+create policy post_images_objects_select_own
   on storage.objects for select
-  to anon, authenticated
-  using (bucket_id = 'post-images');
+  to authenticated
+  using (bucket_id = 'post-images' and (storage.foldername(name))[1] = (select auth.uid())::text);
 
 -- CLAUDE.md「未成年アカウントは追加のガード」を Storage 側にも適用するため
 -- is_active_user() を併用する（post_images テーブルの INSERT ポリシーと同じ理由）

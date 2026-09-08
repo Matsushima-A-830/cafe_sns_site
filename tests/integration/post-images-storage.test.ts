@@ -6,7 +6,12 @@ import {
   getPostImagePublicUrl,
 } from '../../lib/storage/post-images'
 import type { Database } from '../../types/database'
-import { type AuthedUser, createAuthedProfile, serviceRoleClient } from '../helpers/supabase'
+import {
+  type AuthedUser,
+  anonClient,
+  createAuthedProfile,
+  serviceRoleClient,
+} from '../helpers/supabase'
 
 const bodyJson = { type: 'doc', content: [{ type: 'paragraph', content: [] }] }
 
@@ -45,15 +50,15 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
+  await service.from('post_images').delete().in('post_id', [postId, bobPostId])
   await service.from('posts').delete().in('id', [postId, bobPostId])
   await alice.cleanup()
   await bob.cleanup()
 })
 
 describe('createPostImageUploadUrl', () => {
-  it('本人は自分の author_id 配下に署名付きURLを発行できる', async () => {
+  it('本人は自分の投稿に署名付きURLを発行できる（author_id はセッションから導出）', async () => {
     const result = await createPostImageUploadUrl(asDbClient(alice), {
-      authorId: alice.userId,
       postId,
       contentType: 'image/webp',
       fileSize: 1024,
@@ -84,9 +89,20 @@ describe('createPostImageUploadUrl', () => {
     expect(cleanup.ok).toBe(true)
   })
 
+  it('未ログインは UNAUTHENTICATED を返す', async () => {
+    const result = await createPostImageUploadUrl(
+      anonClient() as unknown as SupabaseClient<Database>,
+      {
+        postId,
+        contentType: 'image/webp',
+        fileSize: 1024,
+      },
+    )
+    expect(result).toEqual({ ok: false, error: 'UNAUTHENTICATED' })
+  })
+
   it('他人の投稿の postId を指定すると FORBIDDEN（is_post_author）', async () => {
     const result = await createPostImageUploadUrl(asDbClient(bob), {
-      authorId: bob.userId,
       postId, // alice の投稿
       contentType: 'image/webp',
       fileSize: 1024,
@@ -95,22 +111,28 @@ describe('createPostImageUploadUrl', () => {
     expect(result).toEqual({ ok: false, error: 'FORBIDDEN' })
   })
 
-  it('本人の投稿でも authorId が自分のIDと違えば storage.objects の RLS で拒否される', async () => {
-    const result = await createPostImageUploadUrl(asDbClient(bob), {
-      authorId: alice.userId, // bob 本人の postId だが authorId を詐称
-      postId: bobPostId,
-      contentType: 'image/webp',
-      fileSize: 1024,
-    })
+  it('post_images が上限(10枚)に達していれば POST_IMAGES_LIMIT_EXCEEDED を返す', async () => {
+    const rows = Array.from({ length: 10 }, (_, i) => ({
+      post_id: bobPostId,
+      storage_path: `${bob.userId}/${bobPostId}/seed-${i}.webp`,
+    }))
+    const inserted = await service.from('post_images').insert(rows)
+    expect(inserted.error).toBeNull()
 
-    expect(result.ok).toBe(false)
-    if (result.ok) return
-    expect(result.error).toBe('UPLOAD_FAILED')
+    try {
+      const result = await createPostImageUploadUrl(asDbClient(bob), {
+        postId: bobPostId,
+        contentType: 'image/webp',
+        fileSize: 1024,
+      })
+      expect(result).toEqual({ ok: false, error: 'POST_IMAGES_LIMIT_EXCEEDED' })
+    } finally {
+      await service.from('post_images').delete().eq('post_id', bobPostId)
+    }
   })
 
   it('サイズ上限超過は Storage を呼ばず FILE_TOO_LARGE を返す', async () => {
     const result = await createPostImageUploadUrl(asDbClient(alice), {
-      authorId: alice.userId,
       postId,
       contentType: 'image/webp',
       fileSize: 10 * 1024 * 1024 + 1,
@@ -120,7 +142,6 @@ describe('createPostImageUploadUrl', () => {
 
   it('webp 以外の形式は UNSUPPORTED_MEDIA_TYPE を返す', async () => {
     const result = await createPostImageUploadUrl(asDbClient(alice), {
-      authorId: alice.userId,
       postId,
       contentType: 'image/png',
       fileSize: 1024,
@@ -132,7 +153,6 @@ describe('createPostImageUploadUrl', () => {
 describe('deletePostImages', () => {
   it('他人が作成したオブジェクトは削除できない（storage.objects の RLS）', async () => {
     const uploaded = await createPostImageUploadUrl(asDbClient(alice), {
-      authorId: alice.userId,
       postId,
       contentType: 'image/webp',
       fileSize: 1024,
