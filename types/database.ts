@@ -306,6 +306,41 @@ export type Database = {
           },
         ]
       }
+      drafts: {
+        Row: {
+          author_id: string
+          client_draft_key: string
+          expires_at: string
+          id: string
+          last_saved_at: string
+          payload: Json
+        }
+        Insert: {
+          author_id: string
+          client_draft_key: string
+          expires_at?: string
+          id?: string
+          last_saved_at?: string
+          payload: Json
+        }
+        Update: {
+          author_id?: string
+          client_draft_key?: string
+          expires_at?: string
+          id?: string
+          last_saved_at?: string
+          payload?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'drafts_author_id_fkey'
+            columns: ['author_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       follows: {
         Row: {
           created_at: string
@@ -335,6 +370,164 @@ export type Database = {
             columns: ['follower_id']
             isOneToOne: false
             referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      post_images: {
+        Row: {
+          alt_text: string | null
+          created_at: string
+          display_order: number
+          height: number | null
+          id: string
+          post_id: string
+          storage_path: string
+          width: number | null
+        }
+        Insert: {
+          alt_text?: string | null
+          created_at?: string
+          display_order?: number
+          height?: number | null
+          id?: string
+          post_id: string
+          storage_path: string
+          width?: number | null
+        }
+        Update: {
+          alt_text?: string | null
+          created_at?: string
+          display_order?: number
+          height?: number | null
+          id?: string
+          post_id?: string
+          storage_path?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'post_images_post_id_fkey'
+            columns: ['post_id']
+            isOneToOne: false
+            referencedRelation: 'posts'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      post_tags: {
+        Row: {
+          created_at: string
+          post_id: string
+          tag_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: string
+          tag_id: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'post_tags_post_id_fkey'
+            columns: ['post_id']
+            isOneToOne: false
+            referencedRelation: 'posts'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'post_tags_tag_id_fkey'
+            columns: ['tag_id']
+            isOneToOne: false
+            referencedRelation: 'tags'
+            referencedColumns: ['id']
+          },
+        ]
+      }
+      posts: {
+        Row: {
+          author_id: string
+          body_json: Json
+          body_search: unknown
+          body_text: string | null
+          bookmark_count: number
+          cafe_id: string | null
+          comment_count: number
+          created_at: string
+          deleted_at: string | null
+          id: string
+          is_official: boolean
+          like_count: number
+          metadata: Json
+          official_format: string | null
+          post_type: string
+          published_at: string | null
+          status: string
+          title: string | null
+          updated_at: string
+          visibility: string
+        }
+        Insert: {
+          author_id: string
+          body_json: Json
+          body_search?: unknown
+          body_text?: string | null
+          bookmark_count?: number
+          cafe_id?: string | null
+          comment_count?: number
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          is_official?: boolean
+          like_count?: number
+          metadata?: Json
+          official_format?: string | null
+          post_type?: string
+          published_at?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+          visibility?: string
+        }
+        Update: {
+          author_id?: string
+          body_json?: Json
+          body_search?: unknown
+          body_text?: string | null
+          bookmark_count?: number
+          cafe_id?: string | null
+          comment_count?: number
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          is_official?: boolean
+          like_count?: number
+          metadata?: Json
+          official_format?: string | null
+          post_type?: string
+          published_at?: string | null
+          status?: string
+          title?: string | null
+          updated_at?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'posts_author_id_fkey'
+            columns: ['author_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'posts_cafe_id_fkey'
+            columns: ['cafe_id']
+            isOneToOne: false
+            referencedRelation: 'cafes'
             referencedColumns: ['id']
           },
         ]
@@ -530,7 +723,9 @@ export type Database = {
       }
       is_active_user: { Args: never; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
+      is_blocked_either_way: { Args: { p_other_id: string }; Returns: boolean }
       is_cafe_owner: { Args: { p_cafe_id: string }; Returns: boolean }
+      is_post_author: { Args: { p_post_id: string }; Returns: boolean }
       replace_user_interest_tags: {
         Args: { p_tag_ids: string[] }
         Returns: undefined
