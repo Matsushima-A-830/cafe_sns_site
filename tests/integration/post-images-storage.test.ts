@@ -150,6 +150,59 @@ describe('createPostImageUploadUrl', () => {
   })
 })
 
+describe('storage.objects の SELECT ポリシー', () => {
+  let uploadedPath: string
+
+  beforeAll(async () => {
+    const uploaded = await createPostImageUploadUrl(asDbClient(alice), {
+      postId,
+      contentType: 'image/webp',
+      fileSize: 1024,
+    })
+    if (!uploaded.ok) throw new Error('テスト用画像のアップロードURL発行に失敗')
+    await asDbClient(alice)
+      .storage.from('post-images')
+      .uploadToSignedUrl(
+        uploaded.data.path,
+        uploaded.data.token,
+        new Blob(['dummy'], { type: 'image/webp' }),
+        { contentType: 'image/webp' },
+      )
+    uploadedPath = uploaded.data.path
+  })
+
+  afterAll(async () => {
+    await deletePostImages(asDbClient(alice), [uploadedPath])
+  })
+
+  it('本人は自分のフォルダを list() できる', async () => {
+    const result = await asDbClient(alice)
+      .storage.from('post-images')
+      .list(`${alice.userId}/${postId}`)
+    expect(result.data?.some((f) => uploadedPath.endsWith(f.name))).toBe(true)
+  })
+
+  it('他人のフォルダは list() しても見えない（列挙防止）', async () => {
+    const result = await asDbClient(bob)
+      .storage.from('post-images')
+      .list(`${alice.userId}/${postId}`)
+    expect(result.data ?? []).toEqual([])
+  })
+
+  it('匿名ユーザーは list() しても見えない', async () => {
+    const result = await (anonClient() as unknown as SupabaseClient<Database>).storage
+      .from('post-images')
+      .list(`${alice.userId}/${postId}`)
+    expect(result.data ?? []).toEqual([])
+  })
+
+  it('公開URL経由の直接読み取りは SELECT ポリシーの影響を受けず引き続き機能する', async () => {
+    const publicUrl = getPostImagePublicUrl(asDbClient(alice), uploadedPath)
+    const response = await fetch(publicUrl)
+    expect(response.status).toBe(200)
+  })
+})
+
 describe('deletePostImages', () => {
   it('他人が作成したオブジェクトは削除できない（storage.objects の RLS）', async () => {
     const uploaded = await createPostImageUploadUrl(asDbClient(alice), {

@@ -76,28 +76,33 @@ export async function createPostImageUploadUrl(
   const validated = validatePostImageUpload(params)
   if (!validated.ok) return validated
 
-  const { data: userData, error: userError } = await supabase.auth.getUser()
-  if (userError || !userData.user) {
+  // 3つとも互いに依存しない（is_post_author/件数カウントは auth.uid() 由来で判定するため、
+  // getUser() の結果を待たなくてよい）。直列4往復になるのを避けて並列化する
+  const [userResult, isAuthorResult, imageCountResult] = await Promise.all([
+    supabase.auth.getUser(),
+    supabase.rpc('is_post_author', { p_post_id: params.postId }),
+    supabase
+      .from('post_images')
+      .select('id', { count: 'exact', head: true })
+      .eq('post_id', params.postId),
+  ])
+
+  if (userResult.error || !userResult.data.user) {
     return { ok: false, error: 'UNAUTHENTICATED' }
   }
-  const authorId = userData.user.id
+  const authorId = userResult.data.user.id
 
-  const isAuthor = await supabase.rpc('is_post_author', { p_post_id: params.postId })
-  if (isAuthor.error) {
-    return { ok: false, error: 'INTERNAL_ERROR', details: isAuthor.error.message }
+  if (isAuthorResult.error) {
+    return { ok: false, error: 'INTERNAL_ERROR', details: isAuthorResult.error.message }
   }
-  if (!isAuthor.data) {
+  if (!isAuthorResult.data) {
     return { ok: false, error: 'FORBIDDEN' }
   }
 
-  const imageCount = await supabase
-    .from('post_images')
-    .select('id', { count: 'exact', head: true })
-    .eq('post_id', params.postId)
-  if (imageCount.error) {
-    return { ok: false, error: 'INTERNAL_ERROR', details: imageCount.error.message }
+  if (imageCountResult.error) {
+    return { ok: false, error: 'INTERNAL_ERROR', details: imageCountResult.error.message }
   }
-  if ((imageCount.count ?? 0) >= POST_IMAGE_MAX_COUNT) {
+  if ((imageCountResult.count ?? 0) >= POST_IMAGE_MAX_COUNT) {
     return { ok: false, error: 'POST_IMAGES_LIMIT_EXCEEDED' }
   }
 
