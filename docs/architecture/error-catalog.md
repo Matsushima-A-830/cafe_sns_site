@@ -55,7 +55,8 @@
 | `POST_ALREADY_DELETED` | 削除済み投稿 | posts系 |
 | `POST_TAGS_LIMIT_EXCEEDED` | タグ数上限（5個） | createPost |
 | `POST_IMAGES_LIMIT_EXCEEDED` | 画像枚数上限（10枚） | createPost |
-| `POST_BODY_EMPTY` | 本文空 | createPost |
+| `POST_BODY_EMPTY` | 本文空（短文投稿は画像1枚以上あれば空文可） | createPost |
+| `POST_BODY_TOO_LONG` | 本文が上限超過（平文50,000文字 or Tiptap JSON 512KB。[tables.md #posts](./data-model/tables.md#posts) 本文サイズ上限） | createPost |
 | `NG_WORD_DETECTED` | NGワード検出（`severity=block`） | createPost / createComment |
 | `COMMENT_NOT_FOUND` | コメント不在 | comments系 |
 
@@ -117,7 +118,7 @@ export type ErrorCode =
   | 'AGE_RESTRICTED' | 'BIRTHDATE_REQUIRED' | 'CONSENT_REQUIRED' | 'CONSENT_TOKEN_INVALID'
   | 'ACCOUNT_SUSPENDED' | 'ACCOUNT_DELETED'
   | 'POST_NOT_FOUND' | 'POST_ALREADY_DELETED' | 'POST_TAGS_LIMIT_EXCEEDED'
-  | 'POST_IMAGES_LIMIT_EXCEEDED' | 'POST_BODY_EMPTY' | 'NG_WORD_DETECTED'
+  | 'POST_IMAGES_LIMIT_EXCEEDED' | 'POST_BODY_EMPTY' | 'POST_BODY_TOO_LONG' | 'NG_WORD_DETECTED'
   | 'COMMENT_NOT_FOUND'
   | 'ALREADY_LIKED' | 'ALREADY_BOOKMARKED' | 'ALREADY_FOLLOWING'
   | 'SELF_FOLLOW_FORBIDDEN' | 'BLOCKED_USER' | 'BLOCK_SELF_FORBIDDEN'

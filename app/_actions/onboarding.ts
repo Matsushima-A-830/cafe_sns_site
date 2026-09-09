@@ -1,5 +1,9 @@
 'use server'
 
+import {
+  POSTGRES_FOREIGN_KEY_VIOLATION,
+  POSTGRES_UNIQUE_VIOLATION,
+} from '@/lib/constants/postgres-error-codes'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -9,9 +13,6 @@ import {
   usernameSchema,
 } from '@/lib/validators/onboarding'
 import type { Result } from '@/types/result'
-
-const POSTGRES_UNIQUE_VIOLATION = '23505'
-const POSTGRES_FOREIGN_KEY_VIOLATION = '23503'
 
 type SignupMetadata = {
   birth_date?: string

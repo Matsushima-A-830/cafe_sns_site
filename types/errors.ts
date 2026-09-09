@@ -30,6 +30,7 @@ export type ErrorCode =
   | 'POST_TAGS_LIMIT_EXCEEDED'
   | 'POST_IMAGES_LIMIT_EXCEEDED'
   | 'POST_BODY_EMPTY'
+  | 'POST_BODY_TOO_LONG'
   | 'NG_WORD_DETECTED'
   | 'COMMENT_NOT_FOUND'
   // インタラクション
