@@ -462,6 +462,27 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **対応判断:** 未定。MVPでは対応見送り。Storage使用量の月次確認（A5参照）で異常増加が見えたら優先度を上げる
 - 参照: `feat/uploads-sign-route` ブランチの `/code-review`（2026-09-08、Route Handler実装時のレビューで指摘）
 
+### D17. `createPost` の `imagePaths` は「画像アップロード時点で投稿行が既に存在する」ことを前提にしている
+
+- **課題:** `POST /api/uploads/sign`（`createPostImageUploadUrl`）は `is_post_author(postId)` で
+  投稿の実在と所有者を確認してから署名付きURLを発行する（[`lib/storage/post-images.ts`](../../lib/storage/post-images.ts)）。
+  一方 `createPost`（[`app/_actions/posts.ts`](../../app/_actions/posts.ts)）は `imagePaths`
+  （アップロード済み画像のパス配列）を受け取って `posts` 行の作成と同時に `post_images` へ書き込む設計になっており、
+  `posts` 行自体は `createPost` 呼び出し時点で初めて作られる。両者を素直に繋ぐと「画像をアップロードするための
+  signed URL を発行するには先に `posts` 行が要る」が「`posts` 行は `createPost`（＝画像込みの最終確定）でしか作れない」
+  という循環になる
+- **影響:** S_POST_SHORT / S_POST_BLOG のワイヤーフレーム（[design/wireframes/composer.md](../design/wireframes/composer.md)）は
+  「投稿する」ボタンを押す前に画像をプレビュー表示する UI を想定しており、この循環を解消しないと composer 画面が実装できない
+- **対応案:** a) composer 表示開始時に空本文の `posts` 行を予約作成し、`createPost` は insert ではなく
+  finalize（update + post_images/post_tags 追加）に変える b) `drafts` テーブル（今回スコープ外）経由で
+  下書き→公開の移送時に画像を紐付ける c) `is_post_author` の代わりに署名発行時点では
+  `storage.objects` の RLS（author_idフォルダ一致のみ）に委ね、`post_images` 行の紐付けは `createPost` 一発で行う
+  今の設計を維持しつつ、composer 側は「画像は選択時点でクライアント側にファイルとして保持し、投稿する押下時に
+  まとめてアップロード→`createPost`」というUXに倒す（画像プレビューはアップロード前のローカルファイルで代替）
+- **対応判断:** 未定。`createPost` 自体は c) の設計（画像パスを受け取って一括書き込み）で実装済み。
+  composer UI 実装時にどの案を採るか要判断
+- 参照: `feat/posts-create-action` ブランチでの `createPost` 実装時に発見（2026-09-09）
+
 ## 削除・アーカイブ判断待ち
 
 現時点で「削除する」と決めた項目はなし。追加・変更発生時にここに追記。
