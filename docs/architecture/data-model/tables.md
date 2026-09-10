@@ -461,7 +461,7 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 - `(published_at DESC) WHERE status='published' AND deleted_at IS NULL` — タイムライン
 
 **RLS:**
-- SELECT: `status='published' AND deleted_at IS NULL` かつ、**`visibility` を満たし**、閲覧者がブロックされていない
+- SELECT: `status='published' AND deleted_at IS NULL` かつ、**`visibility` を満たし**、閲覧者がブロックされていない（**posts_select**）。加えて、作者本人は `status` を問わず自分の投稿を常に読める（**posts_select_own**、後述）
 - INSERT: `auth.uid() = author_id` かつ profile.status='active'
 - UPDATE: `auth.uid() = author_id`
 - DELETE: `auth.uid() = author_id`（論理削除運用）
@@ -486,6 +486,19 @@ USING (
        OR (b.blocker_id = auth.uid() AND b.blocked_id = posts.author_id)
   )
 );
+```
+
+**`posts_select_own`: 作者本人は `status` を問わず自分の投稿を読める**
+
+PostgreSQL の RLS は UPDATE/DELETE の対象行を選ぶ際にも SELECT ポリシーの `USING` を適用する（対象行を特定するための暗黙の読み取りが必要なため）。`posts_select` は `status='published'` を必須にしているため、これ1本だけでは author_id が一致していても `status='hidden'`/`'archived'` の自分の投稿は UPDATE の対象として一切見つからず、対象0件のまま**エラーなしで**成功扱いになってしまう。
+
+一般投稿の新規作成（`createPost`）は「`status='hidden'` で作成 → `post_images`/`post_tags` を書き込み → `status='published'` へ更新」という手順を踏む（`status='published'` で先に作ると、画像・タグの書き込みが失敗してロールバックするまでの間、不完全な投稿が公開されてしまうため）。この最後の UPDATE が上記の理由で機能しなくなり、投稿が永久に非公開のままになる致命的なバグとして統合テストで発覚した（`tests/integration/posts-create-flow.test.ts`）。
+
+`post_images`/`post_tags` は `is_post_author()`（SECURITY DEFINER で `posts` の RLS をバイパス）で同じ問題を回避済み。`posts` 本体にも同じ考え方の permissive policy を追加し、既存の `posts_select` とは OR で合成させる:
+
+```sql
+CREATE POLICY posts_select_own ON public.posts FOR SELECT TO authenticated
+USING (author_id = auth.uid());
 ```
 
 `comments` / `likes` / `post_bookmarks` は親 `posts` が読めることを前提にする（親が不可視なら子も辿れない）。
