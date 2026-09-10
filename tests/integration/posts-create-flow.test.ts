@@ -19,9 +19,33 @@ const bodyJson = {
 }
 
 let alice: AuthedUser
+let bob: AuthedUser
 let suspendedUser: AuthedUser
 
 const postIds: string[] = []
+
+/** occasion タグを service role で limit 件取得する。seed 不足時に undefined を string
+ * として握り潰さないよう、期待件数に満たなければここでテストを失敗させる */
+async function occasionTagIds(limit: number): Promise<string[]> {
+  const { data } = await service
+    .from('tags')
+    .select('id')
+    .eq('category', 'occasion')
+    .order('slug')
+    .limit(limit)
+  const ids = (data ?? []).map((t) => t.id as string)
+  expect(ids).toHaveLength(limit)
+  return ids
+}
+
+beforeAll(async () => {
+  alice = await createAuthedProfile({ username: 'alice_create_flow' })
+  bob = await createAuthedProfile({ username: 'bob_create_flow' })
+  suspendedUser = await createAuthedProfile({
+    username: 'suspended_create_flow',
+    status: 'suspended',
+  })
+})
 
 afterEach(async () => {
   if (postIds.length > 0) {
@@ -30,16 +54,9 @@ afterEach(async () => {
   }
 })
 
-beforeAll(async () => {
-  alice = await createAuthedProfile({ username: 'alice_create_flow' })
-  suspendedUser = await createAuthedProfile({
-    username: 'suspended_create_flow',
-    status: 'suspended',
-  })
-})
-
 afterAll(async () => {
   await alice?.cleanup()
+  await bob?.cleanup()
   await suspendedUser?.cleanup()
 })
 
@@ -70,8 +87,7 @@ describe('createPost が再現する一連の操作', () => {
       .insert({ post_id: postId, storage_path: `${alice.userId}/${postId}/a.webp` })
     expect(imageResult.error).toBeNull()
 
-    const tags = await service.from('tags').select('id').eq('category', 'occasion').limit(1)
-    const tagId = tags.data?.[0]?.id as string
+    const [tagId] = await occasionTagIds(1)
     const tagResult = await alice.client
       .from('post_tags')
       .insert({ post_id: postId, tag_id: tagId })
@@ -96,7 +112,9 @@ describe('createPost が再現する一連の操作', () => {
     const own = await alice.client.from('posts').select('id').eq('id', postId)
     expect(own.data).toEqual([{ id: postId }])
 
-    const stranger = await suspendedUser.client.from('posts').select('id').eq('id', postId)
+    // bob は status='active' の別ユーザー。「suspended だから見えない」と紛れないよう、
+    // active な第三者で「作者ではないから見えない」ことを検証する
+    const stranger = await bob.client.from('posts').select('id').eq('id', postId)
     expect(stranger.data).toEqual([])
   })
 
@@ -117,6 +135,37 @@ describe('createPost が再現する一連の操作', () => {
 
     const after = await service.from('posts').select('status').eq('id', postId).single()
     expect(after.data?.status).toBe('published')
+  })
+
+  // rollbackPost（app/_actions/posts.ts）の posts.delete().eq('id', postId) も
+  // 同じ理由（RLS は DELETE の対象行選定にも SELECT ポリシーを適用する）で
+  // posts_select_own が無いと hidden な投稿に対して無言で対象0件になり、Storage の
+  // 画像だけ消えて posts 行が残るバグになっていた
+  it('post_images の上限超過でロールバックする DELETE も hidden な投稿に対して機能する', async () => {
+    const postId = crypto.randomUUID()
+    await alice.client
+      .from('posts')
+      .insert({ id: postId, author_id: alice.userId, body_json: bodyJson, status: 'hidden' })
+    postIds.push(postId)
+
+    const rows = Array.from({ length: 10 }, (_, i) => ({
+      post_id: postId,
+      storage_path: `${alice.userId}/${postId}/${i}.webp`,
+    }))
+    await alice.client.from('post_images').insert(rows)
+
+    const overLimit = await alice.client
+      .from('post_images')
+      .insert({ post_id: postId, storage_path: `${alice.userId}/${postId}/eleventh.webp` })
+    expect(overLimit.error?.code).toBe(RAISED_BY_TRIGGER)
+
+    // rollbackPost の実装と同じく .select() を付けずに呼ぶ
+    const rollback = await alice.client.from('posts').delete().eq('id', postId)
+    expect(rollback.error).toBeNull()
+
+    const remaining = await service.from('posts').select('id').eq('id', postId)
+    expect(remaining.data).toEqual([])
+    postIds.length = 0
   })
 
   it('status=hidden の投稿でも post_images の上限10枚は迂回できない', async () => {
@@ -148,13 +197,7 @@ describe('createPost が再現する一連の操作', () => {
       .insert({ id: postId, author_id: alice.userId, body_json: bodyJson, status: 'hidden' })
     postIds.push(postId)
 
-    const tags = await service
-      .from('tags')
-      .select('id')
-      .eq('category', 'occasion')
-      .order('slug')
-      .limit(6)
-    const tagIds = (tags.data ?? []).map((t) => t.id as string)
+    const tagIds = await occasionTagIds(6)
 
     const rows = tagIds.slice(0, 5).map((tag_id) => ({ post_id: postId, tag_id }))
     const filled = await alice.client.from('post_tags').insert(rows)
@@ -193,18 +236,17 @@ describe('createPost が再現する一連の操作', () => {
       .insert({ post_id: postId, storage_path: `${suspendedUser.userId}/${postId}/a.webp` })
     expect(imageInsert.error?.code).toBe(RLS_VIOLATION)
 
-    const tags = await service.from('tags').select('id').eq('category', 'occasion').limit(1)
-    const tagId = tags.data?.[0]?.id as string
+    const [tagId] = await occasionTagIds(1)
     const tagInsert = await suspendedUser.client
       .from('post_tags')
       .insert({ post_id: postId, tag_id: tagId })
     expect(tagInsert.error?.code).toBe(RLS_VIOLATION)
 
+    // createPost の実装（.select() なし）と揃える
     const statusUpdate = await suspendedUser.client
       .from('posts')
       .update({ status: 'published' })
       .eq('id', postId)
-      .select()
     expect(statusUpdate.error?.code).toBe(RLS_VIOLATION)
   })
 

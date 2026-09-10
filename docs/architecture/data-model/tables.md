@@ -501,6 +501,8 @@ CREATE POLICY posts_select_own ON public.posts FOR SELECT TO authenticated
 USING (author_id = auth.uid());
 ```
 
+**`posts_select_own` は `status` だけでなく `deleted_at` も見ない。** `deleted_at IS NULL` を足すと、論理削除した自分の投稿を作者が二度と UPDATE/DELETE できなくなり同じクラスのバグを作り直してしまうため、あえて `author_id` 一致のみにしている。結果として RLS は「作者本人から見て削除済み・非公開の投稿を隠す安全網」ではなくなった。**一覧・タイムライン系のクエリは、`status='published' AND deleted_at IS NULL` を必ずアプリ層（WHERE句）で明示すること。** RLS 任せにすると、作者本人のフィードや投稿一覧に自分の hidden・archived・論理削除済みの投稿が混ざる。合わせて、`posts_published_idx`（`(published_at DESC) WHERE status='published' AND deleted_at IS NULL`）はこの明示フィルタと一致して初めてプランナに使われる — `author_id = auth.uid() OR (status='published' AND deleted_at IS NULL AND ...)` という RLS の OR 合成述語だけでは部分インデックスが使われない可能性がある。
+
 `comments` / `likes` / `post_bookmarks` は親 `posts` が読めることを前提にする（親が不可視なら子も辿れない）。
 
 **本文サイズ上限:** `body_json` から抽出した平文は 50,000 文字以内とする（アプリ層で投稿前に検証）。Tiptap JSON 全体のバイトサイズは 512KB を上限の目安とする（画像は Storage 保存のため base64 埋め込み禁止）。

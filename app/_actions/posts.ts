@@ -75,16 +75,23 @@ async function rollbackPost(
  * 別セッションのスコープとする
  *
  * id はここで生成して INSERT に明示的に渡す（.select().single() で返り値から拾わない）。
- * posts_select ポリシーは status='published' の行しか通さず、Postgres は
- * INSERT ... RETURNING にも SELECT ポリシーを適用するため、status='hidden' で作る
- * 今の設計のまま .select() を使うと RETURNING が常に0行になり INSERT 自体は
- * 成功しているのに「行が見つからない」エラーになってしまう
+ * post_images/post_tags を書き込む後続ステップで postId が必要なため、DBラウンド
+ * トリップを待たずここで確定させる。posts_select_own（作者は status を問わず自分の
+ * 投稿を読める）により RETURNING 自体は今は機能するが、単に不要な出力を求めないだけ
  *
  * posts を status='hidden' で作成（is_post_author() は status を問わず判定するため
  * post_images/post_tags の INSERT は通る）→ post_images/post_tags を書き込み →
  * 最後に status='published' へ更新する。先に published で作ると、画像・タグの書き込みが
  * 失敗してロールバックするまでの間、本文だけの不完全な投稿が他ユーザーに公開されてしまうため
+ *
+ * 注意: PostgreSQL の RLS は UPDATE/DELETE の対象行を特定する際にも SELECT
+ * ポリシーの USING を適用する。posts_select（status='published' must）だけでは
+ * 作者本人でも hidden/archived な自分の投稿を UPDATE/DELETE できず対象0件のまま
+ * エラーなしで終わってしまうため、posts_select_own（author_id = auth.uid() のみ、
+ * status/deleted_at 不問）を追加して解消した。この関数の「hidden→published の
+ * 更新」と rollbackPost の DELETE はどちらもこのポリシーに依存する
  *   docs/architecture/data-model/tables.md #posts #post_images #post_tags
+ *   supabase/migrations/20260910120000_fix_posts_select_own.sql
  */
 export async function createPost(
   input: unknown,

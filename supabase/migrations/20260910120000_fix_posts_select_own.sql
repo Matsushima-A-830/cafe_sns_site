@@ -14,6 +14,12 @@
 -- 回避済み（作者は自分の archived/hidden な投稿の画像・タグを読める）。
 -- posts 本体にも同じ考え方の permissive policy を追加し、他の SELECT ポリシー
 -- とは OR で合成させる（既存の posts_select は変更しない）
+--
+-- USING は author_id のみで status も deleted_at も見ない（deleted_at is null を
+-- 足すと、論理削除した自分の投稿を作者が二度と UPDATE/DELETE できなくなり同じ
+-- クラスのバグを作り直すため）。結果として RLS は「削除済み・非公開投稿を隠す
+-- 安全網」ではなくなるので、一覧・タイムライン系のクエリは必ずアプリ層で
+-- status='published' / deleted_at is null を明示すること
 --   docs/architecture/data-model/tables.md #posts
 -- ============================================
 
