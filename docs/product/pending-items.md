@@ -483,6 +483,27 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   composer UI 実装時にどの案を採るか要判断
 - 参照: `feat/posts-create-action` ブランチでの `createPost` 実装時に発見（2026-09-09）
 
+### D18. `posts_select_own` 修正PRの軽微な指摘（対応不要と判断・記録のみ）
+
+- **課題:** [D14](#d14-postsbody_text-にタイトルが含まれず-ブログのタイトルが-pg_trgm-の部分一致対象外)
+  と同じ `posts`/`post_images`/`post_tags` 周りの作業（`test/posts-create-integration-verify`
+  ブランチ、`posts_select_own` ポリシー追加で `createPost` の hidden→published UPDATE が
+  無言で失敗するバグを修正）の `/code-review` で、マージ可否には影響しない2点が指摘された:
+  1. `tests/integration/posts-create-flow.test.ts` のロールバック回帰テスト末尾で
+     `postIds.length = 0`（配列全体クリア）を使っている。現状は1テストにつき1件しか
+     `push` しないため実害はないが、意図に忠実なのは該当IDだけを消す `postIds.pop()`
+  2. `posts_select_own` 導入後は RLS が「削除済み・非公開投稿を隠す安全網」ではなくなったため、
+     一覧・タイムライン系クエリで `status='published' AND deleted_at IS NULL` を
+     アプリ層で明示する規約を `tables.md` に文章として記載済みだが、コードでの強制（
+     `scripts/check-design-system.sh` 相当の `from('posts').select(` 検査等）はまだない
+- **影響:** どちらも現時点で実害はゼロ（1は配列が常に単一要素、2は `posts` を読む一覧クエリが
+  まだ1本も存在しない — `grep from('posts')` は insert/update/delete のみ）
+- **対応判断:** 見送り。1は次にこのテストを触る際のついでで直せば十分。2は「3回同じパターンが
+  出てから抽象化」の原則（CLAUDE.md 開発哲学4）に従い、タイムライン系の一覧クエリを実装し始めて
+  パターンが複数出てきた時点で自動検査の要否を判断する
+- 参照: `test/posts-create-integration-verify` ブランチの `/code-review`（2026-09-10、
+  `posts_select_own` 追加PRのレビューで指摘）
+
 ## 削除・アーカイブ判断待ち
 
 現時点で「削除する」と決めた項目はなし。追加・変更発生時にここに追記。
