@@ -134,11 +134,36 @@ describe('posts の SELECT', () => {
     expect(data).toEqual([{ id }])
   })
 
-  it('archived 投稿は誰からも見えない', async () => {
+  it('archived 投稿は第三者からは見えない', async () => {
     const id = await insertPost(alice.userId, { status: 'archived' })
 
     const { data } = await bob.client.from('posts').select('id').eq('id', id)
     expect(data).toEqual([])
+  })
+
+  // posts_select_own（20260910120000）の追加により、作者本人は status を問わず
+  // 自分の投稿を読める。「archived は誰にも見えない」わけではない点に注意
+  it('archived 投稿は作者本人には見える', async () => {
+    const id = await insertPost(alice.userId, { status: 'archived' })
+
+    const { data } = await alice.client.from('posts').select('id').eq('id', id)
+    expect(data).toEqual([{ id }])
+  })
+
+  it('論理削除（deleted_at 設定）済みの投稿は第三者からは見えない', async () => {
+    const id = await insertPost(alice.userId, { deleted_at: new Date().toISOString() })
+
+    const { data } = await bob.client.from('posts').select('id').eq('id', id)
+    expect(data).toEqual([])
+  })
+
+  // posts_select_own は deleted_at も見ないため、論理削除済みでも作者本人には見える
+  // （削除後も作者が UPDATE/DELETE できる必要があるため。docs/architecture/data-model/tables.md #posts）
+  it('論理削除（deleted_at 設定）済みの投稿は作者本人には見える', async () => {
+    const id = await insertPost(alice.userId, { deleted_at: new Date().toISOString() })
+
+    const { data } = await alice.client.from('posts').select('id').eq('id', id)
+    expect(data).toEqual([{ id }])
   })
 
   it('visibility=followers は未ログインから見えない', async () => {
