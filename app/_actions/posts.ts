@@ -1,24 +1,26 @@
 'use server'
 
-import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   POSTGRES_FOREIGN_KEY_VIOLATION,
   POSTGRES_INSUFFICIENT_PRIVILEGE,
+  POSTGRES_UNIQUE_VIOLATION,
 } from '@/lib/constants/postgres-error-codes'
-import { deletePostImages } from '@/lib/storage/post-images'
 import { createClient } from '@/lib/supabase/server'
 import {
   createPostSchema,
+  EMPTY_TIPTAP_DOC,
   extractPlainText,
   getBodyJsonByteSize,
   POST_BODY_MAX_JSON_BYTES,
   POST_BODY_MAX_PLAIN_CHARS,
+  reservePostSchema,
 } from '@/lib/validators/posts'
-import type { Database, Json } from '@/types/database'
+import type { Json } from '@/types/database'
 import type { Result } from '@/types/result'
 
 // トリガーの raise exception は SQLSTATE P0001 固定で、コード自体がメッセージ文字列
-// （POST_TAGS_LIMIT_EXCEEDED 等）になる。supabase/migrations/20260907120100 / 120200
+// （POST_TAGS_LIMIT_EXCEEDED, FORBIDDEN 等）になる。
+//   supabase/migrations/20260907120100 / 120200 / 20260911134931
 const RAISED_BY_TRIGGER = 'P0001'
 // posts.cafe_id → cafes への外部キー制約名。author_id 側（posts_author_id_fkey）と
 // 区別するため message にこの制約名が含まれるかで判定する
@@ -37,9 +39,11 @@ type CreatePostError =
   | 'POST_TAGS_LIMIT_EXCEEDED'
   | 'INTERNAL_ERROR'
 
+type ReservePostError = 'INVALID_INPUT' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'INTERNAL_ERROR'
+
 type PostgrestLikeError = { code?: string | null; message: string } | null
 
-function isTriggerError(error: PostgrestLikeError, marker: string): boolean {
+function isRaisedWithMarker(error: PostgrestLikeError, marker: string): boolean {
   return error?.code === RAISED_BY_TRIGGER && error.message.includes(marker)
 }
 
@@ -47,51 +51,65 @@ function isInsufficientPrivilege(error: PostgrestLikeError): boolean {
   return error?.code === POSTGRES_INSUFFICIENT_PRIVILEGE
 }
 
-/**
- * post_images/post_tags の書き込みが失敗した際の手動ロールバック。
- * posts 行を削除（cascade で post_images/post_tags も道連れに消える）し、
- * 画像は post_images 行の INSERT 失敗時点で既に Storage にアップロード済みのため
- * deletePostImages で孤立オブジェクトも合わせて消す。
- * どちらの削除が失敗しても呼び出し元へ返すエラーを変えても救えないため、ログに残すに留める
- */
-async function rollbackPost(
-  supabase: SupabaseClient<Database>,
-  postId: string,
-  imagePaths: string[],
-): Promise<void> {
-  const deleteImagesResult = await deletePostImages(supabase, imagePaths)
-  if (!deleteImagesResult.ok) {
-    console.error('createPost: ロールバックの画像削除に失敗', postId, deleteImagesResult)
-  }
-  const { error } = await supabase.from('posts').delete().eq('id', postId)
-  if (error) {
-    console.error('createPost: ロールバックのpost削除に失敗', postId, error)
-  }
+function isUniqueViolation(error: PostgrestLikeError): boolean {
+  return error?.code === POSTGRES_UNIQUE_VIOLATION
 }
 
 /**
- * 一般投稿（is_official=false 固定）の新規作成。公式投稿（オーナーの tip/today_special
+ * composer 表示開始時（または最初の画像選択時）に空本文の hidden 投稿を予約作成する。
+ * `POST /api/uploads/sign`（createPostImageUploadUrl）は is_post_author(postId) で
+ * 「実在する自分の投稿」を要求するため、画像アップロードより前に posts 行が要る。
+ * createPost（finalize）はこの行を insert ではなく RPC（finalize_post）で確定させる
+ *   docs/product/pending-items.md D17
+ */
+export async function reservePost(
+  input: unknown,
+): Promise<Result<{ postId: string }, ReservePostError>> {
+  const parsed = reservePostSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, error: 'INVALID_INPUT', details: parsed.error.flatten() }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
+
+  const postId = crypto.randomUUID()
+  const { error } = await supabase.from('posts').insert({
+    id: postId,
+    author_id: user.id,
+    post_type: parsed.data.postType,
+    body_json: EMPTY_TIPTAP_DOC as Json,
+    is_official: false,
+    status: 'hidden',
+  })
+
+  if (error) {
+    if (isInsufficientPrivilege(error)) return { ok: false, error: 'FORBIDDEN' }
+    return { ok: false, error: 'INTERNAL_ERROR', details: error.message }
+  }
+
+  return { ok: true, data: { postId } }
+}
+
+/**
+ * 一般投稿（is_official=false 固定）の finalize。公式投稿（オーナーの tip/today_special
  * 等）は metadata の official_format 別スキーマが必要になり複雑度が上がるため、
  * 別セッションのスコープとする
  *
- * id はここで生成して INSERT に明示的に渡す（.select().single() で返り値から拾わない）。
- * post_images/post_tags を書き込む後続ステップで postId が必要なため、DBラウンド
- * トリップを待たずここで確定させる。posts_select_own（作者は status を問わず自分の
- * 投稿を読める）により RETURNING 自体は今は機能するが、単に不要な出力を求めないだけ
+ * postId は reservePost が先に作った hidden 投稿を指す（新規 insert はしない）。
+ * 本文・タグ・画像の確定は Postgres 関数 `finalize_post`（RPC）に1回で任せる。
  *
- * posts を status='hidden' で作成（is_post_author() は status を問わず判定するため
- * post_images/post_tags の INSERT は通る）→ post_images/post_tags を書き込み →
- * 最後に status='published' へ更新する。先に published で作ると、画像・タグの書き込みが
- * 失敗してロールバックするまでの間、本文だけの不完全な投稿が他ユーザーに公開されてしまうため
- *
- * 注意: PostgreSQL の RLS は UPDATE/DELETE の対象行を特定する際にも SELECT
- * ポリシーの USING を適用する。posts_select（status='published' must）だけでは
- * 作者本人でも hidden/archived な自分の投稿を UPDATE/DELETE できず対象0件のまま
- * エラーなしで終わってしまうため、posts_select_own（author_id = auth.uid() のみ、
- * status/deleted_at 不問）を追加して解消した。この関数の「hidden→published の
- * 更新」と rollbackPost の DELETE はどちらもこのポリシーに依存する
- *   docs/architecture/data-model/tables.md #posts #post_images #post_tags
- *   supabase/migrations/20260910120000_fix_posts_select_own.sql
+ * 経緯: 本文 UPDATE → post_images/post_tags insert → status UPDATE を別々の文で
+ * 行い失敗時にアプリ側で手動ロールバックする方式だったが、同じ postId への二重送信
+ * （ダブルタップ・再送）で双方が本文 UPDATE を通過した後に insert が絡み合うと、
+ * どちらも publish まで進めず画像・タグだけ入った hidden 投稿のまま行き詰まり、
+ * 再送しても同じ一意制約違反で抜け出せなくなるケースがあった。`finalize_post` は
+ * 対象行を `SELECT ... FOR UPDATE` でロックしてから本文更新・画像/タグ追加・公開更新を
+ * 1トランザクションで行うため、同じ postId への同時呼び出しは自動的に直列化され、
+ * 失敗時は関数全体が自動でロールバックする（手動の後始末が不要になる）
+ *   docs/product/pending-items.md D17
+ *   supabase/migrations/20260911134931_finalize_post_rpc.sql
  */
 export async function createPost(
   input: unknown,
@@ -124,113 +142,62 @@ export async function createPost(
     return { ok: false, error: 'POST_BODY_TOO_LONG' }
   }
 
-  // post-images/{author_id}/{post_id}/{uuid}.webp 規約の先頭セグメントが本人のものかを
-  // 確認する。ここを飛ばすと他人の author_id フォルダのパスをそのまま post_images に
-  // 書き込め、post_images の RLS（is_post_author(post_id) のみ判定）では防げない
+  // post-images/{author_id}/{post_id}/{uuid}.webp 規約で、先頭セグメントが本人・
+  // 第2セグメントがこの postId のものかを確認する。postId 側まで見ることで
+  // 「他の自分の投稿から画像を横取りする」ことも防げる（パスは post_id ごとに
+  // フォルダが分かれるため、postId が一致しない限りそもそも他人の画像パスにはならない）
   //   docs/architecture/data-model/README.md #オブジェクトパスの規約
-  if (data.imagePaths.some((path) => !path.startsWith(`${user.id}/`))) {
+  if (data.imagePaths.some((path) => !path.startsWith(`${user.id}/${data.postId}/`))) {
     return { ok: false, error: 'FORBIDDEN' }
   }
 
-  // imagePaths は POST /api/uploads/sign で「既存の別投稿」に対して発行済みのパスしか
-  // 得られない（is_post_author 必須のため）。ここで既に post_images に登録済みのパスを
-  // 弾かないと、他の投稿から画像を横取りできてしまう上、この呼び出しが後続で失敗した際の
-  // rollbackPost が Storage の実体を削除し、元の投稿の画像まで壊してしまう
-  if (data.imagePaths.length > 0) {
-    const { count, error: existingImagesError } = await supabase
-      .from('post_images')
-      .select('id', { count: 'exact', head: true })
-      .in('storage_path', data.imagePaths)
-
-    if (existingImagesError) {
-      return { ok: false, error: 'INTERNAL_ERROR', details: existingImagesError.message }
-    }
-    if ((count ?? 0) > 0) {
-      return { ok: false, error: 'CONFLICT' }
-    }
-  }
-
-  const postId = crypto.randomUUID()
-
-  const { error: postError } = await supabase.from('posts').insert({
-    id: postId,
-    author_id: user.id,
-    cafe_id: data.cafeId ?? null,
-    post_type: data.postType,
-    title: data.postType === 'blog' ? data.title : null,
+  const { error } = await supabase.rpc('finalize_post', {
+    p_post_id: data.postId,
+    p_post_type: data.postType,
+    // 生成された型は Postgres 関数引数の NULL 許容を表現できず string 固定になるが、
+    // plpgsql 関数はどの引数にも NULL を渡せる（title/cafe_id は実際に NULL を渡す）
+    p_title: (data.postType === 'blog' ? data.title : null) as string,
     // Tiptap JSON はエディタが生成する JSON シリアライズ可能な構造であり Json 互換。
     // z.record(z.string(), z.unknown()) の型では静的に保証できないためここでキャストする
-    body_json: data.bodyJson as Json,
-    visibility: data.visibility,
-    is_official: false,
-    status: 'hidden',
+    p_body_json: data.bodyJson as Json,
+    p_visibility: data.visibility,
+    p_cafe_id: (data.cafeId ?? null) as string,
+    p_image_paths: data.imagePaths,
+    p_tag_ids: data.tagIds,
   })
 
-  if (postError) {
-    // FK は cafe_id / author_id の2本。制約名で区別しないと、profiles 行を持たない
-    // ユーザーの author_id 違反まで「カフェが見つかりません」と誤表示してしまう
+  if (error) {
+    // finalize_post が失敗しても Storage の画像は消さない。予約行（hidden のまま）と
+    // そのフォルダ（{author_id}/{postId}/）はどちらも残るため、画像は「孤立」しておらず
+    // 再送でそのまま使い直せる想定のものである。ここで消してしまうと、ユーザーがカフェを
+    // 選び直す等して同じ postId・imagePaths で再送したとき、post_images には Storage との
+    // FK が無いため insert 自体は成功してしまい、画像ファイルが存在しない投稿がそのまま
+    // 公開されてしまう（`/code-review` で指摘）。本当に放置された予約行・画像は
+    // D19 の掃除処理でまとめて扱う
+    if (isRaisedWithMarker(error, 'FORBIDDEN')) {
+      return { ok: false, error: 'FORBIDDEN' }
+    }
     if (
-      postError.code === POSTGRES_FOREIGN_KEY_VIOLATION &&
-      postError.message.includes(POSTS_CAFE_ID_FKEY)
+      error.code === POSTGRES_FOREIGN_KEY_VIOLATION &&
+      error.message.includes(POSTS_CAFE_ID_FKEY)
     ) {
       return { ok: false, error: 'CAFE_NOT_FOUND' }
     }
-    if (isInsufficientPrivilege(postError)) {
-      return { ok: false, error: 'FORBIDDEN' }
-    }
-    return { ok: false, error: 'INTERNAL_ERROR', details: postError.message }
-  }
-
-  // post_images / post_tags はどちらも postId のみに依存し互いに独立しているため並列化する
-  // （lib/storage/post-images.ts createPostImageUploadUrl と同じ考え方）
-  const [imagesResult, tagsResult] = await Promise.all([
-    data.imagePaths.length > 0
-      ? supabase.from('post_images').insert(
-          data.imagePaths.map((storage_path, index) => ({
-            post_id: postId,
-            storage_path,
-            display_order: index,
-          })),
-        )
-      : Promise.resolve({ error: null }),
-    data.tagIds.length > 0
-      ? supabase
-          .from('post_tags')
-          .insert(data.tagIds.map((tag_id) => ({ post_id: postId, tag_id })))
-      : Promise.resolve({ error: null }),
-  ])
-
-  if (imagesResult.error || tagsResult.error) {
-    await rollbackPost(supabase, postId, data.imagePaths)
-
-    if (isTriggerError(imagesResult.error, 'POST_IMAGES_LIMIT_EXCEEDED')) {
+    if (isRaisedWithMarker(error, 'POST_IMAGES_LIMIT_EXCEEDED')) {
       return { ok: false, error: 'POST_IMAGES_LIMIT_EXCEEDED' }
     }
-    if (isTriggerError(tagsResult.error, 'POST_TAGS_LIMIT_EXCEEDED')) {
+    if (isRaisedWithMarker(error, 'POST_TAGS_LIMIT_EXCEEDED')) {
       return { ok: false, error: 'POST_TAGS_LIMIT_EXCEEDED' }
     }
-    if (isInsufficientPrivilege(imagesResult.error) || isInsufficientPrivilege(tagsResult.error)) {
+    if (isInsufficientPrivilege(error)) {
       return { ok: false, error: 'FORBIDDEN' }
     }
-    return {
-      ok: false,
-      error: 'INTERNAL_ERROR',
-      details: imagesResult.error?.message ?? tagsResult.error?.message,
+    // 行ロックによる直列化で本来到達しないはずだが、想定外の重複挿入に対する保険
+    if (isUniqueViolation(error)) {
+      return { ok: false, error: 'CONFLICT' }
     }
+    return { ok: false, error: 'INTERNAL_ERROR', details: error.message }
   }
 
-  const { error: publishError } = await supabase
-    .from('posts')
-    .update({ status: 'published' })
-    .eq('id', postId)
-
-  if (publishError) {
-    await rollbackPost(supabase, postId, data.imagePaths)
-    if (isInsufficientPrivilege(publishError)) {
-      return { ok: false, error: 'FORBIDDEN' }
-    }
-    return { ok: false, error: 'INTERNAL_ERROR', details: publishError.message }
-  }
-
-  return { ok: true, data: { postId } }
+  return { ok: true, data: { postId: data.postId } }
 }

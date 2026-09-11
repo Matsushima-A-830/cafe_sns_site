@@ -370,7 +370,7 @@ end $$;
 
 ```
 app/_actions/
-├── posts.ts          # createPost, updatePost, deletePost, publishDraft
+├── posts.ts          # reservePost, createPost, updatePost, deletePost, publishDraft
 ├── comments.ts       # createComment, deleteComment
 ├── likes.ts          # toggleLike
 ├── bookmarks.ts      # toggleBookmark

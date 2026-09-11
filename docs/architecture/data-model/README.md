@@ -100,6 +100,9 @@ erDiagram
 - `(author_id, client_draft_key)` で端末別下書きを管理
 - `expires_at` で30日後自動削除（cron or scheduled function）
 - クライアントは変更検知で15秒デバウンス保存
+- `payload.image_paths` は「画像は選択時点で既にアップロード済み」を前提にしている。
+  下記の予約行方式（[#ストレージ設計](#ストレージ設計)）と組み合わせ、composer 実装時は
+  `payload` に予約済み `postId` も持たせて再開時の二重予約を防ぐ（[pending-items D17](../../product/pending-items.md#d17-createpost-の-imagepaths-は画像アップロード時点で投稿行が既に存在することを前提にしている解消済み)）
 
 ## バッジ付与ロジックの設計
 
@@ -190,6 +193,20 @@ owner-documents/{user_id}/{verification_id}/{uuid}.{ext}
 - **public バケット**は読み取り自由。書き込み・削除は上記パス規約で本人のみ
 - **`owner-documents`** は読み取りも本人 + admin のみ。参照は都度発行する署名付きURL（有効期限は短く）
 - `document_urls` には**公開URLではなくオブジェクトパスを保存する**（署名付きURLは期限切れするため、DBに焼き込まない）
+
+### 投稿画像アップロードの前提（予約行方式）
+
+`post-images` への署名付きアップロードURL発行（`createPostImageUploadUrl`）は
+`is_post_author(postId)` で「実在する自分の投稿」を要求するため、composer で
+「投稿する」ボタンを押す前に画像をプレビュー表示するには、その前に `posts` 行が
+存在している必要がある。これを解決するため、composer 表示開始時（または最初の
+画像選択時）に `reservePost` で空本文・`status='hidden'` の `posts` 行を予約作成し、
+`createPost` はこの行を insert ではなく Postgres 関数 `finalize_post`（RPC、本文/タグ/画像確定 +
+`status='published'` への更新を1トランザクションで行う）で確定させる
+（[pending-items D17](../../product/pending-items.md#d17-createpost-の-imagepaths-は画像アップロード時点で投稿行が既に存在することを前提にしている解消済み)）。
+
+予約したまま finalize されない hidden 投稿の掃除方針は未決
+（[pending-items D19](../../product/pending-items.md#d19-reservepost-で予約した-hidden-投稿がfinalizeされないまま放置される問題)）。
 
 ### 移行を1箇所に閉じる
 

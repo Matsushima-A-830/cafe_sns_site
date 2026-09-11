@@ -26,6 +26,9 @@ const imagePathSchema = z
   )
 
 const basePostFields = {
+  // reservePost で先に作成した hidden 投稿の id。createPost は Postgres 関数
+  // finalize_post（RPC）でこの行を確定させる（docs/product/pending-items.md D17）
+  postId: z.string().uuid('投稿IDの形式が正しくありません'),
   cafeId: z.string().uuid('カフェIDの形式が正しくありません').optional(),
   // DBトリガー enforce_post_tags_limit / enforce_post_images_limit が正の判定を行う。
   // ここでの上限チェックは「明らかに多すぎる入力を早期に弾く」程度に留める。
@@ -63,6 +66,19 @@ export const createPostSchema = z.discriminatedUnion('postType', [
 ])
 
 export type CreatePostInput = z.infer<typeof createPostSchema>
+
+// reservePost の入力。post_type は予約時に確定させ、finalize（createPost）側の
+// postType と食い違わないことは finalize_post（RPC）の行ロック取得条件で検出する
+//   supabase/migrations/20260911134931_finalize_post_rpc.sql
+export const reservePostSchema = z.object({
+  postType: z.enum(['short', 'blog']),
+})
+
+export type ReservePostInput = z.infer<typeof reservePostSchema>
+
+// reservePost が posts.body_json（NOT NULL）に入れる空の Tiptap 文書。
+// finalize までは表示されない（status='hidden'）ため中身は問わない
+export const EMPTY_TIPTAP_DOC = { type: 'doc', content: [] }
 
 /**
  * Tiptap JSON からテキストリーフを連結する。DB の tiptap_to_plaintext（SQL の
