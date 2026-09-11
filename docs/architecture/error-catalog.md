@@ -60,6 +60,8 @@
 | `NG_WORD_DETECTED` | NGワード検出（`severity=block`） | createPost / createComment |
 | `COMMENT_NOT_FOUND` | コメント不在 | comments系 |
 
+**`reservePost`（composer 表示開始時の hidden 予約行作成、[pending-items D17](../product/pending-items.md#d17-createpost-の-imagepaths-は画像アップロード時点で投稿行が既に存在することを前提にしている解消済み)）** は上記の投稿固有コードは返さず、共通エラーコード（`INVALID_INPUT` / `UNAUTHENTICATED` / `FORBIDDEN` / `INTERNAL_ERROR`）のみを使う。
+
 ### インタラクション
 
 | コード | 意味 | 発生源 |

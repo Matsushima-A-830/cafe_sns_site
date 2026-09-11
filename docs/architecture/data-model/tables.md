@@ -492,7 +492,7 @@ USING (
 
 PostgreSQL の RLS は UPDATE/DELETE の対象行を選ぶ際にも SELECT ポリシーの `USING` を適用する（対象行を特定するための暗黙の読み取りが必要なため）。`posts_select` は `status='published'` を必須にしているため、これ1本だけでは author_id が一致していても `status='hidden'`/`'archived'` の自分の投稿は UPDATE の対象として一切見つからず、対象0件のまま**エラーなしで**成功扱いになってしまう。
 
-一般投稿の新規作成（`createPost`）は「`status='hidden'` で作成 → `post_images`/`post_tags` を書き込み → `status='published'` へ更新」という手順を踏む（`status='published'` で先に作ると、画像・タグの書き込みが失敗してロールバックするまでの間、不完全な投稿が公開されてしまうため）。この最後の UPDATE が上記の理由で機能しなくなり、投稿が永久に非公開のままになる致命的なバグとして統合テストで発覚した（`tests/integration/posts-create-flow.test.ts`）。
+一般投稿の新規作成は `reservePost`（`status='hidden'` で空本文の予約行を insert）→ `createPost`（Postgres 関数 `finalize_post` の RPC 呼び出し。本文確定・`post_images`/`post_tags` の書き込み・`status='published'` への更新を1トランザクションで行う）という手順を踏む。`finalize_post` は冒頭で対象行を `SELECT ... FOR UPDATE` によりロックしてから処理するため、同じ postId への同時呼び出しは自動的に直列化され、失敗時は関数全体（＝1トランザクション）が自動でロールバックする（`supabase/migrations/20260911134931_finalize_post_rpc.sql`）。この方式に至る前は本文 UPDATE → insert → status UPDATE を別々の文で行い失敗時にアプリ側で手動ロールバックしていたが、その最後の UPDATE がこの節の理由（RLSがUPDATE対象行選定にもSELECTポリシーを適用する）で機能しなくなり、投稿が永久に非公開のままになる致命的なバグとして統合テストで発覚した（`tests/integration/posts-create-flow.test.ts`）ほか、二重送信で行き詰まる別のバグも見つかったため、手動ロールバック方式そのものを廃止してRPCに一本化した。`reservePost`/`createPost` の分離は composer での画像アップロード前提を満たすための予約行方式（[pending-items D17](../../product/pending-items.md#d17-createpost-の-imagepaths-は画像アップロード時点で投稿行が既に存在することを前提にしている解消済み)）。
 
 `post_images`/`post_tags` は `is_post_author()`（SECURITY DEFINER で `posts` の RLS をバイパス）で同じ問題を回避済み。`posts` 本体にも同じ考え方の permissive policy を追加し、既存の `posts_select` とは OR で合成させる:
 
@@ -585,7 +585,7 @@ body_search tsvector GENERATED ALWAYS AS (
 |---|---|---|
 | id | uuid | PK, DEFAULT gen_random_uuid() |
 | post_id | uuid | NOT NULL, FK → posts(id) ON DELETE CASCADE |
-| storage_path | text | NOT NULL | Supabase Storage `post-images` のオブジェクトパス |
+| storage_path | text | NOT NULL, **UNIQUE** | Supabase Storage `post-images` のオブジェクトパス |
 | display_order | smallint | NOT NULL, DEFAULT 0 |
 | width | int | |
 | height | int | |
@@ -593,6 +593,11 @@ body_search tsvector GENERATED ALWAYS AS (
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 
 **アプリ層の責務:** アップロード時にEXIFを剥がしてから Storage に PUT する（クライアント側で exifr 等で処理）。バケット構成は [README.md #ストレージ設計](./README.md#ストレージ設計) を参照
+
+**`storage_path` の一意制約:** 同じ `postId` への二重送信（`createPost` の再送・ダブルタップ）は
+`finalize_post`（RPC）の行ロックにより直列化されるため、通常この制約が実際に働くことはない。
+それでも重複行を防ぐスキーマ側の整合性担保として残す（`20260911124750_add_post_images_storage_path_unique.sql`、
+[pending-items D17](../../product/pending-items.md#d17-createpost-の-imagepaths-は画像アップロード時点で投稿行が既に存在することを前提にしている解消済み)）。
 
 **RLS:** SELECT 全ユーザー / INSERT・DELETE は post の作者
 

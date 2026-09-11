@@ -462,7 +462,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **対応判断:** 未定。MVPでは対応見送り。Storage使用量の月次確認（A5参照）で異常増加が見えたら優先度を上げる
 - 参照: `feat/uploads-sign-route` ブランチの `/code-review`（2026-09-08、Route Handler実装時のレビューで指摘）
 
-### D17. `createPost` の `imagePaths` は「画像アップロード時点で投稿行が既に存在する」ことを前提にしている
+### D17. `createPost` の `imagePaths` は「画像アップロード時点で投稿行が既に存在する」ことを前提にしている（解消済み）
 
 - **課題:** `POST /api/uploads/sign`（`createPostImageUploadUrl`）は `is_post_author(postId)` で
   投稿の実在と所有者を確認してから署名付きURLを発行する（[`lib/storage/post-images.ts`](../../lib/storage/post-images.ts)）。
@@ -473,15 +473,64 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   という循環になる
 - **影響:** S_POST_SHORT / S_POST_BLOG のワイヤーフレーム（[design/wireframes/composer.md](../design/wireframes/composer.md)）は
   「投稿する」ボタンを押す前に画像をプレビュー表示する UI を想定しており、この循環を解消しないと composer 画面が実装できない
-- **対応案:** a) composer 表示開始時に空本文の `posts` 行を予約作成し、`createPost` は insert ではなく
-  finalize（update + post_images/post_tags 追加）に変える b) `drafts` テーブル（今回スコープ外）経由で
-  下書き→公開の移送時に画像を紐付ける c) `is_post_author` の代わりに署名発行時点では
-  `storage.objects` の RLS（author_idフォルダ一致のみ）に委ね、`post_images` 行の紐付けは `createPost` 一発で行う
-  今の設計を維持しつつ、composer 側は「画像は選択時点でクライアント側にファイルとして保持し、投稿する押下時に
-  まとめてアップロード→`createPost`」というUXに倒す（画像プレビューはアップロード前のローカルファイルで代替）
-- **対応判断:** 未定。`createPost` 自体は c) の設計（画像パスを受け取って一括書き込み）で実装済み。
-  composer UI 実装時にどの案を採るか要判断
-- 参照: `feat/posts-create-action` ブランチでの `createPost` 実装時に発見（2026-09-09）
+- **対応判断（2026-09-11、決定）:** 案 a) 予約行方式を採用。`app/_actions/posts.ts` に
+  `reservePost({ postType })` を新設し、composer 表示開始時（または最初の画像選択時）に
+  空本文・`status='hidden'` の `posts` 行を先に作る。`createPostImageUploadUrl` はこの
+  `postId` に対してそのまま使える（変更不要）
+- **finalize の実装方式（2026-09-11、`/code-review` 3回の指摘を経て確定）:**
+  `createPost` は本文/タグ/カフェ/公開範囲/画像の確定を Postgres 関数 `finalize_post`
+  （RPC、`security invoker`）に**1回のトランザクションとして**任せる
+  （`supabase/migrations/20260911134931_finalize_post_rpc.sql`）:
+  1. 冒頭で `SELECT id FROM posts WHERE id = p_post_id AND status = 'hidden' AND post_type = p_post_type FOR UPDATE`
+     により対象行をロックする。行が見つからなければ（他人の postId・既に finalize 済み・
+     予約時と異なる postType）`raise exception 'FORBIDDEN'`
+  2. 本文フィールドを `UPDATE`、`post_images`/`post_tags` を `INSERT`、最後に
+     `status='published'` へ `UPDATE` — すべて同一トランザクション内
+  3. imagePaths は `app/_actions/posts.ts` 側で事前に `{author_id}/{postId}/` 配下であることを
+     検証してから RPC を呼ぶ（postId 側まで見ることで、他の自分の投稿の画像を
+     横取りする心配がなくなる）
+  - **なぜ手動ロールバック方式（本文 UPDATE → insert → status UPDATE を別々の文で行い、
+    失敗時にアプリ側で取り消す）を廃止したか:** 最初の実装は「失敗時に予約行と画像まで
+    消える」「postType の食い違いを検出できない」という指摘（1回目のレビュー）を経て
+    修正したが、さらに深掘りすると**別々のリクエスト同士を手動の補償処理で整合させようと
+    する構造そのものに穴が残っていた**（2回目のレビュー）: 同じ postId への二重送信で、
+    双方が本文 UPDATE（`status='hidden'`条件）を通過した後に `post_images`/`post_tags` の
+    insert が絡み合うと、どちらも publish まで進めず画像・タグだけ入った hidden 投稿の
+    まま行き詰まり、再送しても同じ一意制約違反（`storage_path` に追加した一意制約含む）で
+    抜け出せなくなるケースがあった。一意制約を足すやり方では塞ぎきれないため、
+    finalize 全体を1トランザクションの RPC にまとめる方式に全面移行した。
+    行ロック（`FOR UPDATE`）により同じ postId への同時呼び出しは自動的に直列化され、
+    後着は「対象が見つからない」`FORBIDDEN` になるだけで、双方が中途半端な行を残す
+    ことは構造的に起こらない。これにより手動の `rollbackFinalizeInserts` や
+    `CONFLICT`（一意制約違反）分岐は不要になった（`CONFLICT` は行ロックでは本来
+    到達しないはずの想定外系に対する保険としてのみ残す）
+  - `post_images.storage_path` の一意制約（`20260911124750_add_post_images_storage_path_unique.sql`）
+    は、行ロックによる直列化が主たる防御になった後も、スキーマ側の整合性担保として残す
+  - `drafts.payload.image_paths`（[tables.md #drafts](../architecture/data-model/tables.md#drafts)）は
+    「画像は選択時点でアップロード済み」という前提のままで矛盾しない（予約行のフォルダに
+    アップロードされるだけ）。composer 実装時は `drafts.payload` に `postId` も持たせ、
+    同じ下書きを再開したときに予約行を作り直さないようにする（未実装、次のスコープ）
+  - **本番適用前の確認事項:** `post_images.storage_path` への一意制約は既存データに重複が
+    あると `ALTER TABLE` が失敗する。本番の承認ゲートを通す前に Supabase Cloud で
+    `select storage_path, count(*) from post_images group by 1 having count(*) > 1` を
+    実行し、重複が0件であることを確認すること（`/code-review` 指摘、未実施）
+  - **Storage の画像は finalize 失敗時に消さない（2026-09-11、`/code-review` 4回目・5回目で
+    往復して確定）:** RPC 化で `post_images`/`post_tags` の DB 行はトランザクション単位で
+    自動ロールバックされるようになった一方、`finalize_post` 呼び出し前にクライアントが
+    署名付きURLでアップロード済みの Storage 実体（`post-images/{author_id}/{postId}/*.webp`）は
+    自動では消えない。一度は「孤立オブジェクトだから消すべき」と考え旧 `rollbackPost` の
+    `deletePostImages` 呼び出しを復活させたが、それは誤りだった: **予約行（`posts`、
+    `status='hidden'`）とそのフォルダは finalize が失敗しても残り続けるため、画像は
+    孤立しておらず「再送でそのまま使い直す」設計になっている。** ここで Storage を消すと、
+    ユーザーがエラー（例: 存在しないカフェを選んでいた・一時的なエラー）を直してから
+    同じ postId・imagePaths で再送したとき、`post_images` には Storage との FK が無いため
+    insert 自体は成功してしまい、**画像ファイルが存在しない投稿がそのまま公開される**という
+    別の不具合を生む。結論として `createPost` は finalize 失敗時に Storage 側を一切操作しない。
+    本当に二度と finalize されない放置画像の掃除は、予約行そのものの掃除（D19）とセットで
+    まとめて扱う
+  - **未解決のフォローアップ:** [D19](#d19-reservepost-で予約した-hidden-投稿がfinalizeされないまま放置される問題) を参照
+- 参照: `feat/posts-create-action` ブランチでの `createPost` 実装時に発見（2026-09-09）。
+  `docs/resolve-d17` での方針決定・実装、`/code-review` 5回分の指摘対応（2026-09-11）
 
 ### D18. `posts_select_own` 修正PRの軽微な指摘（対応不要と判断・記録のみ）
 
@@ -503,6 +552,29 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   パターンが複数出てきた時点で自動検査の要否を判断する
 - 参照: `test/posts-create-integration-verify` ブランチの `/code-review`（2026-09-10、
   `posts_select_own` 追加PRのレビューで指摘）
+
+### D19. `reservePost` で予約した hidden 投稿がfinalizeされないまま放置される問題
+
+- **課題:** [D17](#d17-createpost-の-imagepaths-は画像アップロード時点で投稿行が既に存在することを前提にしている解消済み)
+  の予約行方式では、composer を開いて画像を選んだだけでユーザーが離脱すると、空本文・
+  `status='hidden'` の `posts` 行と、それに紐づく `post_images`/Storage オブジェクトが
+  finalize（`createPost`呼び出し）されないまま残り続ける。`drafts`（30日で `expires_at`
+  失効・削除想定）と違い、予約行にはまだ有効期限の仕組みがない
+- **影響:** MVP検証中は投稿数が少なく実害は小さいが、放置すると `posts`/`post_images` に
+  ゴミ行が溜まり、Storage 無料枠（1GB、[README.md #無料枠の制約](../architecture/data-model/README.md#無料枠の制約)）
+  も無駄に消費する。[D3](#d3-storage-オブジェクトのオーファン掃除方針)（Storage オーファン掃除方針、未決）と対象は近いが、D3 は
+  「post_images 行はあるが Storage 実体が無い/その逆」を指しており、こちらは「posts 行自体が
+  最後まで使われない」という別種の孤立
+- **対応案（未検討・要判断）:** a) `drafts` と同様に `posts.status='hidden'` かつ一定時間
+  （例: 24時間〜7日）更新が無い行を日次バッチ（Edge Function + GitHub Actions、A6と同じ仕組み）
+  で削除する b) `posts` に `reserved_at`/`expires_at` 相当の列を足す c) hidden 行の生存期間は
+  `created_at`/`updated_at` の既存列で判定し、専用列は増やさない
+- **関連課題:** `reservePost` には回数制限が無く、1ユーザーが `hidden` 予約行を連打で
+  大量に作れてしまう（掃除バッチが間に合わない速度で溜まる可能性がある）。掃除処理の
+  設計とあわせて、レート制限（`RATE_LIMITED`、[D16](#d16-post-apiuploadssign-に発行レート制限がない)と同様の考え方）の要否も判断する
+- **対応判断:** 未定。composer（S_POST_SHORT/S_POST_BLOG）実装時、または投稿数が増えて
+  実害が見え始めた時点で優先度を判断する
+- 参照: D17 対応（案a採用）に伴う新規フォローアップとして記録（2026-09-11）
 
 ## 削除・アーカイブ判断待ち
 

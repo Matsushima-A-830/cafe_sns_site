@@ -713,6 +713,19 @@ export type Database = {
     }
     Functions: {
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      finalize_post: {
+        Args: {
+          p_body_json: Json
+          p_cafe_id: string
+          p_image_paths: string[]
+          p_post_id: string
+          p_post_type: string
+          p_tag_ids: string[]
+          p_title: string
+          p_visibility: string
+        }
+        Returns: undefined
+      }
       get_cafe_congestion_current: {
         Args: { p_cafe_id: string; p_now?: string }
         Returns: {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createPostSchema, extractPlainText, getBodyJsonByteSize } from './posts'
 
+const validPostId = '00000000-0000-4000-8000-000000000000'
 const validCafeId = '11111111-1111-4111-8111-111111111111'
 const validTagId = '22222222-2222-4222-8222-222222222222'
 const validImagePath = 'author-uuid/post-uuid/image-uuid.webp'
@@ -11,24 +12,37 @@ const textDoc = {
 
 describe('createPostSchema', () => {
   it('短文投稿の最小入力を通す', () => {
-    const result = createPostSchema.safeParse({ postType: 'short', bodyJson: textDoc })
+    const result = createPostSchema.safeParse({
+      postType: 'short',
+      postId: validPostId,
+      bodyJson: textDoc,
+    })
     expect(result.success).toBe(true)
   })
 
   it('短文投稿は title が無くても通る', () => {
-    const result = createPostSchema.safeParse({ postType: 'short', bodyJson: textDoc })
+    const result = createPostSchema.safeParse({
+      postType: 'short',
+      postId: validPostId,
+      bodyJson: textDoc,
+    })
     expect(result.success).toBe(true)
     if (result.success) expect('title' in result.data).toBe(false)
   })
 
   it('ブログ投稿は title が必須', () => {
-    const result = createPostSchema.safeParse({ postType: 'blog', bodyJson: textDoc })
+    const result = createPostSchema.safeParse({
+      postType: 'blog',
+      postId: validPostId,
+      bodyJson: textDoc,
+    })
     expect(result.success).toBe(false)
   })
 
   it('ブログ投稿は title があれば通る', () => {
     const result = createPostSchema.safeParse({
       postType: 'blog',
+      postId: validPostId,
       title: 'タイトル',
       bodyJson: textDoc,
     })
@@ -41,7 +55,11 @@ describe('createPostSchema', () => {
   })
 
   it('cafeId / tagIds / imagePaths / visibility を省略するとデフォルト値が入る', () => {
-    const result = createPostSchema.safeParse({ postType: 'short', bodyJson: textDoc })
+    const result = createPostSchema.safeParse({
+      postType: 'short',
+      postId: validPostId,
+      bodyJson: textDoc,
+    })
     expect(result.success).toBe(true)
     if (result.success) {
       expect(result.data.cafeId).toBeUndefined()
@@ -54,6 +72,7 @@ describe('createPostSchema', () => {
   it('uuid でない cafeId を弾く', () => {
     const result = createPostSchema.safeParse({
       postType: 'short',
+      postId: validPostId,
       bodyJson: textDoc,
       cafeId: 'not-a-uuid',
     })
@@ -62,19 +81,30 @@ describe('createPostSchema', () => {
 
   it('タグは5個まで', () => {
     const tagIds = Array.from({ length: 6 }, (_, i) => `${validTagId.slice(0, -1)}${i}`)
-    const result = createPostSchema.safeParse({ postType: 'short', bodyJson: textDoc, tagIds })
+    const result = createPostSchema.safeParse({
+      postType: 'short',
+      postId: validPostId,
+      bodyJson: textDoc,
+      tagIds,
+    })
     expect(result.success).toBe(false)
   })
 
   it('タグ5個ちょうどは通る', () => {
     const tagIds = Array.from({ length: 5 }, (_, i) => `${validTagId.slice(0, -1)}${i}`)
-    const result = createPostSchema.safeParse({ postType: 'short', bodyJson: textDoc, tagIds })
+    const result = createPostSchema.safeParse({
+      postType: 'short',
+      postId: validPostId,
+      bodyJson: textDoc,
+      tagIds,
+    })
     expect(result.success).toBe(true)
   })
 
   it('重複した tagIds は去重される', () => {
     const result = createPostSchema.safeParse({
       postType: 'short',
+      postId: validPostId,
       bodyJson: textDoc,
       tagIds: [validTagId, validTagId],
     })
@@ -84,13 +114,19 @@ describe('createPostSchema', () => {
 
   it('画像は10枚まで', () => {
     const imagePaths = Array.from({ length: 11 }, (_, i) => `author/post/${i}.webp`)
-    const result = createPostSchema.safeParse({ postType: 'short', bodyJson: textDoc, imagePaths })
+    const result = createPostSchema.safeParse({
+      postType: 'short',
+      postId: validPostId,
+      bodyJson: textDoc,
+      imagePaths,
+    })
     expect(result.success).toBe(false)
   })
 
   it('画像パスの形式が正しくないものを弾く', () => {
     const result = createPostSchema.safeParse({
       postType: 'short',
+      postId: validPostId,
       bodyJson: textDoc,
       imagePaths: ['not-a-valid-path.webp'],
     })
@@ -100,6 +136,7 @@ describe('createPostSchema', () => {
   it('正しい形式の画像パスを通す', () => {
     const result = createPostSchema.safeParse({
       postType: 'short',
+      postId: validPostId,
       bodyJson: textDoc,
       imagePaths: [validImagePath],
     })
@@ -109,6 +146,7 @@ describe('createPostSchema', () => {
   it('パストラバーサル（..）を含む画像パスを弾く', () => {
     const result = createPostSchema.safeParse({
       postType: 'short',
+      postId: validPostId,
       bodyJson: textDoc,
       imagePaths: ['../../etc/passwd.webp'],
     })
@@ -118,6 +156,7 @@ describe('createPostSchema', () => {
   it('スラッシュを含む余分なセグメントを弾く', () => {
     const result = createPostSchema.safeParse({
       postType: 'short',
+      postId: validPostId,
       bodyJson: textDoc,
       imagePaths: ['author/post/extra/image.webp'],
     })
@@ -127,6 +166,7 @@ describe('createPostSchema', () => {
   it('重複した imagePaths は去重される', () => {
     const result = createPostSchema.safeParse({
       postType: 'short',
+      postId: validPostId,
       bodyJson: textDoc,
       imagePaths: [validImagePath, validImagePath],
     })
@@ -136,14 +176,24 @@ describe('createPostSchema', () => {
 
   it('去重後に10枚以内になるなら通る（去重は上限チェックより先に行う）', () => {
     const imagePaths = Array.from({ length: 11 }, () => validImagePath)
-    const result = createPostSchema.safeParse({ postType: 'short', bodyJson: textDoc, imagePaths })
+    const result = createPostSchema.safeParse({
+      postType: 'short',
+      postId: validPostId,
+      bodyJson: textDoc,
+      imagePaths,
+    })
     expect(result.success).toBe(true)
     if (result.success) expect(result.data.imagePaths).toEqual([validImagePath])
   })
 
   it('去重後もタグ5個ちょうどは通る', () => {
     const tagIds = Array.from({ length: 6 }, () => validTagId)
-    const result = createPostSchema.safeParse({ postType: 'short', bodyJson: textDoc, tagIds })
+    const result = createPostSchema.safeParse({
+      postType: 'short',
+      postId: validPostId,
+      bodyJson: textDoc,
+      tagIds,
+    })
     expect(result.success).toBe(true)
     if (result.success) expect(result.data.tagIds).toEqual([validTagId])
   })
@@ -151,6 +201,7 @@ describe('createPostSchema', () => {
   it('visibility が不正な値だと弾く', () => {
     const result = createPostSchema.safeParse({
       postType: 'short',
+      postId: validPostId,
       bodyJson: textDoc,
       visibility: 'private',
     })
@@ -160,6 +211,7 @@ describe('createPostSchema', () => {
   it('cafeId が正しい uuid なら通る', () => {
     const result = createPostSchema.safeParse({
       postType: 'short',
+      postId: validPostId,
       bodyJson: textDoc,
       cafeId: validCafeId,
     })
