@@ -17,7 +17,7 @@ create table public.cafes (
   area_code          text references public.areas (code) on delete set null,
   address            text,
   main_image_path    text,
-  location           geography(point, 4326),
+  location           extensions.geography(point, 4326),
   phone              text,
   website            text,
   description        text,
@@ -45,7 +45,7 @@ comment on column public.cafes.area_code is
 create index cafes_location_idx on public.cafes using gist (location);
 create index cafes_prefecture_city_area_idx on public.cafes (prefecture, city, area_code);
 create index cafes_area_code_idx on public.cafes (area_code);
-create index cafes_name_kana_trgm_idx on public.cafes using gin (name_kana gin_trgm_ops);
+create index cafes_name_kana_trgm_idx on public.cafes using gin (name_kana extensions.gin_trgm_ops);
 
 create trigger cafes_updated_at
   before update on public.cafes
