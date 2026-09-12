@@ -8,7 +8,7 @@
 
 create table public.profiles (
   id                  uuid primary key references auth.users (id) on delete cascade,
-  username            citext not null unique,
+  username            extensions.citext not null unique,
   display_name        text not null,
   bio                 text,
   avatar_url          text,

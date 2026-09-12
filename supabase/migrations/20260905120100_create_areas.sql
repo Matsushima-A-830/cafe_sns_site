@@ -14,7 +14,7 @@ create table public.areas (
   label_kana      text,
   level           text not null,
   parent_code     text references public.areas (code) on delete restrict,
-  center_location geography(point, 4326),
+  center_location extensions.geography(point, 4326),
   priority        smallint not null default 0,
   is_active       boolean not null default true,
   created_at      timestamptz not null default now(),

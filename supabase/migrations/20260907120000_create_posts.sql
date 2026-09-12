@@ -67,7 +67,7 @@ comment on column public.posts.is_official is
 create index posts_author_created_idx on public.posts (author_id, created_at desc);
 create index posts_cafe_created_idx on public.posts (cafe_id, created_at desc) where cafe_id is not null;
 create index posts_body_search_idx on public.posts using gin (body_search);
-create index posts_body_text_trgm_idx on public.posts using gin (body_text gin_trgm_ops);
+create index posts_body_text_trgm_idx on public.posts using gin (body_text extensions.gin_trgm_ops);
 create index posts_published_idx on public.posts (published_at desc) where status = 'published' and deleted_at is null;
 
 create trigger posts_updated_at
