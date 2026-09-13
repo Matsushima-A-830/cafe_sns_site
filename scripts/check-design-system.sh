@@ -54,6 +54,17 @@ check 'text-[...] の任意サイズは使用禁止' \
   'text-\[[0-9]' \
   'text-xs/sm/base/lg/xl/2xl/3xl/4xl を使う'
 
+# 6. 存在しない / 意図と違うカラートークンの綴り
+#    Tailwind v4 のユーティリティ名は `--color-` を除いた残り全部。
+#    --color-border-default から生えるのは border-border-default であり、
+#    border-default は --color-default を探すのでクラスごと生成されない。
+#    生成されない = Biome も tsc も素通りし、preflight の border:0 solid により
+#    枠線が currentColor (ほぼ黒) で描画される。
+#    border-input だけは生成されるが --color-input (白) を指すのでやはり誤り。
+check '存在しない / 意図と違うカラートークンを使っている' \
+  '(^|[[:space:]"'"'"'`:])(border-default|border-strong|border-input|ring-focus|ring-strong|text-default)([^a-zA-Z0-9_-]|$)' \
+  'border-border-default / border-border-strong / border-border-input / ring-ring-focus を使う (docs/design/design-system.md)'
+
 if [ "$status" -ne 0 ]; then
   echo "デザインシステム違反が見つかりました。詳細: docs/design/design-system.md"
 fi

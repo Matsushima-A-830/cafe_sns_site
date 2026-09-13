@@ -31,6 +31,7 @@ function payload(postId: string, overrides: Record<string, unknown> = {}) {
     tag_ids: [],
     image_paths: [],
     cafe_id: null,
+    visibility: 'public',
     ...overrides,
   }
 }

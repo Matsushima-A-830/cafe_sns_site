@@ -51,7 +51,7 @@ export function InterestsForm({ tags }: { tags: Tag[] }) {
         選択済み: {selected.length} / {MAX_SELECTION}
       </p>
 
-      <div className="flex border-b border-default" role="tablist">
+      <div className="flex border-b border-border-default" role="tablist">
         <button
           type="button"
           role="tab"

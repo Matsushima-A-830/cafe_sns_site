@@ -20,6 +20,18 @@ const messages: Partial<Record<ErrorCode, string>> = {
   ACCOUNT_DELETED: 'このアカウントは削除されています',
   AREA_CODE_UNKNOWN: '選択したエリアが見つかりませんでした',
   CONSENT_REQUIRED: '保護者の同意が必要です',
+  // 投稿 / composer
+  POST_NOT_FOUND: '投稿が見つかりませんでした',
+  POST_BODY_EMPTY: '本文か写真のどちらかを入力してください',
+  POST_BODY_TOO_LONG: '本文が長すぎます。分割して投稿してください',
+  POST_TAGS_LIMIT_EXCEEDED: 'タグは5個までです',
+  POST_IMAGES_LIMIT_EXCEEDED: '写真は10枚までです',
+  CAFE_NOT_FOUND: '選択したカフェが見つかりませんでした。選び直してください',
+  // アップロード
+  FILE_TOO_LARGE: '画像のサイズが大きすぎます',
+  UNSUPPORTED_MEDIA_TYPE: 'この形式の画像は使えません',
+  EXIF_STRIP_FAILED: '画像の位置情報を削除できませんでした。別の画像をお試しください',
+  UPLOAD_FAILED: '画像をアップロードできませんでした。通信状況を確認してください',
 }
 
 export function errorMessage(code: ErrorCode): string {

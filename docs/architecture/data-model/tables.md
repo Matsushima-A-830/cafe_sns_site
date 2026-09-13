@@ -612,7 +612,7 @@ body_search tsvector GENERATED ALWAYS AS (
 | id | uuid | PK, DEFAULT gen_random_uuid() |
 | author_id | uuid | NOT NULL, FK → profiles(id) |
 | client_draft_key | text | NOT NULL | 端末側で発行するキー |
-| payload | jsonb | NOT NULL | 投稿途中データ（`v`, post_id, post_type, title, body_json, tag_ids, image_paths, cafe_id） |
+| payload | jsonb | NOT NULL | 投稿途中データ（`v`, post_id, post_type, title, body_json, tag_ids, image_paths, cafe_id, visibility） |
 | last_saved_at | timestamptz | NOT NULL, DEFAULT now() |
 | expires_at | timestamptz | NOT NULL, DEFAULT now() + interval '30 days' |
 
@@ -629,7 +629,8 @@ body_search tsvector GENERATED ALWAYS AS (
   "body_json": { "type": "doc", "content": [] },
   "tag_ids": ["uuid"],
   "image_paths": ["string"],
-  "cafe_id": "uuid | null"
+  "cafe_id": "uuid | null",
+  "visibility": "public | followers"
 }
 ```
 

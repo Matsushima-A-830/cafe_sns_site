@@ -5,6 +5,7 @@ import {
   POSTGRES_INSUFFICIENT_PRIVILEGE,
   POSTGRES_UNIQUE_VIOLATION,
 } from '@/lib/constants/postgres-error-codes'
+import { isPostStatus, type PostStatus } from '@/lib/constants/posts'
 import { createClient } from '@/lib/supabase/server'
 import {
   createPostSchema,
@@ -223,7 +224,7 @@ export async function createPost(
  */
 export async function getOwnPostStatus(
   input: unknown,
-): Promise<Result<{ status: string }, GetOwnPostStatusError>> {
+): Promise<Result<{ status: PostStatus }, GetOwnPostStatusError>> {
   const parsed = postIdSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: 'INVALID_INPUT', details: parsed.error.flatten() }
 
@@ -242,6 +243,11 @@ export async function getOwnPostStatus(
 
   if (error) return { ok: false, error: 'INTERNAL_ERROR', details: error.message }
   if (!data) return { ok: false, error: 'POST_NOT_FOUND' }
+  // CHECK 制約があるので通常ここは通らない。呼び出し側が status を文字列比較で
+  // 取り違えないよう、型を絞れなかった場合は成功として返さない
+  if (!isPostStatus(data.status)) {
+    return { ok: false, error: 'INTERNAL_ERROR', details: `未知の status: ${data.status}` }
+  }
 
   return { ok: true, data: { status: data.status } }
 }

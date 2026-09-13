@@ -100,6 +100,8 @@ erDiagram
 - `(author_id, client_draft_key)` で端末別下書きを管理
 - `expires_at` で30日後自動削除（cron or scheduled function）
 - クライアントは変更検知で15秒デバウンス保存
+- `payload` は本文・タグ・画像だけでなく `visibility` も持つ。持たせないと
+  「フォロワーのみ」で書きかけた下書きが再開時に既定の `public` に戻ってしまう
 - `payload.image_paths` は「画像は選択時点で既にアップロード済み」を前提にしている。
   下記の予約行方式（[#ストレージ設計](#ストレージ設計)）と組み合わせるため、`payload` は
   予約済み `post_id` も持つ。再開時は同じ予約行を使い回し、二重予約と
