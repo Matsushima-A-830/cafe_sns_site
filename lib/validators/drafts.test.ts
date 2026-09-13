@@ -21,7 +21,17 @@ describe('draftPayloadSchema', () => {
       tag_ids: [],
       image_paths: [],
       cafe_id: null,
+      visibility: 'public',
     })
+  })
+
+  it('公開範囲を保持する（再開時に既定へ戻らないこと）', () => {
+    const parsed = draftPayloadSchema.parse({ ...basePayload, visibility: 'followers' })
+
+    expect(parsed.visibility).toBe('followers')
+    expect(draftPayloadSchema.safeParse({ ...basePayload, visibility: 'everyone' }).success).toBe(
+      false,
+    )
   })
 
   it('post_id が無い下書きは受け付けない（再開時に予約行を特定できないため）', () => {

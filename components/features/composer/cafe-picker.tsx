@@ -46,7 +46,7 @@ export function CafePicker({
     return (
       <div className="flex flex-col gap-2">
         <p className="text-sm font-medium text-foreground">どのカフェですか？</p>
-        <div className="flex items-center justify-between gap-2 rounded-md border border-default bg-muted px-3 py-2">
+        <div className="flex items-center justify-between gap-2 rounded-md border border-border-default bg-muted px-3 py-2">
           <span className="text-sm text-foreground">{selected.name}</span>
           <button
             type="button"
@@ -73,13 +73,13 @@ export function CafePicker({
       />
 
       {results.length > 0 && (
-        <ul className="flex max-h-56 flex-col overflow-y-auto rounded-md border border-default">
+        <ul className="flex max-h-56 flex-col overflow-y-auto rounded-md border border-border-default">
           {results.map((cafe) => (
             <li key={cafe.id}>
               <button
                 type="button"
                 onClick={() => onSelect(cafe)}
-                className="flex w-full flex-col items-start gap-1 border-b border-default px-3 py-2 text-left last:border-b-0 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
+                className="flex w-full flex-col items-start gap-1 border-b border-border-default px-3 py-2 text-left last:border-b-0 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
               >
                 <span className="text-sm text-foreground">{cafe.name}</span>
                 <span className="text-xs text-muted-foreground">{cafe.areaLabel}</span>

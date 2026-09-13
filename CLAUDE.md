@@ -235,8 +235,8 @@ text-foreground     (主要テキスト・#000代替)
 text-muted-foreground (副情報テキスト)
 bg-primary          (主要ボタン)
 text-primary-foreground (ボタン上のテキスト)
-border-default      (標準ボーダー)
-ring-focus          (フォーカスリング)
+border-border-default (標準ボーダー)
+ring-ring-focus       (フォーカスリング)
 bg-danger           (危険操作)
 ```
 
@@ -319,7 +319,7 @@ MVPリリース時点で以下の基準を満たすことを目標にする。
 
 - **セマンティックHTML** — `div` の乱用禁止。`nav` `main` `article` `section` `header` `footer` を使う
 - **キーボード操作** — すべてのフォーム・ボタン・リンクが Tab で辿れる
-- **フォーカスリング** — `focus-visible:ring-2 ring-focus` を必ず適用
+- **フォーカスリング** — `focus-visible:ring-2 focus-visible:ring-ring-focus` を必ず適用
 - **代替テキスト** — 画像は `alt` 必須。装飾のみなら `alt=""`
 - **ラベル** — `<input>` には必ず対応する `<label>` or `aria-label`
 - **コントラスト比** — テキストは 4.5:1 以上（`text-foreground` on `bg-background` は準拠）

@@ -32,6 +32,13 @@ export function BlogComposer({
 }) {
   const composer = useComposer('blog')
   const [isLeaveOpen, setIsLeaveOpen] = useState(false)
+  const [leaveError, setLeaveError] = useState<string>()
+
+  const onSaveAndLeave = async () => {
+    setLeaveError(undefined)
+    const left = await composer.saveAndLeave()
+    if (!left) setLeaveError('下書きを保存できませんでした。通信状況を確認してください')
+  }
 
   if (composer.status === 'loading') {
     return (
@@ -60,7 +67,7 @@ export function BlogComposer({
         submitLabel="公開する"
         canSubmit={canSubmit}
         isSubmitting={composer.isSubmitting}
-        onCancel={() => (composer.isDirty ? setIsLeaveOpen(true) : void composer.discard())}
+        onCancel={() => (composer.isDirty ? setIsLeaveOpen(true) : composer.leave())}
         onSubmit={() => void composer.submit()}
       >
         <Button
@@ -129,7 +136,9 @@ export function BlogComposer({
       <LeaveDialog
         open={isLeaveOpen}
         onOpenChange={setIsLeaveOpen}
-        onSaveAndLeave={() => void composer.saveAndLeave()}
+        isBusy={composer.autosave === 'saving'}
+        error={leaveError}
+        onSaveAndLeave={() => void onSaveAndLeave()}
         onDiscard={() => void composer.discard()}
       />
     </div>

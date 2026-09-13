@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button'
 import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
 import { uploadPostImage } from '@/lib/storage/post-image-client'
-import { getPostImagePublicUrl } from '@/lib/storage/post-images'
+import { getPostImagePublicUrl, POST_IMAGE_MAX_COUNT } from '@/lib/storage/post-images'
 import { createClient } from '@/lib/supabase/browser'
 import { cn } from '@/lib/utils/cn'
 import { errorMessage } from '@/lib/utils/error-messages'
@@ -64,7 +64,7 @@ export function TiptapEditor({
           '[&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:text-xl [&_h3]:font-bold',
           '[&_p]:my-2 [&_a]:text-link [&_a]:underline',
           '[&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-6',
-          '[&_blockquote]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-default [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground',
+          '[&_blockquote]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-border-default [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground',
           '[&_img]:my-4 [&_img]:max-w-full [&_img]:rounded-md',
         ),
         'aria-label': '本文',
@@ -75,7 +75,7 @@ export function TiptapEditor({
 
   if (!editor) {
     return (
-      <div className="min-h-64 rounded-md border border-default bg-surface" aria-busy="true">
+      <div className="min-h-64 rounded-md border border-border-default bg-surface" aria-busy="true">
         <span className="sr-only">エディタを読み込んでいます</span>
       </div>
     )
@@ -104,10 +104,26 @@ export function TiptapEditor({
     setLinkDraft(null)
   }
 
+  /** 本文に既に入っている画像の枚数。post_images には載らないので自前で数える */
+  const countEmbeddedImages = (): number => {
+    let count = 0
+    editor.state.doc.descendants((node) => {
+      if (node.type.name === 'image') count += 1
+    })
+    return count
+  }
+
   const insertImage = async (file: File | undefined) => {
     if (!file) return
     if (fileInputRef.current) fileInputRef.current.value = ''
     setError(undefined)
+    // 本文の埋め込み画像は post_images 行を作らないため、署名APIの10枚チェック
+    // （post_images の件数を数える）が効かない。ここで同じ上限をかける
+    //   docs/product/pending-items.md D19
+    if (countEmbeddedImages() >= POST_IMAGE_MAX_COUNT) {
+      setError(`本文に入れられる画像は${POST_IMAGE_MAX_COUNT}枚までです`)
+      return
+    }
     const result = await uploadPostImage(postId, file)
     if (!result.ok) {
       setError(errorMessage(result.error))
@@ -116,7 +132,10 @@ export function TiptapEditor({
     // 本文中の画像は公開URLを埋め込む。post_images への登録は写真欄（imagePaths）の
     // 責務なので、ここでは本文JSONにだけ載せる
     const src = getPostImagePublicUrl(createClient(), result.data.path)
-    editor.chain().focus().setImage({ src, alt: file.name }).run()
+    // alt にファイル名は載せない。EXIF を剥がしている一方で IMG_自宅_20240101.heic
+    // のような名前が公開投稿に残るのは筋が通らない。代替テキストの入力UIは未実装
+    //   docs/product/pending-items.md D22
+    editor.chain().focus().setImage({ src, alt: '' }).run()
   }
 
   const toolbarButton = (
@@ -143,8 +162,8 @@ export function TiptapEditor({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="overflow-hidden rounded-md border border-default bg-surface">
-        <div className="flex flex-wrap items-center gap-1 border-b border-default px-2 py-2">
+      <div className="overflow-hidden rounded-md border border-border-default bg-surface">
+        <div className="flex flex-wrap items-center gap-1 border-b border-border-default px-2 py-2">
           {toolbarButton(
             'bold',
             '太字',
@@ -211,7 +230,7 @@ export function TiptapEditor({
         </div>
 
         {linkDraft !== null && (
-          <div className="flex flex-wrap items-center gap-2 border-b border-default px-2 py-2">
+          <div className="flex flex-wrap items-center gap-2 border-b border-border-default px-2 py-2">
             <Input
               type="url"
               aria-label="リンク先のURL"

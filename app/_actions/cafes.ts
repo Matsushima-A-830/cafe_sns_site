@@ -91,6 +91,9 @@ export async function getCafeById(
     .from('cafes')
     .select('id, name, prefecture, city, areas(label)')
     .eq('id', parsed.data.cafeId)
+    // searchCafes と同じ条件で絞る。これが無いと、下書き保存後に閉店・非公開になった
+    // カフェが再開時だけ復活し、検索では選べないものが投稿に紐づく
+    .eq('status', 'active')
     .maybeSingle()
 
   if (error) return { ok: false, error: 'INTERNAL_ERROR', details: error.message }

@@ -86,6 +86,9 @@ export async function saveDraft(
   return { ok: true, data: { lastSavedAt: data.last_saved_at } }
 }
 
+/** composer を開くたびに新しい client_draft_key ができるため、一覧は上限付きで引く */
+const DRAFT_LIST_LIMIT = 50
+
 /**
  * 下書き一覧（エントリシートの「続きを書く」・S_DRAFTS）。
  * 期限切れ削除は日次ジョブ待ち（pending-items A6）なので、取得時にも expires_at で絞る
@@ -102,6 +105,7 @@ export async function listDrafts(): Promise<Result<DraftSummary[], DraftError>> 
     .select('client_draft_key, last_saved_at, payload')
     .gt('expires_at', new Date().toISOString())
     .order('last_saved_at', { ascending: false })
+    .limit(DRAFT_LIST_LIMIT)
 
   if (error) return { ok: false, error: 'INTERNAL_ERROR', details: error.message }
 

@@ -1,5 +1,6 @@
 'use client'
 
+import { CheckIcon } from 'lucide-react'
 import { RadioGroup } from 'radix-ui'
 import { useId } from 'react'
 import { cn } from '@/lib/utils/cn'
@@ -43,7 +44,21 @@ export function VisibilityField({
                 : 'border-border-default bg-surface hover:bg-muted',
             )}
           >
-            <span className="text-sm font-medium text-foreground">{option.label}</span>
+            <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+              {/* 選択状態を色だけで伝えない（WCAG 1.4.1 色以外の手がかり） */}
+              <span
+                aria-hidden="true"
+                className={cn(
+                  'flex size-4 items-center justify-center rounded-full border',
+                  value === option.value
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border-strong',
+                )}
+              >
+                {value === option.value && <CheckIcon className="size-3" />}
+              </span>
+              {option.label}
+            </span>
             <span className="text-xs text-muted-foreground">{option.description}</span>
           </RadioGroup.Item>
         ))}

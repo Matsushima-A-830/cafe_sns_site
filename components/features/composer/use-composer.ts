@@ -21,6 +21,8 @@ import type {
 
 /** docs/design/wireframes/composer.md「自動保存は15秒デバウンス」 */
 export const AUTOSAVE_DEBOUNCE_MS = 15_000
+/** 保存に失敗したあとの再試行間隔。通信断が続く間に叩き続けないよう通常より長くする */
+export const AUTOSAVE_RETRY_MS = 30_000
 
 export type ComposerFields = {
   title: string
@@ -31,6 +33,9 @@ export type ComposerFields = {
   cafe: ComposerCafe | null
   visibility: PostVisibility
 }
+
+/** saved=保存した / skipped=保存するものが無い / failed=保存に失敗した */
+export type PersistResult = 'saved' | 'skipped' | 'failed'
 
 const emptyFields: ComposerFields = {
   title: '',
@@ -63,10 +68,12 @@ function toPayload(postId: string, postType: PostType, fields: ComposerFields): 
     tag_ids: fields.tagIds,
     image_paths: fields.images.map((image) => image.path),
     cafe_id: fields.cafe?.id ?? null,
+    visibility: fields.visibility,
   }
 }
 
 type InitStatus = 'loading' | 'ready' | 'error'
+type FieldsPatch = Partial<ComposerFields> | ((prev: ComposerFields) => Partial<ComposerFields>)
 
 /**
  * composer（S_POST_SHORT / S_POST_BLOG）の共有ロジック。
@@ -94,28 +101,33 @@ export function useComposer(postType: PostType) {
   const [savedRevision, setSavedRevision] = useState(0)
   const isDirty = revision !== savedRevision
 
-  // 開発時の StrictMode は effect を2回走らせる。ガード無しでは reservePost が
-  // 2回呼ばれて放置予約行（D19）が毎回1件増える
+  // 初期化は1回だけ。ここで cancelled フラグを併用して「cleanup で進行中の初期化を捨てる」
+  // 形にすると、StrictMode（effect → cleanup → effect）では1回目の初期化が捨てられ、
+  // 2回目はこのガードで即 return するため status が loading から進まなくなる。
+  // 擬似アンマウントでもコンポーネントは同じインスタンスなので、遅れて届く setState は反映してよい
   const initStarted = useRef(false)
   // isSubmitting（state）は同じティック内の2回目の呼び出しからは false のまま見える。
   // ダブルタップで createPost が2本走るのを防ぐのはこの ref の役目
   const isSubmittingRef = useRef(false)
+  // 自動保存のリトライと「下書き保存」ボタンが重なっても saveDraft を多重に投げない
+  const isPersistingRef = useRef(false)
+  // 一度でも下書き行を作ったか。作ったあとは「全部消した」状態も保存する必要がある
+  // （空だからと skip すると、サーバー側に古い本文が残り、再開時に復活する）
+  const hasSavedDraftRef = useRef(false)
   const fieldsRef = useRef(fields)
   fieldsRef.current = fields
 
-  const updateFields = useCallback((patch: Partial<ComposerFields>) => {
-    setFields((prev) => ({ ...prev, ...patch }))
+  const updateFields = useCallback((patch: FieldsPatch) => {
+    setFields((prev) => ({ ...prev, ...(typeof patch === 'function' ? patch(prev) : patch) }))
     setRevision((prev) => prev + 1)
   }, [])
 
   useEffect(() => {
     if (initStarted.current) return
     initStarted.current = true
-    let cancelled = false
 
     const startNew = async () => {
       const reserved = await reservePost({ postType })
-      if (cancelled) return
       if (!reserved.ok) {
         setFormError(errorMessage(reserved.error))
         setStatus('error')
@@ -134,7 +146,6 @@ export function useComposer(postType: PostType) {
 
     const resume = async (key: string) => {
       const result = await getDraft({ clientDraftKey: key })
-      if (cancelled) return false
       if (!result.ok) return false
       if (result.data.stale) {
         setNotice('以前の形式で保存された下書きは読み込めませんでした。新しく書き始めます。')
@@ -146,8 +157,8 @@ export function useComposer(postType: PostType) {
 
       const supabase = createClient()
       const cafe = payload.cafe_id ? await getCafeById({ cafeId: payload.cafe_id }) : null
-      if (cancelled) return false
 
+      hasSavedDraftRef.current = true
       setPostId(payload.post_id)
       setDraftKey(key)
       setLastSavedAt(result.data.lastSavedAt)
@@ -161,7 +172,7 @@ export function useComposer(postType: PostType) {
           previewUrl: getPostImagePublicUrl(supabase, path),
         })),
         cafe: cafe?.ok ? cafe.data : null,
-        visibility: 'public',
+        visibility: payload.visibility,
       })
       setAutosave('saved')
       setStatus('ready')
@@ -171,41 +182,55 @@ export function useComposer(postType: PostType) {
     const init = async () => {
       const key = new URL(window.location.href).searchParams.get('draft')
       if (key && (await resume(key))) return
-      if (!cancelled) await startNew()
+      await startNew()
     }
 
     void init()
-    return () => {
-      cancelled = true
-    }
   }, [postType])
 
-  const persistDraft = useCallback(async (): Promise<boolean> => {
-    const current = fieldsRef.current
-    if (!postId || !draftKey || isBlank(current)) return false
+  const persistDraft = useCallback(async (): Promise<PersistResult> => {
+    // 投稿確定中は下書きを書き戻さない。finish() の deleteDraft のあとに自動保存が
+    // 着地すると、公開済みの postId を持つ下書きが復活する。それを再開して書き直すと
+    // finalize_post は FORBIDDEN → getOwnPostStatus は published を返し、
+    // 「二重送信の後着」と誤判定して書き直した内容が黙って消える
+    if (isSubmittingRef.current) return 'skipped'
 
+    const current = fieldsRef.current
+    if (!postId || !draftKey) return 'skipped'
+    // まだ下書き行が無いうちは空の下書きを作らない（一覧がゴミで埋まる）。
+    // 既にあるなら空の内容もそのまま書き戻す
+    if (isBlank(current) && !hasSavedDraftRef.current) return 'skipped'
+    if (isPersistingRef.current) return 'skipped'
+
+    isPersistingRef.current = true
     const revisionAtSave = revision
     setAutosave('saving')
     const result = await saveDraft({
       clientDraftKey: draftKey,
       payload: toPayload(postId, postType, current),
     })
+    isPersistingRef.current = false
+
     if (!result.ok) {
       setAutosave('error')
-      return false
+      return 'failed'
     }
+    hasSavedDraftRef.current = true
     setSavedRevision(revisionAtSave)
     setLastSavedAt(result.data.lastSavedAt)
     setAutosave('saved')
-    return true
+    return 'saved'
   }, [draftKey, postId, postType, revision])
 
-  // 15秒デバウンス。fields が変わるたびにタイマーを張り直す
+  // 15秒デバウンス。fields が変わるたびにタイマーを張り直す。
+  // 直前の保存が失敗していたら、入力が止まったままでも未保存の変更が残っている限り
+  // 再試行する（失敗して以降まったく保存されない状態を作らない）
   useEffect(() => {
     if (status !== 'ready' || !isDirty) return
-    const timer = setTimeout(() => void persistDraft(), AUTOSAVE_DEBOUNCE_MS)
+    const delay = autosave === 'error' ? AUTOSAVE_RETRY_MS : AUTOSAVE_DEBOUNCE_MS
+    const timer = setTimeout(() => void persistDraft(), delay)
     return () => clearTimeout(timer)
-  }, [status, isDirty, persistDraft])
+  }, [status, isDirty, persistDraft, autosave])
 
   // タブを閉じる・リロードする経路での取りこぼしを防ぐ。アプリ内のキャンセル操作は
   // 離脱ダイアログ（LeaveDialog）が受け持つ
@@ -260,17 +285,29 @@ export function useComposer(postType: PostType) {
     setFormError(errorMessage(result.error))
   }, [finish, postId, postType])
 
+  /** 下書きを残したまま離れる。未編集でキャンセルしたときの既定の経路 */
+  const leave = useCallback(() => {
+    setSavedRevision(revision)
+    router.push('/')
+  }, [revision, router])
+
+  /** 明示的な「下書きを破棄する」専用。予約行と Storage の画像は残す（掃除は D19） */
   const discard = useCallback(async () => {
-    // 予約行と Storage の画像はここでは消さない。放置分の掃除は D19 でまとめて扱う
     if (draftKey) await deleteDraft({ clientDraftKey: draftKey })
     setSavedRevision(revision)
     router.push('/')
   }, [draftKey, revision, router])
 
-  const saveAndLeave = useCallback(async () => {
-    await persistDraft()
+  /**
+   * 保存できたときだけ離脱する。失敗したまま遷移すると beforeunload の警告も外れ、
+   * 入力がそのまま失われる。戻り値の false は呼び出し側（離脱ダイアログ）が表示に使う
+   */
+  const saveAndLeave = useCallback(async (): Promise<boolean> => {
+    const result = await persistDraft()
+    if (result === 'failed') return false
     setSavedRevision(revision)
     router.push('/')
+    return true
   }, [persistDraft, revision, router])
 
   return {
@@ -287,6 +324,7 @@ export function useComposer(postType: PostType) {
     isSubmitting,
     persistDraft,
     submit,
+    leave,
     discard,
     saveAndLeave,
   }

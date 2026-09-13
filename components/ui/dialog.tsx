@@ -43,7 +43,7 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          'fixed inset-x-0 bottom-0 z-50 flex max-h-[90dvh] flex-col gap-6 overflow-y-auto rounded-t-lg border border-default bg-surface p-6 shadow-lg',
+          'fixed inset-x-0 bottom-0 z-50 flex max-h-[90dvh] flex-col gap-6 overflow-y-auto rounded-t-lg border border-border-default bg-surface p-6 shadow-lg',
           'md:inset-x-auto md:bottom-auto md:top-1/2 md:left-1/2 md:w-full md:max-w-[480px] md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-lg',
           'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 motion-reduce:animate-none',
           className,

@@ -170,11 +170,11 @@ Tailwind CSS のカスタムカラーとして `brown` を定義:
 
 | セマンティック | Tailwindユーティリティ | 意味 |
 |---|---|---|
-| `border-default` | 内部で `brown-200` | 標準ボーダー |
-| `border-strong` | 内部で `brown-300` | 強調ボーダー |
+| `border-border-default` | 内部で `brown-200` | 標準ボーダー |
+| `border-border-strong` | 内部で `brown-300` | 強調ボーダー |
 | `bg-input` | 内部で `white` | 入力欄背景 |
-| `border-input` | 内部で `brown-200` | 入力欄ボーダー |
-| `ring-focus` | 内部で `brown-400` | フォーカスリング |
+| `border-border-input` | 内部で `brown-200` | 入力欄ボーダー |
+| `ring-ring-focus` | 内部で `brown-400` | フォーカスリング |
 
 #### 状態系
 
@@ -189,7 +189,7 @@ Tailwind CSS のカスタムカラーとして `brown` を定義:
 
 **推奨:**
 ```tsx
-<div className="bg-surface text-foreground border border-default rounded-lg p-4">
+<div className="bg-surface text-foreground border border-border-default rounded-lg p-4">
   <h2 className="text-foreground text-2xl font-bold">タイトル</h2>
   <p className="text-muted-foreground text-base">本文</p>
   <button className="bg-primary hover:bg-primary-hover text-primary-foreground px-6 py-3">
@@ -309,7 +309,14 @@ Tailwind CSS のカスタムカラーとして `brown` を定義:
 }
 ```
 
-これにより Tailwind の `bg-primary`, `text-foreground`, `border-default` などが自動的に使えるようになる。
+これにより Tailwind の `bg-primary`, `text-foreground`, `border-border-default` などが自動的に使えるようになる。
+
+**ユーティリティ名は `--color-` を取り除いた残り全部。** `--color-border-default` から生えるのは
+`border-border-default` であって `border-default` ではない（`border-default` は `--color-default` を探し、
+存在しないので **クラス自体が生成されない** → preflight の `border: 0 solid` により枠線が
+currentColor＝ほぼ黒で描画される）。同様に `--color-ring-focus` は `ring-ring-focus`。
+`border-input` は生成されるが `--color-input`（白）を指すので、入力欄の枠線には
+`border-border-input` を使う。この綴り間違いは `scripts/check-design-system.sh` が検出する
 
 **本プロジェクトは Tailwind v4 のみ。** `tailwind.config.ts` は使わず、色の定義は `app/globals.css` の `@theme` が唯一の情報源とする（パレット変更時の二重管理を避けるため）。
 
@@ -320,7 +327,7 @@ Tailwind CSS のカスタムカラーとして `brown` を定義:
 ### 良い例
 
 ```tsx
-<div className="p-4 md:p-6 lg:p-8 bg-surface text-foreground border border-default rounded-lg">
+<div className="p-4 md:p-6 lg:p-8 bg-surface text-foreground border border-border-default rounded-lg">
   <h2 className="text-2xl font-bold text-foreground mb-4">見出し</h2>
   <p className="text-base text-muted-foreground">本文テキスト</p>
   <button className="mt-6 px-6 py-3 bg-primary hover:bg-primary-hover text-primary-foreground rounded-md">

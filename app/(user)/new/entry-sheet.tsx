@@ -53,7 +53,7 @@ export function EntrySheet({ drafts }: { drafts: DraftSummary[] }) {
           <Link
             key={format.href}
             href={format.href}
-            className="flex items-center gap-4 rounded-lg border border-default bg-surface p-6 transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
+            className="flex items-center gap-4 rounded-lg border border-border-default bg-surface p-6 transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
           >
             <format.icon className="size-6 text-primary" aria-hidden="true" />
             <span className="flex flex-col gap-1">
@@ -65,7 +65,7 @@ export function EntrySheet({ drafts }: { drafts: DraftSummary[] }) {
       </div>
 
       {resumable.length > 0 && (
-        <div className="flex flex-col gap-2 rounded-lg border border-default bg-muted p-4">
+        <div className="flex flex-col gap-2 rounded-lg border border-border-default bg-muted p-4">
           <div className="flex items-center justify-between gap-4">
             <p className="text-sm text-foreground">下書きが{resumable.length}件あります</p>
             <Button

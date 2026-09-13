@@ -33,6 +33,9 @@ export const draftPayloadSchema = z.object({
     .max(10)
     .default([]),
   cafe_id: z.string().uuid().nullable().default(null),
+  // 公開範囲も下書きに含める。持たせないと「フォロワーのみ」を選んだ下書きが
+  // 再開時に既定の 'public' に戻り、意図しない全体公開になる
+  visibility: z.enum(['public', 'followers']).default('public'),
 })
 
 export type DraftPayload = z.infer<typeof draftPayloadSchema>

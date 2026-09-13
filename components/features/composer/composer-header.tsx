@@ -25,7 +25,7 @@ export function ComposerHeader({
   children?: React.ReactNode
 }) {
   return (
-    <header className="sticky top-0 z-10 border-b border-default bg-surface">
+    <header className="sticky top-0 z-10 border-b border-border-default bg-surface">
       <div className="mx-auto flex max-w-[720px] items-center justify-between gap-4 px-4 py-2">
         <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
           キャンセル

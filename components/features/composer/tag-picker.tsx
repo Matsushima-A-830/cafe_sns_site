@@ -98,7 +98,7 @@ export function TagPicker({
       </div>
 
       {isExpanded && (
-        <div className="flex flex-col gap-4 rounded-md border border-default p-4">
+        <div className="flex flex-col gap-4 rounded-md border border-border-default p-4">
           {(['occasion', 'mood', 'other'] as const).map((category) => {
             const inCategory = tags.filter((tag) => tag.category === category)
             if (inCategory.length === 0) return null

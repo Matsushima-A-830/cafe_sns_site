@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { AUTOSAVE_DEBOUNCE_MS, useComposer } from './use-composer'
+import { AUTOSAVE_DEBOUNCE_MS, AUTOSAVE_RETRY_MS, useComposer } from './use-composer'
 
 const replace = vi.fn()
 const push = vi.fn()
@@ -75,6 +76,13 @@ describe('初期化', () => {
     expect(new URL(window.location.href).searchParams.get('draft')).toMatch(/^[0-9a-f-]{36}$/)
   })
 
+  it('StrictMode で effect が2回走っても初期化が完了する', async () => {
+    const { result } = renderHook(() => useComposer('short'), { wrapper: StrictMode })
+
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(reservePost).toHaveBeenCalledTimes(1)
+  })
+
   it('予約に失敗したらエラー状態にする', async () => {
     reservePost.mockResolvedValue({ ok: false, error: 'FORBIDDEN' })
 
@@ -104,6 +112,7 @@ describe('初期化', () => {
           tag_ids: ['tag-1'],
           image_paths: [`author/${POST_ID}/a.webp`],
           cafe_id: null,
+          visibility: 'followers',
         },
       },
     })
@@ -111,6 +120,7 @@ describe('初期化', () => {
     const { result } = await renderReady()
 
     expect(reservePost).not.toHaveBeenCalled()
+    expect(result.current.fields.visibility).toBe('followers')
     expect(result.current.postId).toBe(POST_ID)
     expect(result.current.fields.bodyText).toBe('続きから')
     expect(result.current.fields.images).toEqual([
@@ -135,6 +145,7 @@ describe('初期化', () => {
           tag_ids: [],
           image_paths: [],
           cafe_id: null,
+          visibility: 'public',
         },
       },
     })
@@ -188,11 +199,83 @@ describe('自動保存', () => {
     expect(saveDraft).toHaveBeenCalledTimes(1)
   })
 
-  it('何も入力していない間は下書き行を作らない', async () => {
+  it('公開範囲も下書きに含めて保存する', async () => {
+    const { result } = await renderReady()
+
+    act(() => result.current.updateFields({ tagIds: ['tag-1'], visibility: 'followers' }))
+    await act(async () => {
+      await result.current.persistDraft()
+    })
+
+    expect(saveDraft.mock.calls[0]?.[0]).toMatchObject({
+      payload: { visibility: 'followers' },
+    })
+  })
+
+  it('保存に失敗しても、未保存の変更が残っている間は再試行する', async () => {
+    saveDraft.mockResolvedValue({ ok: false, error: 'INTERNAL_ERROR' })
+    const { result } = await renderReady()
+    vi.useFakeTimers()
+
+    act(() => result.current.updateFields({ tagIds: ['tag-1'] }))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUTOSAVE_DEBOUNCE_MS)
+    })
+    expect(saveDraft).toHaveBeenCalledTimes(1)
+    expect(result.current.autosave).toBe('error')
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUTOSAVE_RETRY_MS)
+    })
+    expect(saveDraft).toHaveBeenCalledTimes(2)
+  })
+
+  it('投稿確定中は下書きを書き戻さない（公開済み postId の下書きが復活するため）', async () => {
+    // createPost の解決を握り、その最中に自動保存を走らせる
+    let finishCreate: (() => void) | undefined
+    createPost.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finishCreate = () => resolve({ ok: true, data: { postId: POST_ID } })
+        }),
+    )
+    const { result } = await renderReady()
+    act(() => result.current.updateFields({ tagIds: ['tag-1'] }))
+
+    await act(async () => {
+      // submit は createPost の解決待ちで止まる。その最中に自動保存が着地する状況を作る
+      const submitted = result.current.submit()
+      expect(await result.current.persistDraft()).toBe('skipped')
+      finishCreate?.()
+      await submitted
+    })
+
+    expect(saveDraft).not.toHaveBeenCalled()
+    expect(deleteDraft).toHaveBeenCalledTimes(1)
+  })
+
+  it('いったん保存した下書きは、内容を全部消しても空のまま保存し直す', async () => {
+    const { result } = await renderReady()
+
+    act(() => result.current.updateFields({ tagIds: ['tag-1'] }))
+    await act(async () => {
+      expect(await result.current.persistDraft()).toBe('saved')
+    })
+
+    act(() => result.current.updateFields({ tagIds: [] }))
+    await act(async () => {
+      expect(await result.current.persistDraft()).toBe('saved')
+    })
+
+    expect(saveDraft).toHaveBeenCalledTimes(2)
+    expect(saveDraft.mock.calls[1]?.[0]).toMatchObject({ payload: { tag_ids: [] } })
+  })
+
+  it('一度も保存していない空の composer では下書き行を作らない', async () => {
     const { result } = await renderReady()
 
     await act(async () => {
-      await result.current.persistDraft()
+      expect(await result.current.persistDraft()).toBe('skipped')
     })
 
     expect(saveDraft).not.toHaveBeenCalled()
@@ -208,6 +291,55 @@ describe('自動保存', () => {
     })
 
     expect(result.current.autosave).toBe('error')
+  })
+})
+
+describe('離脱', () => {
+  it('未編集のキャンセル（leave）では下書きを消さない', async () => {
+    const { result } = await renderReady()
+
+    act(() => result.current.leave())
+
+    expect(deleteDraft).not.toHaveBeenCalled()
+    expect(push).toHaveBeenCalledWith('/')
+  })
+
+  it('明示的な破棄では下書きを消す', async () => {
+    const { result } = await renderReady()
+
+    await act(async () => {
+      await result.current.discard()
+    })
+
+    expect(deleteDraft).toHaveBeenCalledTimes(1)
+    expect(push).toHaveBeenCalledWith('/')
+  })
+
+  it('保存に失敗したら離脱せず false を返す', async () => {
+    saveDraft.mockResolvedValue({ ok: false, error: 'INTERNAL_ERROR' })
+    const { result } = await renderReady()
+
+    act(() => result.current.updateFields({ tagIds: ['tag-1'] }))
+    let left: boolean | undefined
+    await act(async () => {
+      left = await result.current.saveAndLeave()
+    })
+
+    expect(left).toBe(false)
+    expect(push).not.toHaveBeenCalled()
+    expect(result.current.isDirty).toBe(true)
+  })
+
+  it('保存できたら離脱する', async () => {
+    const { result } = await renderReady()
+
+    act(() => result.current.updateFields({ tagIds: ['tag-1'] }))
+    await act(async () => {
+      await result.current.saveAndLeave()
+    })
+
+    expect(saveDraft).toHaveBeenCalledTimes(1)
+    expect(push).toHaveBeenCalledWith('/')
   })
 })
 
