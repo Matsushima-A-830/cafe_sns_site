@@ -48,11 +48,16 @@ export function AuthNav() {
 
   if (isAuthed) {
     return (
-      <form action={logOut}>
-        <Button type="submit" variant="ghost" size="sm">
-          ログアウト
+      <>
+        <Button asChild size="sm">
+          <Link href="/new">＋ 投稿する</Link>
         </Button>
-      </form>
+        <form action={logOut}>
+          <Button type="submit" variant="ghost" size="sm">
+            ログアウト
+          </Button>
+        </form>
+      </>
     )
   }
 

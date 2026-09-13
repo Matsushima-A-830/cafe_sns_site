@@ -69,6 +69,12 @@
 - **選択のパラドックス回避:** タグ5個まで
 - **損失回避:** 自動保存済み表示 + 離脱前ダイアログ
 
+**実装とのズレ（2026-09-13）:** おすすめタグは位置情報ではなく `user_interest_tags`
+（オンボーディングで選んだ気分タグ）から出している。`tags` マスタに `area` カテゴリが
+存在しないため（エリアの正は `areas` マスタ）。ホームエリア起点のデフォルトは
+カフェ検索欄が担い、検索語が空のときは `profiles.home_area_code` のカフェを初期候補に出す。
+経緯と対応案は [pending-items D20](../../product/pending-items.md)
+
 ### PC
 
 ```
@@ -137,6 +143,8 @@
 ```
 
 - 保存形式は Tiptap JSON 単一。Markdown 記法は**入力ショートカット**としてのみ受け付ける（`## ` で見出しになる等）。Markdown テキストとしては保存しない
+- **「プレビュー」は未実装（2026-09-13）。** 投稿詳細（S_POST_DETAIL）の描画実装が先に要るため、
+  描画コンポーネントを共有できるようになってから追加する（[pending-items D21](../../product/pending-items.md)）
 - 自動保存は15秒デバウンスで `drafts` を**上書き**する。バージョン履歴は持たない（[tables.md drafts](../../architecture/data-model/tables.md#drafts) は `UNIQUE (author_id, client_draft_key)` の1行）
 
 ### PC
