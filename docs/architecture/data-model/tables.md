@@ -612,7 +612,7 @@ body_search tsvector GENERATED ALWAYS AS (
 | id | uuid | PK, DEFAULT gen_random_uuid() |
 | author_id | uuid | NOT NULL, FK → profiles(id) |
 | client_draft_key | text | NOT NULL | 端末側で発行するキー |
-| payload | jsonb | NOT NULL | 投稿途中データ（`v`, post_type, title, body_json, tag_ids, image_paths, cafe_id） |
+| payload | jsonb | NOT NULL | 投稿途中データ（`v`, post_id, post_type, title, body_json, tag_ids, image_paths, cafe_id） |
 | last_saved_at | timestamptz | NOT NULL, DEFAULT now() |
 | expires_at | timestamptz | NOT NULL, DEFAULT now() + interval '30 days' |
 
@@ -623,6 +623,7 @@ body_search tsvector GENERATED ALWAYS AS (
 ```json
 {
   "v": 1,
+  "post_id": "uuid",
   "post_type": "short | blog",
   "title": "string | null",
   "body_json": { "type": "doc", "content": [] },
@@ -633,6 +634,8 @@ body_search tsvector GENERATED ALWAYS AS (
 ```
 
 `v` でスキーマバージョンを管理する。フォームのデータ構造変更時は `v` をインクリメントし、クライアント側でバージョン不一致の下書きは破棄して新規下書きとして扱う（サイレント破棄ではなく「古い下書きは使えません」のUI通知を推奨）。
+
+**`post_id` が必須な理由:** composer は表示開始時に [`reservePost`](#posts) で `status='hidden'` の予約行を作り、画像アップロードの署名付きURL発行（`is_post_author`）と `finalize_post` の両方でその id を使う（[pending-items D17](../../product/pending-items.md#d17-createpost-の-imagepaths-は画像アップロード時点で投稿行が既に存在することを前提にしている解消済み)）。`payload` に持たせないと、下書き再開のたびに新しい予約行が生まれ、`image_paths`（`{author_id}/{post_id}/…` 規約）も再開後の postId と一致しなくなり finalize 時に FORBIDDEN になる。
 
 **運用:** `expires_at < now()` を日次削除。`pg_cron` は Supabase Pro 以上のため、MVP（Free）では Edge Function + GitHub Actions の `schedule` で実行する（[pending-items A6](../../product/pending-items.md)）。取りこぼし対策として、下書き一覧の取得時にも `expires_at > now()` で絞る
 
