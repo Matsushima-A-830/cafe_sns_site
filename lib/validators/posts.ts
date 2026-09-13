@@ -124,3 +124,10 @@ export function getBodyJsonByteSize(bodyJson: unknown): number | null {
     return null
   }
 }
+
+// 二重送信の切り分け（getOwnPostStatus）で使う。createPost が FORBIDDEN を返したとき、
+// クライアントは同じ postId の現在の status を確認して「先着が既に公開済み」か
+// 「本当に権限が無い」かを判定する（docs/product/pending-items.md D17）
+export const postIdSchema = z.object({
+  postId: z.string().uuid('投稿IDの形式が正しくありません'),
+})

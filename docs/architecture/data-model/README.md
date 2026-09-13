@@ -101,8 +101,10 @@ erDiagram
 - `expires_at` で30日後自動削除（cron or scheduled function）
 - クライアントは変更検知で15秒デバウンス保存
 - `payload.image_paths` は「画像は選択時点で既にアップロード済み」を前提にしている。
-  下記の予約行方式（[#ストレージ設計](#ストレージ設計)）と組み合わせ、composer 実装時は
-  `payload` に予約済み `postId` も持たせて再開時の二重予約を防ぐ（[pending-items D17](../../product/pending-items.md#d17-createpost-の-imagepaths-は画像アップロード時点で投稿行が既に存在することを前提にしている解消済み)）
+  下記の予約行方式（[#ストレージ設計](#ストレージ設計)）と組み合わせるため、`payload` は
+  予約済み `post_id` も持つ。再開時は同じ予約行を使い回し、二重予約と
+  `image_paths` の postId 不一致を防ぐ（[pending-items D17](../../product/pending-items.md#d17-createpost-の-imagepaths-は画像アップロード時点で投稿行が既に存在することを前提にしている解消済み)、
+  [tables.md #drafts](./tables.md#drafts)）
 
 ## バッジ付与ロジックの設計
 

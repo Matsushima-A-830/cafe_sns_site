@@ -13,6 +13,7 @@ import {
   getBodyJsonByteSize,
   POST_BODY_MAX_JSON_BYTES,
   POST_BODY_MAX_PLAIN_CHARS,
+  postIdSchema,
   reservePostSchema,
 } from '@/lib/validators/posts'
 import type { Json } from '@/types/database'
@@ -40,6 +41,12 @@ type CreatePostError =
   | 'INTERNAL_ERROR'
 
 type ReservePostError = 'INVALID_INPUT' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'INTERNAL_ERROR'
+
+type GetOwnPostStatusError =
+  | 'INVALID_INPUT'
+  | 'UNAUTHENTICATED'
+  | 'POST_NOT_FOUND'
+  | 'INTERNAL_ERROR'
 
 type PostgrestLikeError = { code?: string | null; message: string } | null
 
@@ -200,4 +207,41 @@ export async function createPost(
   }
 
   return { ok: true, data: { postId: data.postId } }
+}
+
+/**
+ * 自分の投稿の現在の status を返す。用途は createPost が FORBIDDEN を返したときの切り分け。
+ *
+ * finalize_post は同じ postId への同時呼び出しを行ロックで直列化するため、二重送信
+ * （ダブルタップ・ネットワーク再送）の後着は「既に公開済みの行」に対する finalize となり
+ * FORBIDDEN を受け取る。つまり FORBIDDEN は「本当に権限が無い」と「先着が既に成功した」の
+ * 両方を意味し得る。クライアントはこれを呼んで published なら成功として扱う
+ *   docs/product/pending-items.md D17
+ *
+ * RLS の posts_select_own により、作者本人は status を問わず自分の投稿を読める。
+ * 他人の投稿・存在しない投稿はどちらも行が見えず POST_NOT_FOUND になる（存在を漏らさない）
+ */
+export async function getOwnPostStatus(
+  input: unknown,
+): Promise<Result<{ status: string }, GetOwnPostStatusError>> {
+  const parsed = postIdSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, error: 'INVALID_INPUT', details: parsed.error.flatten() }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
+
+  const { data, error } = await supabase
+    .from('posts')
+    .select('status')
+    .eq('id', parsed.data.postId)
+    .eq('author_id', user.id)
+    .maybeSingle()
+
+  if (error) return { ok: false, error: 'INTERNAL_ERROR', details: error.message }
+  if (!data) return { ok: false, error: 'POST_NOT_FOUND' }
+
+  return { ok: true, data: { status: data.status } }
 }
