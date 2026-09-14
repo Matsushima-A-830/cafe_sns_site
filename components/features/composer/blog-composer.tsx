@@ -11,6 +11,7 @@ import { AutosaveStatus } from './autosave-status'
 import { CafePicker } from './cafe-picker'
 import { ComposerHeader } from './composer-header'
 import { LeaveDialog } from './leave-dialog'
+import { PreviewDialog } from './preview-dialog'
 import { TagPicker } from './tag-picker'
 import { TiptapEditor } from './tiptap-editor'
 import { useComposer } from './use-composer'
@@ -32,6 +33,7 @@ export function BlogComposer({
 }) {
   const composer = useComposer('blog')
   const [isLeaveOpen, setIsLeaveOpen] = useState(false)
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const [leaveError, setLeaveError] = useState<string>()
 
   const onSaveAndLeave = async () => {
@@ -78,6 +80,9 @@ export function BlogComposer({
           onClick={() => void composer.persistDraft()}
         >
           下書き保存
+        </Button>
+        <Button type="button" variant="outline" size="sm" onClick={() => setIsPreviewOpen(true)}>
+          プレビュー
         </Button>
       </ComposerHeader>
 
@@ -132,6 +137,13 @@ export function BlogComposer({
           />
         </div>
       </div>
+
+      <PreviewDialog
+        open={isPreviewOpen}
+        onOpenChange={setIsPreviewOpen}
+        title={fields.title}
+        bodyJson={fields.bodyJson}
+      />
 
       <LeaveDialog
         open={isLeaveOpen}

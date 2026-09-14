@@ -609,13 +609,39 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **対応判断:** 未定。気分検索（幹A）の運用データが出てから判断する
 - 参照: composer 実装時に判明（2026-09-13）
 
-### D21. S_POST_BLOG の「プレビュー」ボタンが未実装
+### D21. S_POST_BLOG の「プレビュー」ボタンが未実装（解消済み）
 
 - **課題:** ワイヤーフレームにはブログ投稿の「プレビュー」ボタンがあるが、投稿詳細
   （S_POST_DETAIL `/posts/[id]`）の表示実装がまだ無く、プレビューに使う描画側が存在しない。
   composer 側だけ先に作ると Tiptap JSON の描画ロジックが2箇所に分かれる
-- **対応判断:** S_POST_DETAIL の実装時に、描画コンポーネントを共有する形で追加する
-- 参照: composer 実装時にスコープ外と判断（2026-09-13）
+- **解消（2026-09-14）:** S_POST_DETAIL の実装で Tiptap JSON の描画を
+  [`components/features/posts/post-body.tsx`](../../components/features/posts/post-body.tsx)
+  （JSON を再帰的に React 要素へ変換。`generateHTML()` + `dangerouslySetInnerHTML` は使わない）に一本化し、
+  composer のプレビュー（`components/features/composer/preview-dialog.tsx`）も同じものを使う。
+  見出し・リスト等の Tailwind も `components/features/posts/rich-text.ts` に集約し、
+  エディタ（編集中）と表示で同じ定義を共有する
+- 参照: composer 実装時にスコープ外と判断（2026-09-13）→ S_POST_DETAIL 実装で解消（2026-09-14）
+
+### D23. `/posts/[id]` が routing.md の想定（ISR 300s）どおりにキャッシュされていない
+
+- **課題:** [routing.md](../architecture/routing.md) は S_POST_DETAIL を **ISR (300s)** としており、
+  ページにも `export const revalidate = 300` を置いているが、Next.js 16.3.4 の本番ビルドで実測すると
+  ルートは常に動的レンダリング（`Cache-Control: private, no-cache, no-store`）で、
+  DBの値を書き換えると次のリクエストに即反映される＝**フルルートキャッシュが効いていない**
+- **確認した内容（2026-09-14）:** `pnpm build && pnpm start` で公開投稿を2回取得しても
+  `x-nextjs-cache` が付かず、間で `posts.title` を更新すると即座に反映された。
+  cookie（`cookies()`）に触れない anon クライアント経路でも同じ
+- **影響:** 公開投稿の TTFB がリクエストごとの DB 往復に引きずられる。表示内容・認可は正しい（実害は速度のみ）
+- **対応案（未検討）:** a) `generateStaticParams` で人気投稿を事前生成 b) Next.js 16 の
+  `cacheComponents` + `"use cache"` を有効化して読み取り関数をキャッシュする（設定変更＝スタックに影響するため要相談）
+  c) routing.md 側を SSR に直して ISR を諦める
+- **試して取り下げた案:** 「公開投稿は anon クライアントで読み、読めなかったときだけ cookie 付きで
+  再取得する」2段構え。`posts_select` の最終条件 `not is_blocked_either_way(author_id)` は
+  `auth.uid()` が null の anon では常に真になるため、**ブロックした相手の公開投稿が
+  ブロック中のユーザーにも見えてしまう**（`/code-review` で指摘、2026-09-14）。
+  ISR を復活させるなら「ブロック関係を含む認可をどこで効かせるか」から設計し直す必要がある
+  （例: 公開投稿は静的に配り、ブロック済み投稿はクライアント側で落とす）
+- 参照: S_POST_DETAIL 実装時に判明（2026-09-14）
 
 ### D22. 投稿画像の代替テキスト（alt）を入力する導線が無い
 
