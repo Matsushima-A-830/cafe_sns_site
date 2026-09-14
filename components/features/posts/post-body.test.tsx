@@ -13,6 +13,9 @@ function text(value: string, marks?: unknown[]) {
   return marks ? { type: 'text', text: value, marks } : { type: 'text', text: value }
 }
 
+// tests/setup.ts が入れるローカル既定値（http://127.0.0.1:54321）と同じ配信元
+const STORAGE_IMAGE = 'http://127.0.0.1:54321/storage/v1/object/public/post-images/u/p/a.webp'
+
 describe('PostBody', () => {
   it('段落のテキストを描画する', () => {
     render(<PostBody doc={doc(paragraph(text('こんにちは')))} />)
@@ -129,26 +132,25 @@ describe('PostBody', () => {
     expect(container.querySelector('pre code')?.textContent).toBe('const a = 1')
   })
 
-  it('画像は src と alt を持つ img として描画する（alt 未入力は装飾扱い）', () => {
+  it('自前の Storage の画像を img として描画する（alt 未入力は装飾扱い）', () => {
     const { container } = render(
-      <PostBody
-        doc={doc({
-          type: 'image',
-          attrs: { src: 'https://cdn.example.com/a.webp', alt: null },
-        })}
-      />,
+      <PostBody doc={doc({ type: 'image', attrs: { src: STORAGE_IMAGE, alt: null } })} />,
     )
     const image = container.querySelector('img')
     expect(image).not.toBeNull()
     expect(image?.getAttribute('alt')).toBe('')
-    expect(image?.getAttribute('src')).toContain('cdn.example.com')
+    expect(image?.getAttribute('src')).toContain(encodeURIComponent(STORAGE_IMAGE))
   })
 
-  it('src が http/https でない画像は描画しない', () => {
-    const { container } = render(
-      <PostBody doc={doc({ type: 'image', attrs: { src: 'javascript:alert(1)' } })} />,
-    )
-    expect(container.querySelector('img')).toBeNull()
+  it('外部ホスト・危険なスキームの画像は描画しない（閲覧者のIP漏洩を防ぐ）', () => {
+    for (const src of [
+      'https://attacker.example/px.gif',
+      'javascript:alert(1)',
+      'data:image/gif;base64,AA',
+    ]) {
+      const { container } = render(<PostBody doc={doc({ type: 'image', attrs: { src } })} />)
+      expect(container.querySelector('img')).toBeNull()
+    }
   })
 
   it('未知のノードは黙って捨てず、内側のテキストだけは残す', () => {

@@ -159,8 +159,14 @@ function renderNode(value: unknown, key: string, depth: number): React.ReactNode
     case 'horizontalRule':
       return <hr key={key} />
     case 'image': {
-      const src = safeHttpUrl(attrs(node).src)
-      if (!src) return null
+      // 自前の Storage の画像だけを出す。body_json は API 直叩きで書き換えられるため、
+      // 外部ホストの src を許すと閲覧者全員のIP・UA・Referer がその host に渡る
+      // （画像はすべて composer が post-images バケットへ上げたもののはず）
+      const src = attrs(node).src
+      if (typeof src !== 'string' || !isStoragePublicUrl(src)) {
+        warnBody(`配信元が想定外の画像を描画しませんでした: ${String(src)}`)
+        return null
+      }
       const alt = attrs(node).alt
       return (
         <Image
@@ -172,9 +178,6 @@ function renderNode(value: unknown, key: string, depth: number): React.ReactNode
           width={EMBEDDED_IMAGE_WIDTH}
           height={EMBEDDED_IMAGE_HEIGHT}
           sizes="(min-width: 768px) 720px, 100vw"
-          // 自前の Storage 以外のURL（API直叩きで差し込まれた本文など）は最適化を
-          // 通すと Invalid src prop で描画ごと失敗するため、そのまま出す
-          unoptimized={!isStoragePublicUrl(src)}
           className="h-auto w-full"
         />
       )

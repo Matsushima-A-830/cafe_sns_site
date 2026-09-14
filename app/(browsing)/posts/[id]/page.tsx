@@ -22,6 +22,11 @@ import { postIdSchema } from '@/lib/validators/posts'
 
 type PageProps = { params: Promise<{ id: string }> }
 
+/** 写真だけの投稿はタイトルも本文も無いので、作者名で見分けられるようにする */
+function displayTitle(post: PostDetail): string {
+  return postDisplayTitle(post.title, post.bodyJson, `${post.author.displayName}さんの投稿`)
+}
+
 /**
  * 閲覧者のセッションで読む。anon（cookie を読まない）クライアントで先に読む案もあったが、
  * `posts_select` の最後の条件 `not is_blocked_either_way(author_id)` は anon では常に真に
@@ -45,13 +50,14 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const post = await loadPost(id)
   if (!post) return { title: '投稿が見つかりません' }
 
-  const title = postDisplayTitle(post.title, post.bodyJson)
+  const title = displayTitle(post)
   const description = postDescription(post.bodyJson)
   const image = post.images[0]?.url
 
   return {
     title,
-    description,
+    // 写真だけの投稿は本文が無い。空文字の description タグを出さない
+    description: description.length > 0 ? description : undefined,
     openGraph: {
       type: 'article',
       title,
@@ -88,7 +94,7 @@ function PostContent({ post }: { post: PostDetail }) {
           {post.tags.map((tag) => (
             <li key={tag.id}>
               <Link
-                href={`/explore?tag=${tag.slug}`}
+                href={`/explore?tag=${encodeURIComponent(tag.slug)}`}
                 className="inline-block rounded-md bg-muted px-2 py-1 text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
               >
                 #{tag.label}
@@ -114,9 +120,7 @@ export default async function PostDetailPage({ params }: PageProps) {
   if (post.postType === 'blog') {
     return (
       <article className="mx-auto flex w-full max-w-[720px] flex-col gap-6 px-4 py-8">
-        <h1 className="text-3xl font-bold text-foreground">
-          {postDisplayTitle(post.title, post.bodyJson)}
-        </h1>
+        <h1 className="text-3xl font-bold text-foreground">{displayTitle(post)}</h1>
         <PostAuthor author={post.author} publishedAt={post.publishedAt} />
         <PostGallery images={post.images} />
         <PostContent post={post} />
@@ -142,7 +146,7 @@ export default async function PostDetailPage({ params }: PageProps) {
       )}
       <div className={cn('flex w-full flex-col gap-4', hasImages && 'lg:w-96 lg:shrink-0')}>
         {/* 短文投稿にタイトルは無い。見出しの階層を崩さないよう h1 は作者行が兼ねる */}
-        <h1 className="sr-only">{postDisplayTitle(post.title, post.bodyJson)}</h1>
+        <h1 className="sr-only">{displayTitle(post)}</h1>
         <PostAuthor author={post.author} publishedAt={post.publishedAt} />
         <PostContent post={post} />
       </div>

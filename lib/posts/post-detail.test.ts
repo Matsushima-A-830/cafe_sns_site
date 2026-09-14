@@ -65,6 +65,10 @@ describe('postDisplayTitle', () => {
   it('タイトルも本文も無ければ既定の文言を返す', () => {
     expect(postDisplayTitle(null, null)).toBe('投稿')
   })
+
+  it('タイトルも本文も無いとき、渡された代替文言を使う（写真だけの投稿）', () => {
+    expect(postDisplayTitle(null, null, 'かほさんの投稿')).toBe('かほさんの投稿')
+  })
 })
 
 describe('postDescription', () => {

@@ -4,8 +4,8 @@ import { extractPlainText } from '@/lib/validators/posts'
 import type { Database } from '@/types/database'
 
 /**
- * 投稿詳細（S_POST_DETAIL）の読み取り。Server Actions ではなくここに置くのは、
- * このページが ISR（revalidate=300）の Server Component から呼ぶ純粋な読み取りだから。
+ * 投稿詳細（S_POST_DETAIL）の読み取り。Server Actions（書き込み用途）ではなくここに
+ * 置くのは、ページの Server Component から呼ぶ純粋な読み取りだから
  *   docs/architecture/routing.md #URLとスクリーンIDの対応表
  */
 
@@ -71,13 +71,20 @@ function truncate(value: string, max: number): string {
   return value.length > max ? `${value.slice(0, max)}…` : value
 }
 
-/** タイトルが無い短文投稿は本文の冒頭を見出し代わりにする（routing.md メタデータ・OG設計） */
-export function postDisplayTitle(title: string | null, bodyJson: unknown): string {
+/**
+ * タイトルが無い短文投稿は本文の冒頭を見出し代わりにする（routing.md メタデータ・OG設計）。
+ * fallback は本文も空のとき（写真だけの投稿）に使う — 全部同じ文言にならないよう
+ * 呼び出し側が作者名などを渡す
+ */
+export function postDisplayTitle(
+  title: string | null,
+  bodyJson: unknown,
+  fallback = '投稿',
+): string {
   const trimmed = title?.trim()
   if (trimmed) return trimmed
   const plain = postPlainText(bodyJson)
-  // 写真だけの短文投稿は本文が空になり得る
-  return plain.length > 0 ? truncate(plain, TITLE_FALLBACK_LENGTH) : '投稿'
+  return plain.length > 0 ? truncate(plain, TITLE_FALLBACK_LENGTH) : fallback
 }
 
 export function postDescription(bodyJson: unknown): string {

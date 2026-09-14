@@ -2,7 +2,6 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { isStoragePublicUrl } from '@/lib/storage/public-url'
 import { formatPostDate } from '@/lib/utils/format-date'
-import { safeHttpUrl } from '@/lib/utils/safe-url'
 
 /**
  * 作者とその投稿日。フォローボタンはワイヤーにあるが follows への書き込み導線が
@@ -17,8 +16,10 @@ export function PostAuthor({
   publishedAt: string
 }) {
   // avatar_url は profiles に直接書き込める（オンボーディングの Zod は URL 形式しか見ない）。
-  // 危険なスキームや第三者ホストを踏ませないよう、本文画像と同じ検証を通す
-  const avatarUrl = safeHttpUrl(author.avatarUrl)
+  // 本文画像と同じく自前の Storage のものだけを出す。外部ホストを許すと、投稿を開いた
+  // 全員のIP・UA・Referer がその host に渡る
+  const avatarUrl =
+    author.avatarUrl && isStoragePublicUrl(author.avatarUrl) ? author.avatarUrl : null
 
   return (
     <div className="flex items-center gap-3">
@@ -28,7 +29,6 @@ export function PostAuthor({
           alt=""
           width={40}
           height={40}
-          unoptimized={!isStoragePublicUrl(avatarUrl)}
           className="size-10 rounded-full object-cover"
         />
       ) : (

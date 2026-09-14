@@ -1,11 +1,11 @@
 import { env } from '@/lib/env'
 
 /**
- * next/image の最適化対象にできるURLか（＝next.config.ts の remotePatterns に一致するか）。
+ * 自前の Storage が配信する公開URLか（＝next.config.ts の remotePatterns に一致するか）。
  *
- * 一致しないURLを next/image にそのまま渡すと「Invalid src prop」で画面ごと落ちる。
- * 本文JSONやプロフィールのURLは外部から差し込まれ得るため、判定して unoptimized に
- * 逃がす（next/image は使い続ける — CLAUDE.md パフォーマンス「画像は必ず next/image」）
+ * 用途は2つ。1) 外部ホストの画像を描画しない（本文JSONもプロフィールも API 直叩きで
+ * 書き換えられるため、許すと閲覧者のIP・UA・Referer が第三者に渡る）
+ * 2) remotePatterns に一致しないURLを next/image に渡すと Invalid src prop で描画が落ちる
  */
 const PUBLIC_OBJECT_PREFIX = '/storage/v1/object/public/'
 
