@@ -143,8 +143,10 @@
 ```
 
 - 保存形式は Tiptap JSON 単一。Markdown 記法は**入力ショートカット**としてのみ受け付ける（`## ` で見出しになる等）。Markdown テキストとしては保存しない
-- **「プレビュー」は未実装（2026-09-13）。** 投稿詳細（S_POST_DETAIL）の描画実装が先に要るため、
-  描画コンポーネントを共有できるようになってから追加する（[pending-items D21](../../product/pending-items.md)）
+- **「プレビュー」は実装済み（2026-09-14）。** 投稿詳細（S_POST_DETAIL）と同じ描画コンポーネント
+  （`components/features/posts/post-body.tsx`）をダイアログで表示する。
+  編集中・プレビュー・公開後の見た目が同じ定義（`components/features/posts/rich-text.ts`）から生える
+  （[pending-items D21](../../product/pending-items.md)）
 - 自動保存は15秒デバウンスで `drafts` を**上書き**する。バージョン履歴は持たない（[tables.md drafts](../../architecture/data-model/tables.md#drafts) は `UNIQUE (author_id, client_draft_key)` の1行）
 
 ### PC

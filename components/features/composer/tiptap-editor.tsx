@@ -13,6 +13,7 @@ import {
   QuoteIcon,
 } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { RICH_TEXT_CLASS } from '@/components/features/posts/rich-text'
 import { Button } from '@/components/ui/button'
 import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
@@ -56,16 +57,10 @@ export function TiptapEditor({
     content: initialContent,
     editorProps: {
       attributes: {
-        // Tailwind の preflight が見出し・リストの既定スタイルを消すため、
-        // 編集中の見た目を投稿詳細の表示に寄せる最小限をここで当てる
+        // 見出し・リスト等のスタイルは投稿詳細（PostBody）と同じ定義を使う
         class: cn(
           'min-h-64 w-full px-4 py-4 text-base text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring-focus',
-          '[&_h2]:mt-6 [&_h2]:mb-2 [&_h2]:text-2xl [&_h2]:font-bold',
-          '[&_h3]:mt-4 [&_h3]:mb-2 [&_h3]:text-xl [&_h3]:font-bold',
-          '[&_p]:my-2 [&_a]:text-link [&_a]:underline',
-          '[&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-6',
-          '[&_blockquote]:my-2 [&_blockquote]:border-l-4 [&_blockquote]:border-border-default [&_blockquote]:pl-4 [&_blockquote]:text-muted-foreground',
-          '[&_img]:my-4 [&_img]:max-w-full [&_img]:rounded-md',
+          RICH_TEXT_CLASS,
         ),
         'aria-label': '本文',
       },

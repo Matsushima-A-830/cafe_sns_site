@@ -22,9 +22,24 @@ function supabaseImagePattern() {
   }
 }
 
+const LOCAL_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]'])
+
+function isLocalSupabase() {
+  try {
+    return LOCAL_HOSTS.has(new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').hostname)
+  } catch {
+    return false
+  }
+}
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: supabaseImagePattern(),
+    // Next.js 16 は SSRF 対策として private IP からの画像取得を拒否する
+    // （`upstream image ... resolved to private IP`）。ローカル Supabase は 127.0.0.1 なので、
+    // 配信元がローカルのときだけ許可する。NODE_ENV ではなく配信元で判定するのは、
+    // 手元で `pnpm build && pnpm start` した場合も画像を見られるようにするため
+    dangerouslyAllowLocalIP: isLocalSupabase(),
   },
 }
 

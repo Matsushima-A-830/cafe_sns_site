@@ -609,26 +609,40 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **対応判断:** 未定。気分検索（幹A）の運用データが出てから判断する
 - 参照: composer 実装時に判明（2026-09-13）
 
-### D21. S_POST_BLOG の「プレビュー」ボタンが未実装
+### D21. S_POST_BLOG の「プレビュー」ボタンが未実装（解消済み）
 
 - **課題:** ワイヤーフレームにはブログ投稿の「プレビュー」ボタンがあるが、投稿詳細
   （S_POST_DETAIL `/posts/[id]`）の表示実装がまだ無く、プレビューに使う描画側が存在しない。
   composer 側だけ先に作ると Tiptap JSON の描画ロジックが2箇所に分かれる
-- **対応判断:** S_POST_DETAIL の実装時に、描画コンポーネントを共有する形で追加する
-- 参照: composer 実装時にスコープ外と判断（2026-09-13）
+- **解消（2026-09-14）:** S_POST_DETAIL の実装で Tiptap JSON の描画を
+  [`components/features/posts/post-body.tsx`](../../components/features/posts/post-body.tsx)
+  （JSON を再帰的に React 要素へ変換。`generateHTML()` + `dangerouslySetInnerHTML` は使わない）に一本化し、
+  composer のプレビュー（`components/features/composer/preview-dialog.tsx`）も同じものを使う。
+  見出し・リスト等の Tailwind も `components/features/posts/rich-text.ts` に集約し、
+  エディタ（編集中）と表示で同じ定義を共有する
+- 参照: composer 実装時にスコープ外と判断（2026-09-13）→ S_POST_DETAIL 実装で解消（2026-09-14）
 
-### D22. 投稿画像の代替テキスト（alt）を入力する導線が無い
+### D23. `/posts/[id]` が routing.md の想定（ISR 300s）どおりにキャッシュされていない
 
-- **課題:** CLAUDE.md のアクセシビリティ要件は「画像は `alt` 必須」だが、composer には
-  alt を入力するUIが無い。`post_images.alt_text` 列は用意されているのに常に NULL のまま。
-  ブログ本文の埋め込み画像も `alt=''`（装飾扱い）で挿入している
-- **経緯:** 当初は本文埋め込み画像の alt に元ファイル名を入れていたが、
-  `IMG_自宅_20240101.heic` のような名前が公開投稿に残るのは EXIF を剥がしている趣旨と
-  噛み合わないため空にした（2026-09-13）
-- **対応案（未検討）:** a) 画像ごとに1行の alt 入力欄を出す（枚数が多いと摩擦が大きい）
-  b) 任意入力にして未入力は装飾扱い c) 生成AIで下書きを作って編集させる
-- **対応判断:** 未定。MVP のアクセシビリティ検証時にまとめて判断する
-- 参照: composer 実装時に判明（2026-09-13）
+- **課題:** [routing.md](../architecture/routing.md) は S_POST_DETAIL を **ISR (300s)** としていたが、
+  実装は毎リクエストDBを読む SSR になっている（`export const revalidate` は誤解を招くため置いていない）
+- **切り分け（2026-09-14〜15、Next.js 16.3.4 の本番ビルドで実測）:** 検証用ルートを2本作って比較した
+  - `/cache-probe`（静的パス・`revalidate = 300`・cookie を読まない anon 取得）
+    → DBを書き換えても古い値を返し続ける＝**キャッシュされる**
+  - `/cache-probe/[id]`（上と同条件で**動的セグメントのみ違う**）
+    → 書き換えが即反映される＝**キャッシュされない**
+  - 結論: 動的セグメントのルートは `generateStaticParams` が無いと、`revalidate` を置いても
+    フルルートキャッシュに載らない。**加えて**現在の実装は認可のため必ず `await cookies()` を通るので、
+    仮に前者を解決しても静的レンダリングからは外れる（原因は2つあり、どちらか一方では足りない）
+- **認可側の制約（重要）:** `posts_select` の最終条件 `not is_blocked_either_way(author_id)` は
+  `auth.uid()` が null の anon では常に真になる。つまり「公開投稿を anon で静的に描く」と、
+  **ブロックした相手の投稿がブロック中のユーザーにも見える**。ISR 化はキャッシュの話だけでは済まず、
+  ブロック判定をどこで効かせるかとセットで設計する必要がある（`/code-review` の指摘で判明、2026-09-14）
+- **影響:** 公開投稿の TTFB がリクエストごとの DB 往復に引きずられる。表示内容・認可は正しい（実害は速度のみ）
+- **対応案（未検討）:** a) `generateStaticParams` で人気投稿を事前生成し、ブロック判定はクライアント側で
+  落とす b) Next.js 16 の `cacheComponents` + `"use cache"` を有効化して読み取り関数をキャッシュする
+  （設定変更＝スタックに影響するため要相談） c) routing.md 側を SSR に確定させて ISR を諦める
+- 参照: S_POST_DETAIL 実装時に判明（2026-09-14）／原因の切り分けは 2026-09-15
 
 ## 削除・アーカイブ判断待ち
 

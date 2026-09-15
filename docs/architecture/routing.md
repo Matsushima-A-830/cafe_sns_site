@@ -173,7 +173,7 @@ app/
 | S_EXPLORE | `/explore` | ISR (60s) |
 | S_MAP | `/map` | SSR（Client Component主体） |
 | S_SEARCH | `/search` | SSR |
-| S_POST_DETAIL | `/posts/[id]` | ISR (300s) |
+| S_POST_DETAIL | `/posts/[id]` | SSR ※ISR (300s) を想定していたが未達（[pending-items D23](../product/pending-items.md)） |
 | S_CAFE_DETAIL | `/cafes/[id]` | ISR (300s) |
 | S_USER_PROFILE_PUBLIC | `/users/[username]` | ISR (60s) |
 | S_LOGIN | `/login` | SSR |
