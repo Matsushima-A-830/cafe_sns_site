@@ -170,7 +170,7 @@ app/
 | Screen ID | URL | レンダリング |
 |---|---|---|
 | S_HOME / S_MY_HOME | `/` | SSR（認証状態で分岐） |
-| S_EXPLORE | `/explore` | ISR (60s) |
+| S_EXPLORE | `/explore` | SSR ※ISR (60s) を想定していたが、S_POST_DETAIL と同じ理由で断念（[pending-items D23](../product/pending-items.md)） |
 | S_MAP | `/map` | SSR（Client Component主体） |
 | S_SEARCH | `/search` | SSR |
 | S_POST_DETAIL | `/posts/[id]` | SSR ※ISR (300s) を想定していたが未達（[pending-items D23](../product/pending-items.md)） |
