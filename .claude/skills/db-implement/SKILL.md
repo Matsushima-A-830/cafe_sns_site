@@ -1,4 +1,5 @@
 ---
+name: db-implement
 description: DBスキーマ・マイグレーション・RLSポリシー実装。テーブル追加、列変更、インデックス、Postgres関数、seedデータを扱う。
 ---
 
@@ -7,8 +8,8 @@ description: DBスキーマ・マイグレーション・RLSポリシー実装�
 ## 起動時に必ずやること
 
 1. **設計ドキュメント確認:**
-   - [docs/architecture/data-model/README.md](../../docs/architecture/data-model/README.md) — 全体方針・RLS原則
-   - [docs/architecture/data-model/tables.md](../../docs/architecture/data-model/tables.md) — 対象テーブルの列・制約
+   - [docs/architecture/data-model/README.md](../../../docs/architecture/data-model/README.md) — 全体方針・RLS原則
+   - [docs/architecture/data-model/tables.md](../../../docs/architecture/data-model/tables.md) — 対象テーブルの列・制約
 2. **既存マイグレーション確認:** `supabase/migrations/` を Grep で見て命名規則・パターンを踏襲
 3. **必要な拡張の確認:** `citext`, `pgcrypto`, `PostGIS`, `pg_trgm` などが有効化されているか
 4. **`/test` を先に呼ぶ** — 統合テストでRLS検証を書く
@@ -285,7 +286,8 @@ pnpm db:diff           # ローカルと本番の差分確認
 - [ ] `pnpm db:reset` が通る
 - [ ] `pnpm db:types` を実行して型を再生成した
 - [ ] 統合テストで RLS の境界を確認した
-- [ ] `/code-review` を実行
+- [ ] `/self-review` を実行
+- [ ] `/board-update` で実装状況ボードを更新
 
 ## やらないこと
 

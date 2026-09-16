@@ -160,7 +160,7 @@ feat: 気分入り口をS_HOMEに追加
 
 ## セルフレビュー完了
 
-- [ ] `/code-review` 実施
+- [ ] `/self-review` 実施
 - [ ] デザインシステム遵守（余白8倍数・brown系・#000なし）
 - [ ] ユビキタス言語遵守（glossary.md）
 - [ ] エラーコードは error-catalog.md 準拠

@@ -1,4 +1,5 @@
 ---
+name: test
 description: TDDワークフローとテスト設計を指南する。新機能実装前、リファクタ前、複雑なロジック実装時に使う。
 ---
 
@@ -11,7 +12,7 @@ description: TDDワークフローとテスト設計を指南する。新機能�
    - UIコンポーネント（ピクセルいじり・スタイル） → **テスト後付け可**
    - E2Eフロー（複数画面をまたぐ） → **Playwright先行 or 実装後**
 2. **既存テストの確認:** 変更対象の既存テストを `Grep` で探す。命名は `*.test.ts` `*.spec.ts`
-3. **ドキュメント参照:** [docs/architecture/data-model/tables.md](../../docs/architecture/data-model/tables.md) の RLS ポリシーとバリデーションルールを確認
+3. **ドキュメント参照:** [docs/architecture/data-model/tables.md](../../../docs/architecture/data-model/tables.md) の RLS ポリシーとバリデーションルールを確認
 
 ## Red-Green-Refactor サイクル
 
