@@ -106,8 +106,6 @@
     position: absolute;
     top: 0;
     left: 0;
-    width: 4600px;
-    height: 3600px;
     transform-origin: 0 0;
   }
 
@@ -115,7 +113,7 @@
 
   .node { position: absolute; box-sizing: border-box; }
 
-  /* ---- frames (FigJam sections) ---- */
+  /* ---- frames (FigJam のセクション) ---- */
   .frame {
     background: var(--frame);
     border: 2px solid var(--frame-edge);
@@ -147,7 +145,7 @@
 
   .stack { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
 
-  /* ---- sticky notes ---- */
+  /* ---- 付箋 ---- */
   .sticky {
     width: 236px;
     box-sizing: border-box;
@@ -156,10 +154,8 @@
     background: var(--paper);
     box-shadow: var(--shadow);
     border-top: 5px solid var(--todo);
-    transition: opacity .18s ease, transform .18s ease;
+    transition: opacity .18s ease;
   }
-  .sticky.wide { width: 320px; }
-  .sticky.full { width: 100%; }
   .sticky .tag {
     display: inline-block;
     font-family: var(--font-mono);
@@ -185,7 +181,6 @@
     line-height: 1.65;
     color: var(--ink-soft);
   }
-  .sticky p + p { margin-top: 6px; }
   .sticky .why {
     display: block;
     margin-top: 8px;
@@ -202,7 +197,7 @@
   .sticky[data-status="future"]  { border-top-color: var(--future);  background: var(--future-bg); }
   .sticky.dim { opacity: .14; }
 
-  /* ---- header card ---- */
+  /* ---- 見出しカード ---- */
   .titlecard { background: var(--ink); color: var(--ground); border-radius: 18px; padding: 32px 34px; box-shadow: var(--shadow-frame); }
   .titlecard .eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .18em; opacity: .7; margin: 0 0 14px; }
   .titlecard h1 { font-family: var(--font-display); font-weight: 900; font-size: 46px; line-height: 1.2; margin: 0 0 6px; text-wrap: balance; }
@@ -210,16 +205,21 @@
   .titlecard p { font-size: 13.5px; line-height: 1.8; margin: 0; opacity: .8; max-width: 60ch; }
   .titlecard .stamp { font-family: var(--font-mono); font-size: 12px; margin-top: 20px; opacity: .6; }
 
-  /* ---- plain cards ---- */
+  /* ---- 通常カード ---- */
   .card { background: var(--frame); border: 2px solid var(--frame-edge); border-radius: 14px; padding: 22px 22px 24px; box-shadow: var(--shadow-frame); }
   .card h2 { font-family: var(--font-display); font-size: 18px; font-weight: 900; margin: 0 0 14px; }
   .legend-row { display: flex; gap: 10px; align-items: flex-start; padding: 8px 6px; border-radius: 8px; border: 0; background: none; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
   .legend-row:hover { background: var(--rail); }
-  .legend-row .swatch { width: 18px; height: 18px; border-radius: 3px; flex: none; margin-top: 2px; box-shadow: inset 0 0 0 2px rgba(46,28,18,.12); }
+  .legend-row .swatch { width: 18px; height: 18px; border-radius: 3px; flex: none; margin-top: 2px; }
   .legend-row b { font-family: var(--font-display); font-size: 14px; display: block; }
   .legend-row span { font-size: 12px; color: var(--ink-soft); line-height: 1.55; }
   .legend-row[aria-pressed="true"] { background: var(--rail); box-shadow: inset 0 0 0 2px var(--accent); }
   .legend-hint { font-size: 11.5px; color: var(--ink-faint); margin: 12px 2px 0; line-height: 1.6; }
+  .sw-done    { background: var(--done-bg);    box-shadow: inset 0 0 0 3px var(--done); }
+  .sw-partial { background: var(--partial-bg); box-shadow: inset 0 0 0 3px var(--partial); }
+  .sw-todo    { background: var(--todo-bg);    box-shadow: inset 0 0 0 3px var(--todo); }
+  .sw-risk    { background: var(--risk-bg);    box-shadow: inset 0 0 0 3px var(--risk); }
+  .sw-future  { background: var(--future-bg);  box-shadow: inset 0 0 0 3px var(--future); }
 
   .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
   .tile { background: var(--frame); border: 2px solid var(--frame-edge); border-radius: 14px; padding: 20px; box-shadow: var(--shadow-frame); }
@@ -229,8 +229,13 @@
   .tile .n { font-size: 12px; color: var(--ink-soft); margin-top: 6px; line-height: 1.55; }
   .meter { height: 7px; border-radius: 4px; background: var(--rail); margin-top: 12px; overflow: hidden; }
   .meter i { display: block; height: 100%; background: var(--accent); }
+  .m0 { width: 0 } .m5 { width: 5% } .m10 { width: 10% } .m15 { width: 15% } .m20 { width: 20% }
+  .m25 { width: 25% } .m30 { width: 30% } .m35 { width: 35% } .m40 { width: 40% } .m45 { width: 45% }
+  .m50 { width: 50% } .m55 { width: 55% } .m60 { width: 60% } .m65 { width: 65% } .m70 { width: 70% }
+  .m75 { width: 75% } .m80 { width: 80% } .m85 { width: 85% } .m90 { width: 90% } .m95 { width: 95% }
+  .m100 { width: 100% }
 
-  /* ---- horizon lanes ---- */
+  /* ---- ホライズンのレーン ---- */
   .lanes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: start; }
   .lane { border: 2px dashed var(--frame-edge); border-radius: 14px; padding: 18px; background: var(--rail); }
   .lane > h3 { font-family: var(--font-display); font-weight: 900; font-size: 19px; margin: 0 0 2px; }
@@ -258,14 +263,14 @@
   .chip.end { background: var(--paper); border-style: dashed; }
   .arrow { color: var(--ink-faint); font-size: 13px; }
 
-  /* ---- wires ---- */
+  /* ---- コネクタ ---- */
   .wire { fill: none; stroke: var(--ink-faint); stroke-width: 2.5; stroke-dasharray: 9 7; opacity: .7; }
   .wire-label {
     font-family: var(--font-mono); font-size: 13px; fill: var(--ink-soft);
     paint-order: stroke; stroke: var(--ground); stroke-width: 7px; stroke-linejoin: round;
   }
 
-  /* ---- toolbar ---- */
+  /* ---- ツールバー ---- */
   #toolbar {
     position: fixed; right: 20px; bottom: 20px; z-index: 5;
     display: flex; gap: 6px; align-items: center;
@@ -288,9 +293,20 @@
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
+<!--
+  ┌───────────────────────────────────────────────────────────────────────┐
+  │ このファイルの触り方                                                   │
+  │                                                                       │
+  │ 内容はすべて下の <script id="board-data"> の JSON にある。            │
+  │ 実装が進んだときに書き換えるのは JSON だけ。描画コードは触らない。      │
+  │ 手順とルールは .claude/skills/board-update/SKILL.md（/board-update）。 │
+  │ 指標の数値は `bash scripts/board-stats.sh` の出力をそのまま使う。      │
+  └───────────────────────────────────────────────────────────────────────┘
+-->
+
 <div id="viewport">
   <div id="world">
-    <svg id="wires" viewBox="0 0 4600 3600" preserveAspectRatio="none" aria-hidden="true">
+    <svg id="wires" aria-hidden="true">
       <defs>
         <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M0 0 L10 5 L0 10 z" fill="var(--ink-faint)"></path>
@@ -311,378 +327,450 @@
   <button type="button" id="reset">絞り込み解除</button>
 </div>
 
+<script id="board-data" type="application/json">
+{
+  "meta": {
+    "eyebrow": "CAFE SNS / IMPLEMENTATION BOARD",
+    "headline": "気分で見つかる、<br>行きつけと繋がる",
+    "sub": "いま立っているもの と これから立てるもの",
+    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローする」までの一本。反応（いいね・コメント・保存）、店（カフェ詳細・地図）、オーナー側は、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
+    "updatedAt": "2026-09-16",
+    "ref": "branch: docs/implementation-board"
+  },
+
+  "metrics": [
+    { "k": "SCREENS", "v": "16", "unit": "/ 37", "note": "ワイヤー37画面のうち、画面IDコメント付きの page.tsx があるもの", "ratio": 43 },
+    { "k": "TABLES", "v": "15", "unit": "/ 27", "note": "tables.md の27テーブル中、マイグレーション済み", "ratio": 55 },
+    { "k": "MIGRATIONS", "v": "30", "unit": "", "note": "RLSポリシー込み。forward-only 運用", "ratio": null },
+    { "k": "TESTS", "v": "49", "unit": " files", "note": "unit / RLS統合19本 / E2E 2本。統合はCI未実行", "ratio": null }
+  ],
+
+  "sections": [
+    {
+      "kind": "title", "row": 0, "x": 80, "w": 1180
+    },
+    {
+      "kind": "legend", "row": 0, "x": 1340, "w": 520
+    },
+    {
+      "kind": "metrics", "row": 0, "x": 1940, "w": 1400
+    },
+    {
+      "kind": "list", "row": 0, "x": 3420, "w": 900,
+      "title": "このボードの出典",
+      "items": [
+        "<b>コード</b> — app / lib / components / supabase/migrations の実ファイル",
+        "<b>戦略</b> — docs/product/positioning.md（幹A・幹C）",
+        "<b>範囲</b> — docs/product/mvp-scope.md",
+        "<b>穴の記録</b> — docs/product/pending-items.md（A / B / C / D）",
+        "<b>画面</b> — docs/design/wireframes/README.md の37画面インデックス",
+        "<b>更新</b> — 実装のたびに <code>/board-update</code>（指標は scripts/board-stats.sh）"
+      ]
+    },
+
+    {
+      "kind": "frame", "id": "f-now", "row": 1, "x": 80, "w": 1600,
+      "title": "① いま動く導線",
+      "tally": "auto",
+      "lede": "縦切りで通っているのは「サインアップ → オンボーディング → 気分で探す → 書く → フォローする」。投稿を読むところまでは出来ていて、投稿に<strong>反応する</strong>ところが丸ごと空いている。",
+      "notes": [
+        { "status": "done", "tag": "S_SIGNUP ×3 / S_MINOR_CONSENT", "title": "年齢ゲート付きサインアップ",
+          "body": "メール+パスワード。生年月日必須で13歳未満はブロック、13〜17歳は保護者同意フローへ。",
+          "why": "同意メールの送信基盤は未整備（B3）" },
+        { "status": "done", "tag": "S_LOGIN / middleware", "title": "権限ゲート",
+          "body": "guest / pending / suspended / onboarding / user を middleware の1箇所で判定。ページ側に認可を書かない。" },
+        { "status": "done", "tag": "S_ONBOARD_PROFILE / AREA / INTERESTS", "title": "オンボーディング3段",
+          "body": "ホームエリアと「好きな気分」を必ず選ばせる。幹Aの前提データがここで貯まる。" },
+        { "status": "done", "tag": "S_ACCOUNT_PENDING / SUSPENDED", "title": "停止・同意待ちの受け皿",
+          "body": "行き止まりの画面を先に用意してある。" },
+        { "status": "partial", "tag": "S_HOME", "title": "気分入り口つきホーム",
+          "body": "最上部が「今、どんなカフェ気分？」。フォロー中 / おすすめのタブ切替、PCは3カラム。",
+          "why": "サイドナビはホーム・発見・投稿の3項目だけ。検索/通知アイコン・ボトムナビは遷移先が無いので出していない（D27）" },
+        { "status": "partial", "tag": "S_EXPLORE", "title": "発見タブ",
+          "body": "「おすすめ」「新着」の2サブタブ。おすすめ＝興味タグに1つでも一致する公開投稿を新着順。",
+          "why": "「近くのカフェ」は地図・座標が未整備のためタブごと非表示（D25）／スコアリング無し（D24）" },
+        { "status": "partial", "tag": "S_POST_DETAIL", "title": "投稿詳細",
+          "body": "SSR。非公開・ブロック関係は存在自体を隠して404。",
+          "why": "いいね / コメント / 保存のアクション行が無い（テーブル未作成）" },
+        { "status": "partial", "tag": "S_USER_PROFILE_PUBLIC", "title": "他人のプロフィール",
+          "body": "アバター・表示名・bio・3カウント・フォローボタン・投稿グリッド。",
+          "why": "バッジ・行きつけタブ・通報メニューは対応テーブルが無く非表示（D28）" },
+        { "status": "done", "tag": "S_POST_SHORT / S_POST_BLOG", "title": "composer",
+          "body": "Tiptap（JSON保存）、画像アップロード、カフェ選択、厳選タグ、公開範囲、15秒デバウンスの下書き自動保存、プレビュー。" },
+        { "status": "done", "tag": "S_POST_SUCCESS", "title": "投稿完了",
+          "body": "ピークエンド則の着地点。/new は形式選択シート。" },
+        { "status": "done", "tag": "follows", "title": "フォロー",
+          "body": "楽観更新つきフォローボタン。ブロック済み相手・停止アカウントは INSERT 時に弾く。" },
+        { "status": "done", "tag": "_actions", "title": "Server Actions 7本",
+          "body": "auth / onboarding / posts / drafts / feed / follows / cafes。入力は全て Zod、返りは Result 型。" }
+      ]
+    },
+
+    {
+      "kind": "frame", "id": "f-base", "row": 1, "x": 1740, "w": 1180,
+      "title": "② 足場（DB・認可・ツーリング）",
+      "tally": "MIGRATIONS 30",
+      "lede": "認可はアプリ層に書かず RLS に寄せてある。ここが厚いぶん、画面は後から速く積める。",
+      "notes": [
+        { "status": "done", "tag": "15 tables", "title": "実装済みテーブル",
+          "body": "areas / tags / badges / profiles / user_settings / user_interest_tags / follows / blocks / cafes / cafe_business_hours / cafe_congestion_reports / posts / post_images / post_tags / drafts" },
+        { "status": "done", "tag": "RLS", "title": "認可は全部ポリシー側",
+          "body": "is_active_user / is_blocked_either_way / is_admin を共通関数化。JWTカスタムクレイムに role と status を載せる。" },
+        { "status": "done", "tag": "RPC", "title": "reservePost → upload → finalize_post",
+          "body": "「投稿行が無いと画像を置けない／画像が無いと投稿できない」の循環依存を、hidden で予約してから確定する形で解消。" },
+        { "status": "done", "tag": "storage", "title": "post-images バケット",
+          "body": "署名付きURLで直PUT。lib/storage/ のラッパー越しにしか触らない（将来のS3移行のため）。" },
+        { "status": "done", "tag": "search", "title": "simple tsvector + pg_trgm",
+          "body": "日本語の部分一致は pg_trgm が主役。pgroonga は採らない。" },
+        { "status": "done", "tag": "seed", "title": "マスタ初期セット",
+          "body": "厳選タグ30 / 東京45エリア / バッジ20の定義。バッジは<strong>マスタのみ</strong>で付与側は無い。" },
+        { "status": "done", "tag": "CI", "title": "Biome + tsc + design-system 検査",
+          "body": "#000禁止・インラインstyle禁止・非8倍数余白の検出を pre-commit と CI の両方で走らせる。" },
+        { "status": "partial", "tag": "tests", "title": "テスト49ファイル",
+          "body": "RLS統合テスト19本は Supabase local 前提でローカル実行のみ。",
+          "why": "CIで動いていない（D10）" }
+      ]
+    },
+
+    {
+      "kind": "frame", "id": "f-todo", "row": 1, "x": 2980, "w": 1340,
+      "title": "③ まだ存在しない画面",
+      "tally": "SCREENS 21 / TABLES 12",
+      "lede": "未実装の大半は「テーブルが無いから画面も無い」。逆に言えば、テーブルを1つ足すたびに複数画面が開く。",
+      "notes": [
+        { "status": "todo", "tag": "likes / comments / post_bookmarks", "title": "投稿への反応",
+          "body": "投稿カードのアクション行、コメント欄、保存。SNSとして最も効く欠落。" },
+        { "status": "todo", "tag": "S_CAFE_DETAIL / S_CAFE_NEW", "title": "カフェの面",
+          "body": "cafes テーブルはあるのに、店を見る画面と登録する画面が無い。営業時間・混雑度も置き場だけの状態。" },
+        { "status": "todo", "tag": "S_MAP / S_SEARCH / S_FILTER_*", "title": "探す面",
+          "body": "地図は areas.center_location の座標45件が未収集（A3）。タグ検索も未着手。" },
+        { "status": "todo", "tag": "S_MYPAGE ほか mypage 10画面", "title": "自分の面",
+          "body": "マイページ / プロフィール編集 / お気に入り / 行きたい / 保存 / 下書き一覧 / バッジ / 通知 / 設定 / ブロック管理。" },
+        { "status": "todo", "tag": "reports / ng_words", "title": "通報・モデレーション",
+          "body": "S_REPORT_FORM と admin 側の審査キュー。若年層向けサービスの前提条件。" },
+        { "status": "todo", "tag": "owner 6画面 + S_POST_OFFICIAL", "title": "オーナーの面",
+          "body": "認証申請 / 審査中 / ダッシュボード / 店舗編集 / 投稿分析 / 常連認定。幹Cはここが入口。" },
+        { "status": "todo", "tag": "user_badges / area_visits", "title": "ゲーミフィケーション",
+          "body": "バッジ付与とエリア制覇マップ。定義20件は seed 済みで、貯める側が空。" },
+        { "status": "todo", "tag": "notifications", "title": "通知",
+          "body": "返報性（いいねへの通知）を設計に入れているが、器が無い。Web Push は MVP 見送り（B7）。" }
+      ]
+    },
+
+    {
+      "kind": "frame", "id": "f-core", "row": 2, "x": 80, "w": 1600,
+      "title": "④ 差別化の到達度",
+      "tally": "auto",
+      "lede": "positioning.md の判断基準は「幹A（気分検索）か幹C（オーナー連携）を強化するか」。現在地を素直に置くと、<strong>幹Aの入口だけが立ち、幹Cは1行も無い</strong>。",
+      "notes": [
+        { "status": "done", "tag": "幹A-1", "title": "トップの気分入り口",
+          "body": "S_HOME 最上部が「今、どんなカフェ気分？」から始まる。Instagram型のフォロー起点にしていない。" },
+        { "status": "done", "tag": "幹A-2", "title": "シーンタグの第一級化",
+          "body": "tags.category='occasion' を優先表示。エリアは絞り込みに格下げ済み。" },
+        { "status": "done", "tag": "幹A-5", "title": "オンボーディングで気分必須",
+          "body": "スキップ不可。user_interest_tags に保存。" },
+        { "status": "partial", "tag": "幹A-3", "title": "シーン別レコメンド",
+          "body": "「おすすめ」は興味タグの単純一致＋新着順。",
+          "why": "人気度スコアは likes / post_bookmarks が無く書けない（D24）" },
+        { "status": "todo", "tag": "幹A-4", "title": "シーン開拓バッジ",
+          "body": "朝カフェマスター等。定義はあるが付与の仕組みが無い。" },
+        { "status": "todo", "tag": "幹C-1", "title": "オーナー認証バッジ",
+          "body": "cafe_owner_verifications 未作成。書類2点以上の審査フローも未実装。" },
+        { "status": "todo", "tag": "幹C-2", "title": "オーナー限定投稿4フォーマット",
+          "body": "豆知識 / 今日のおすすめ / 臨時休業 / 新メニュー。" },
+        { "status": "todo", "tag": "幹C-3", "title": "常連認定 と 行きつけ",
+          "body": "regular_customers 未作成。プロフィールの「行きつけ」タブもこれ待ち。" },
+        { "status": "todo", "tag": "幹C-4", "title": "オーナー公式返信",
+          "body": "comments が無いため、その先の「公式として区別表示」も未着手。" },
+        { "status": "todo", "tag": "幹C-5", "title": "常連分析",
+          "body": "ダッシュボードの分析面。蓄積データが先。" }
+      ]
+    },
+
+    {
+      "kind": "frame", "id": "f-risk", "row": 2, "x": 1740, "w": 1180,
+      "title": "⑤ 既知の穴",
+      "tally": "pending-items より",
+      "lede": "隠していない未決事項。優先度と一緒に記録してあるものを、効きが強い順に並べた。",
+      "notes": [
+        { "status": "risk", "tag": "A10", "title": "EXIF除去がクライアント任せ",
+          "body": "署名付きURLで直PUTするため、サーバ側で位置情報の除去を強制できない。若年層の安全に直結する。" },
+        { "status": "risk", "tag": "D23", "title": "閲覧系がキャッシュに載らない",
+          "body": "動的セグメント＋cookie 参照で ISR から外れる。加えて anon で静的に描くとブロック関係が効かない。速度と認可がセットの問題。" },
+        { "status": "risk", "tag": "D29", "title": "停止・削除ユーザーの投稿が残る",
+          "body": "プロフィールは404になるが、posts_select が作者の status を見ないためフィードには残り続ける。" },
+        { "status": "risk", "tag": "A1", "title": "Safari 未検証",
+          "body": "MVP期間中は非対応としているが、メインターゲットの10〜20代はiPhone比率が高い。リリース前に集中検証が要る。" },
+        { "status": "risk", "tag": "D19", "title": "finalize されない hidden 投稿",
+          "body": "予約だけして離脱した行の掃除方針が未定。pg_cron が Free で使えない制約とセット。" },
+        { "status": "risk", "tag": "D15 / D16", "title": "署名URLの TOCTOU とレート制限",
+          "body": "枚数チェックに競合の余地があり、発行回数の上限も無い。" },
+        { "status": "risk", "tag": "A3", "title": "エリア座標45件が未収集",
+          "body": "S_MAP・現在地検索・エリア自動判定を止めている唯一の残データ。" },
+        { "status": "risk", "tag": "D26", "title": "ページ送りが「もっと見る」",
+          "body": "クエリは keyset カーソルなのでUIだけ差し替えれば無限スクロールに移行できる。" }
+      ]
+    },
+
+    {
+      "kind": "chain", "id": "f-chain", "row": 2, "x": 2980, "w": 1340,
+      "title": "⑥ 依存の連鎖",
+      "tally": "1テーブル → 複数画面",
+      "lede": "左が未作成テーブル、右がそれで開く体験。着手順を決めるときはこの左端を見る。",
+      "chains": [
+        { "src": "likes / comments / post_bookmarks", "outs": ["投稿カードのアクション行", "S_POST_DETAIL 完成", "S_BOOKMARKS"] },
+        { "src": "user_cafe_lists", "outs": ["お気に入り / 行きたい", "4カードショートカット", "S_MYPAGE"] },
+        { "src": "cafe_owner_verifications", "outs": ["オーナー認証バッジ", "owner 6画面", "幹C の起点"] },
+        { "src": "regular_customers", "outs": ["常連認定", "「私の行きつけ」タブ", "常連分析"] },
+        { "src": "reports / ng_words", "outs": ["S_REPORT_FORM", "admin 審査キュー", "公開に必要な安全ライン"] },
+        { "src": "user_badges / area_visits", "outs": ["バッジ獲得", "エリア制覇マップ", "シーン開拓バッジ＝幹A-4"] },
+        { "src": "notifications", "outs": ["通知画面", "いいねへの返報性導線"] },
+        { "src": "areas.center_location（データ）", "outs": ["S_MAP", "近くのカフェ", "エリア自動判定"] }
+      ]
+    },
+
+    {
+      "kind": "lanes", "id": "f-future", "row": 3, "x": 80, "w": 4240,
+      "title": "⑦ 理想への道筋",
+      "tally": "NOW → RELEASE → PHASE 2",
+      "lede": "順番には意味がある。H1は「反応が無いSNS」を終わらせる順、H2は公開に耐える品質、H3はPMFが見えてから。",
+      "lanes": [
+        {
+          "title": "H1 — MVP機能を閉じる", "when": "NEXT / 着手順",
+          "notes": [
+            { "status": "future", "tag": "1st", "title": "反応を実装する",
+              "body": "likes → comments → post_bookmarks。ここが入ると投稿カード・投稿詳細・保存が同時に完成し、おすすめの人気度スコア（D24）も書けるようになる。" },
+            { "status": "future", "tag": "2nd", "title": "店の面を開く",
+              "body": "S_CAFE_DETAIL / S_CAFE_NEW / user_cafe_lists。カフェSNSなのに店のページが無い状態を解消する。" },
+            { "status": "future", "tag": "3rd", "title": "自分の面を開く",
+              "body": "S_MYPAGE と4カードショートカット（お気に入り・行きたい・保存・下書き）+ 設定 + 通知。" },
+            { "status": "future", "tag": "4th", "title": "安全ラインを引く",
+              "body": "reports / ng_words / ブロック解除導線 / admin 審査キュー。若年層向けサービスとして公開の前提条件。" },
+            { "status": "future", "tag": "5th", "title": "幹Cを起こす",
+              "body": "オーナー認証 → ダッシュボード → オーナー限定投稿 → 常連認定。差別化の半分がここから始まる。" },
+            { "status": "future", "tag": "6th", "title": "地図",
+              "body": "座標45件を収集して S_MAP と「近くのカフェ」を戻す。" }
+          ]
+        },
+        {
+          "title": "H2 — 公開に耐える状態へ", "when": "BEFORE RELEASE",
+          "notes": [
+            { "status": "future", "tag": "safari", "title": "Safari 集中検証",
+              "body": "-webkit- / 100vh / date input / backdrop-filter。実機込みで通す（A1）。" },
+            { "status": "future", "tag": "perf", "title": "キャッシュ方針の決着",
+              "body": "generateStaticParams か cacheComponents か、SSR確定か。ブロック判定をどこで効かせるかとセットで決める（D23）。LCP<2.5s / INP<200ms を計測して守る。" },
+            { "status": "future", "tag": "sec", "title": "EXIF除去をサーバ側で強制",
+              "body": "クライアント信頼をやめる（A10）。署名URLのレート制限とTOCTOUも同時に塞ぐ。" },
+            { "status": "future", "tag": "ops", "title": "RLS統合テストをCIへ",
+              "body": "認可の正しさが手元実行頼みになっている状態を終わらせる（D10）。" },
+            { "status": "future", "tag": "infra", "title": "本番AWS構成を確定",
+              "body": "Vercel先行 → AWS。画像は Supabase Storage → S3 + CloudFront（A5 / C1）。費用アラートも。" },
+            { "status": "future", "tag": "legal", "title": "法務・運用の整備",
+              "body": "利用規約 / プライバシーポリシー / 特商法表記 / 削除依頼窓口 / モデレーションフロー。" }
+          ]
+        },
+        {
+          "title": "H3 — 幹を太らせる", "when": "AFTER PMF",
+          "notes": [
+            { "status": "future", "tag": "幹A+", "title": "気分の解像度を上げる",
+              "body": "人気度・鮮度・タグ一致の重み付けスコア、「同じ気分の人が保存したカフェ」、シーン開拓バッジ。データが貯まってから効く施策。" },
+            { "status": "future", "tag": "幹C+", "title": "常連エコシステム",
+              "body": "常連数の推移と投稿パターン分析、行きつけの可視化。オーナーが継続来店を実感できるところまで。" },
+            { "status": "future", "tag": "幹B", "title": "コミュニティ / オフライン",
+              "body": "朝活カフェ部などの趣味グループ、カフェ巡り会、チェックイン、似た好みのマッチング。MVP後に検討（C5）。" },
+            { "status": "future", "tag": "behavior", "title": "行動経済学の第2弾",
+              "body": "社会的証明（今週◯人が保存）・希少性・アンカリング。いずれもデータ蓄積が前提で、先に入れても嘘になる。" },
+            { "status": "future", "tag": "platform", "title": "アプリ化と収益化",
+              "body": "技術選定（C2）と収益化フラグ（C3）。ブラウザ版の手応えを見てから。" },
+            { "status": "future", "tag": "guard", "title": "やらないことを守る",
+              "body": "DM・ストーリーズ・映えフィルタ・ショップ誘導は入れない。Instagramでもできる機能は3問を通してから。" }
+          ]
+        }
+      ]
+    }
+  ],
+
+  "wires": [
+    { "from": "f-base", "to": "f-now", "label": "RLSが認可を全部持つ" },
+    { "from": "f-todo", "to": "f-chain", "label": "テーブルが無い＝画面が無い" },
+    { "from": "f-now", "to": "f-core", "label": "立っているのは幹Aの入口だけ" },
+    { "from": "f-risk", "to": "f-future", "label": "穴はH2で返済する" }
+  ]
+}
+</script>
+
 <script>
 (function () {
   "use strict";
 
-  var GAP = 120;
+  var DATA = JSON.parse(document.getElementById("board-data").textContent);
+  var ROW_GAP = 120;
 
-  function sticky(status, tag, title, body, why) {
-    var w = why ? '<span class="why">' + why + "</span>" : "";
-    var b = body ? "<p>" + body + "</p>" : "";
-    var t = tag ? '<span class="tag">' + tag + "</span>" : "";
-    return '<div class="sticky" data-status="' + status + '">' + t + "<h3>" + title + "</h3>" + b + w + "</div>";
+  var STATUS_LABELS = [
+    ["done", "実装済み", "設計どおり動いている"],
+    ["partial", "部分実装", "画面はあるが要素が欠けている"],
+    ["todo", "未着手", "ルートもテーブルも無い"],
+    ["risk", "未決 / リスク", "pending-items に記録済みの穴"],
+    ["future", "将来の理想", "MVP後に取りにいくもの"]
+  ];
+
+  function sticky(n) {
+    return '<div class="sticky" data-status="' + n.status + '">' +
+      (n.tag ? '<span class="tag">' + n.tag + "</span>" : "") +
+      "<h3>" + n.title + "</h3>" +
+      (n.body ? "<p>" + n.body + "</p>" : "") +
+      (n.why ? '<span class="why">' + n.why + "</span>" : "") +
+      "</div>";
   }
 
-  function frame(opts) {
-    return (
-      "<header><h2>" + opts.title + "</h2>" +
-      (opts.tally ? '<span class="tally">' + opts.tally + "</span>" : "") +
-      "</header>" +
-      (opts.lede ? '<p class="lede">' + opts.lede + "</p>" : "") +
-      '<div class="stack">' + opts.notes.join("") + "</div>"
-    );
+  // tally が "auto" のときは付箋の色から数える（手で数えると必ずズレるため）
+  function autoTally(s) {
+    var count = {};
+    (s.notes || []).forEach(function (n) { count[n.status] = (count[n.status] || 0) + 1; });
+    return STATUS_LABELS
+      .filter(function (l) { return count[l[0]]; })
+      .map(function (l) { return l[0].toUpperCase() + " " + count[l[0]]; })
+      .join(" / ");
   }
 
-  var nodes = [];
-  function node(row, x, w, cls, html, id) {
-    nodes.push({ row: row, x: x, w: w, cls: cls, html: html, id: id || "" });
+  function header(s) {
+    var tally = s.tally === "auto" ? autoTally(s) : s.tally;
+    return "<header><h2>" + s.title + "</h2>" +
+      (tally ? '<span class="tally">' + tally + "</span>" : "") + "</header>" +
+      (s.lede ? '<p class="lede">' + s.lede + "</p>" : "");
   }
 
-  /* ========== row 0: 見出し・凡例・指標・出典 ========== */
-
-  node(0, 80, 1180, "titlecard",
-    '<p class="eyebrow">CAFE SNS / IMPLEMENTATION BOARD</p>' +
-    "<h1>気分で見つかる、<br>行きつけと繋がる</h1>" +
-    '<p class="sub">いま立っているもの と これから立てるもの</p>' +
-    "<p>いま動くのは「登録して、気分で探して、書いて、人をフォローする」までの一本。" +
-    "反応（いいね・コメント・保存）、店（カフェ詳細・地図）、オーナー側は、まだ1行も存在しない。" +
-    "このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。</p>" +
-    '<p class="stamp">2026-09-16 時点 / branch: feature/user-profile-follow</p>');
-
-  node(0, 1340, 520, "card",
-    "<h2>付箋の色</h2>" +
-    '<div id="legend">' +
-    legendRow("done", "実装済み", "設計どおり動いている") +
-    legendRow("partial", "部分実装", "画面はあるが要素が欠けている") +
-    legendRow("todo", "未着手", "ルートもテーブルも無い") +
-    legendRow("risk", "未決 / リスク", "pending-items に記録済みの穴") +
-    legendRow("future", "将来の理想", "MVP後に取りにいくもの") +
-    "</div>" +
-    '<p class="legend-hint">クリックでその色だけを残す。もう一度クリックで解除。</p>', "legend-card");
-
-  node(0, 1940, 1400, "tiles",
-    tile("SCREENS", "16", "/ 37", "ワイヤー37画面のうち、page.tsx が存在するもの", 16 / 37) +
-    tile("TABLES", "15", "/ 27", "tables.md の27テーブル中、マイグレーション済み", 15 / 27) +
-    tile("MIGRATIONS", "30", "", "RLSポリシー込み。forward-only 運用", null) +
-    tile("TESTS", "49", " files", "unit / RLS統合19本 / E2E 2本。統合はCI未実行", null));
-
-  node(0, 3420, 900, "card",
-    "<h2>このボードの出典</h2>" +
-    '<ul class="steps">' +
-    "<li><b>コード</b> — app / lib / components / supabase/migrations の実ファイル</li>" +
-    "<li><b>戦略</b> — docs/product/positioning.md（幹A・幹C）</li>" +
-    "<li><b>範囲</b> — docs/product/mvp-scope.md</li>" +
-    "<li><b>穴の記録</b> — docs/product/pending-items.md（A / B / C / D）</li>" +
-    "<li><b>画面</b> — docs/design/wireframes/README.md の37画面インデックス</li>" +
-    "</ul>");
-
-  /* ========== row 1: 実装済み / 基盤 / 未着手 ========== */
-
-  node(1, 80, 1600, "frame", frame({
-    title: "① いま動く導線",
-    tally: "DONE 9 / PARTIAL 5",
-    lede: "縦切りで通っているのは「サインアップ → オンボーディング → 気分で探す → 書く → フォローする」。" +
-      "投稿を読むところまでは出来ていて、投稿に<strong>反応する</strong>ところが丸ごと空いている。",
-    notes: [
-      sticky("done", "S_SIGNUP ×3 / S_MINOR_CONSENT", "年齢ゲート付きサインアップ",
-        "メール+パスワード。生年月日必須で13歳未満はブロック、13〜17歳は保護者同意フローへ。",
-        "同意メールの送信基盤は未整備（B3）"),
-      sticky("done", "S_LOGIN / middleware", "権限ゲート",
-        "guest / pending / suspended / onboarding / user を middleware の1箇所で判定。ページ側に認可を書かない。"),
-      sticky("done", "S_ONBOARD_PROFILE / AREA / INTERESTS", "オンボーディング3段",
-        "ホームエリアと「好きな気分」を必ず選ばせる。幹Aの前提データがここで貯まる。"),
-      sticky("done", "S_ACCOUNT_PENDING / SUSPENDED", "停止・同意待ちの受け皿", "行き止まりの画面を先に用意してある。"),
-      sticky("partial", "S_HOME", "気分入り口つきホーム",
-        "最上部が「今、どんなカフェ気分？」。フォロー中 / おすすめのタブ切替、PCは3カラム。",
-        "サイドナビはホーム・発見・投稿の3項目だけ。検索/通知アイコン・ボトムナビは遷移先が無いので出していない（D27）"),
-      sticky("partial", "S_EXPLORE", "発見タブ",
-        "「おすすめ」「新着」の2サブタブ。おすすめ＝興味タグに1つでも一致する公開投稿を新着順。",
-        "「近くのカフェ」は地図・座標が未整備のためタブごと非表示（D25）／スコアリング無し（D24）"),
-      sticky("partial", "S_POST_DETAIL", "投稿詳細",
-        "SSR。非公開・ブロック関係は存在自体を隠して404。",
-        "いいね / コメント / 保存のアクション行が無い（テーブル未作成）"),
-      sticky("partial", "S_USER_PROFILE_PUBLIC", "他人のプロフィール",
-        "アバター・表示名・bio・3カウント・フォローボタン・投稿グリッド。",
-        "バッジ・行きつけタブ・通報メニューは対応テーブルが無く非表示（D28）"),
-      sticky("done", "S_POST_SHORT / S_POST_BLOG", "composer",
-        "Tiptap（JSON保存）、画像アップロード、カフェ選択、厳選タグ、公開範囲、15秒デバウンスの下書き自動保存、プレビュー。"),
-      sticky("done", "S_POST_SUCCESS", "投稿完了", "ピークエンド則の着地点。/new は形式選択シート。"),
-      sticky("done", "follows", "フォロー",
-        "楽観更新つきフォローボタン。ブロック済み相手・停止アカウントは INSERT 時に弾く。"),
-      sticky("done", "_actions", "Server Actions 7本",
-        "auth / onboarding / posts / drafts / feed / follows / cafes。入力は全て Zod、返りは Result 型。")
-    ]
-  }), "f-now");
-
-  node(1, 1740, 1180, "frame", frame({
-    title: "② 足場（DB・認可・ツーリング）",
-    tally: "MIGRATIONS 30",
-    lede: "認可はアプリ層に書かず RLS に寄せてある。ここが厚いぶん、画面は後から速く積める。",
-    notes: [
-      sticky("done", "15 tables", "実装済みテーブル",
-        "areas / tags / badges / profiles / user_settings / user_interest_tags / follows / blocks / cafes / cafe_business_hours / cafe_congestion_reports / posts / post_images / post_tags / drafts"),
-      sticky("done", "RLS", "認可は全部ポリシー側",
-        "is_active_user / is_blocked_either_way / is_admin を共通関数化。JWTカスタムクレイムに role と status を載せる。"),
-      sticky("done", "RPC", "reservePost → upload → finalize_post",
-        "「投稿行が無いと画像を置けない／画像が無いと投稿できない」の循環依存を、hidden で予約してから確定する形で解消。"),
-      sticky("done", "storage", "post-images バケット",
-        "署名付きURLで直PUT。lib/storage/ のラッパー越しにしか触らない（将来のS3移行のため）。"),
-      sticky("done", "search", "simple tsvector + pg_trgm",
-        "日本語の部分一致は pg_trgm が主役。pgroonga は採らない。"),
-      sticky("done", "seed", "マスタ初期セット",
-        "厳選タグ30 / 東京45エリア / バッジ20の定義。バッジは<strong>マスタのみ</strong>で付与側は無い。"),
-      sticky("done", "CI", "Biome + tsc + design-system 検査",
-        "#000禁止・インラインstyle禁止・非8倍数余白の検出を pre-commit と CI の両方で走らせる。"),
-      sticky("partial", "tests", "テスト49ファイル",
-        "RLS統合テスト19本は Supabase local 前提でローカル実行のみ。",
-        "CIで動いていない（D10）")
-    ]
-  }), "f-base");
-
-  node(1, 2980, 1340, "frame", frame({
-    title: "③ まだ存在しない画面",
-    tally: "SCREENS 21 / TABLES 12",
-    lede: "未実装の大半は「テーブルが無いから画面も無い」。逆に言えば、テーブルを1つ足すたびに複数画面が開く。",
-    notes: [
-      sticky("todo", "likes / comments / post_bookmarks", "投稿への反応",
-        "投稿カードのアクション行、コメント欄、保存。SNSとして最も効く欠落。"),
-      sticky("todo", "S_CAFE_DETAIL / S_CAFE_NEW", "カフェの面",
-        "cafes テーブルはあるのに、店を見る画面と登録する画面が無い。営業時間・混雑度も置き場だけの状態。"),
-      sticky("todo", "S_MAP / S_SEARCH / S_FILTER_*", "探す面",
-        "地図は areas.center_location の座標45件が未収集（A3）。タグ検索も未着手。"),
-      sticky("todo", "S_MYPAGE ほか mypage 10画面", "自分の面",
-        "マイページ / プロフィール編集 / お気に入り / 行きたい / 保存 / 下書き一覧 / バッジ / 通知 / 設定 / ブロック管理。"),
-      sticky("todo", "reports / ng_words", "通報・モデレーション",
-        "S_REPORT_FORM と admin 側の審査キュー。若年層向けサービスの前提条件。"),
-      sticky("todo", "owner 6画面 + S_POST_OFFICIAL", "オーナーの面",
-        "認証申請 / 審査中 / ダッシュボード / 店舗編集 / 投稿分析 / 常連認定。幹Cはここが入口。"),
-      sticky("todo", "user_badges / area_visits", "ゲーミフィケーション",
-        "バッジ付与とエリア制覇マップ。定義20件は seed 済みで、貯める側が空。"),
-      sticky("todo", "notifications", "通知",
-        "返報性（いいねへの通知）を設計に入れているが、器が無い。Web Push は MVP 見送り（B7）。")
-    ]
-  }), "f-todo");
-
-  /* ========== row 2: 幹の到達度 / リスク / 依存 ========== */
-
-  node(2, 80, 1600, "frame", frame({
-    title: "④ 差別化の到達度",
-    tally: "幹A 60% / 幹C 0%",
-    lede: "positioning.md の判断基準は「幹A（気分検索）か幹C（オーナー連携）を強化するか」。" +
-      "現在地を素直に置くと、<strong>幹Aの入口だけが立ち、幹Cは1行も無い</strong>。",
-    notes: [
-      sticky("done", "幹A-1", "トップの気分入り口", "S_HOME 最上部が「今、どんなカフェ気分？」から始まる。Instagram型のフォロー起点にしていない。"),
-      sticky("done", "幹A-2", "シーンタグの第一級化", "tags.category='occasion' を優先表示。エリアは絞り込みに格下げ済み。"),
-      sticky("done", "幹A-5", "オンボーディングで気分必須", "スキップ不可。user_interest_tags に保存。"),
-      sticky("partial", "幹A-3", "シーン別レコメンド",
-        "「おすすめ」は興味タグの単純一致＋新着順。", "人気度スコアは likes / post_bookmarks が無く書けない（D24）"),
-      sticky("todo", "幹A-4", "シーン開拓バッジ", "朝カフェマスター等。定義はあるが付与の仕組みが無い。"),
-      sticky("todo", "幹C-1", "オーナー認証バッジ", "cafe_owner_verifications 未作成。書類2点以上の審査フローも未実装。"),
-      sticky("todo", "幹C-2", "オーナー限定投稿4フォーマット", "豆知識 / 今日のおすすめ / 臨時休業 / 新メニュー。"),
-      sticky("todo", "幹C-3", "常連認定 と 行きつけ", "regular_customers 未作成。プロフィールの「行きつけ」タブもこれ待ち。"),
-      sticky("todo", "幹C-4", "オーナー公式返信", "comments が無いため、その先の「公式として区別表示」も未着手。"),
-      sticky("todo", "幹C-5", "常連分析", "ダッシュボードの分析面。蓄積データが先。")
-    ]
-  }), "f-core");
-
-  node(2, 1740, 1180, "frame", frame({
-    title: "⑤ 既知の穴",
-    tally: "pending-items より",
-    lede: "隠していない未決事項。優先度と一緒に記録してあるものを、効きが強い順に並べた。",
-    notes: [
-      sticky("risk", "A10", "EXIF除去がクライアント任せ",
-        "署名付きURLで直PUTするため、サーバ側で位置情報の除去を強制できない。若年層の安全に直結する。"),
-      sticky("risk", "D23", "閲覧系がキャッシュに載らない",
-        "動的セグメント＋cookie 参照で ISR から外れる。加えて anon で静的に描くとブロック関係が効かない。速度と認可がセットの問題。"),
-      sticky("risk", "D29", "停止・削除ユーザーの投稿が残る",
-        "プロフィールは404になるが、posts_select が作者の status を見ないためフィードには残り続ける。"),
-      sticky("risk", "A1", "Safari 未検証",
-        "MVP期間中は非対応としているが、メインターゲットの10〜20代はiPhone比率が高い。リリース前に集中検証が要る。"),
-      sticky("risk", "D19", "finalize されない hidden 投稿",
-        "予約だけして離脱した行の掃除方針が未定。pg_cron が Free で使えない制約とセット。"),
-      sticky("risk", "D15 / D16", "署名URLの TOCTOU とレート制限",
-        "枚数チェックに競合の余地があり、発行回数の上限も無い。"),
-      sticky("risk", "A3", "エリア座標45件が未収集", "S_MAP・現在地検索・エリア自動判定を止めている唯一の残データ。"),
-      sticky("risk", "D26", "ページ送りが「もっと見る」",
-        "クエリは keyset カーソルなのでUIだけ差し替えれば無限スクロールに移行できる。")
-    ]
-  }), "f-risk");
-
-  node(2, 2980, 1340, "frame",
-    "<header><h2>⑥ 依存の連鎖</h2><span class=\"tally\">1テーブル → 複数画面</span></header>" +
-    '<p class="lede">左が未作成テーブル、右がそれで開く体験。着手順を決めるときはこの左端を見る。</p>' +
-    '<div class="chain">' +
-    chain("likes / comments / post_bookmarks", ["投稿カードのアクション行", "S_POST_DETAIL 完成", "S_BOOKMARKS"]) +
-    chain("user_cafe_lists", ["お気に入り / 行きたい", "4カードショートカット", "S_MYPAGE"]) +
-    chain("cafe_owner_verifications", ["オーナー認証バッジ", "owner 6画面", "幹C の起点"]) +
-    chain("regular_customers", ["常連認定", "「私の行きつけ」タブ", "常連分析"]) +
-    chain("reports / ng_words", ["S_REPORT_FORM", "admin 審査キュー", "公開に必要な安全ライン"]) +
-    chain("user_badges / area_visits", ["バッジ獲得", "エリア制覇マップ", "シーン開拓バッジ＝幹A-4"]) +
-    chain("notifications", ["通知画面", "いいねへの返報性導線"]) +
-    chain("areas.center_location（データ）", ["S_MAP", "近くのカフェ", "エリア自動判定"]) +
-    "</div>", "f-chain");
-
-  /* ========== row 3: 3ホライズン ========== */
-
-  node(3, 80, 4240, "frame",
-    "<header><h2>⑦ 理想への道筋</h2><span class=\"tally\">NOW → RELEASE → PHASE 2</span></header>" +
-    '<p class="lede">順番には意味がある。H1は「反応が無いSNS」を終わらせる順、H2は公開に耐える品質、H3はPMFが見えてから。</p>' +
-    '<div class="lanes">' +
-
-    '<div class="lane"><h3>H1 — MVP機能を閉じる</h3><p class="when">NEXT / 着手順</p><div class="stack">' +
-    sticky("future", "1st", "反応を実装する",
-      "likes → comments → post_bookmarks。ここが入ると投稿カード・投稿詳細・保存が同時に完成し、おすすめの人気度スコア（D24）も書けるようになる。") +
-    sticky("future", "2nd", "店の面を開く",
-      "S_CAFE_DETAIL / S_CAFE_NEW / user_cafe_lists。カフェSNSなのに店のページが無い状態を解消する。") +
-    sticky("future", "3rd", "自分の面を開く",
-      "S_MYPAGE と4カードショートカット（お気に入り・行きたい・保存・下書き）+ 設定 + 通知。") +
-    sticky("future", "4th", "安全ラインを引く",
-      "reports / ng_words / ブロック解除導線 / admin 審査キュー。若年層向けサービスとして公開の前提条件。") +
-    sticky("future", "5th", "幹Cを起こす",
-      "オーナー認証 → ダッシュボード → オーナー限定投稿 → 常連認定。差別化の半分がここから始まる。") +
-    sticky("future", "6th", "地図",
-      "座標45件を収集して S_MAP と「近くのカフェ」を戻す。") +
-    "</div></div>" +
-
-    '<div class="lane"><h3>H2 — 公開に耐える状態へ</h3><p class="when">BEFORE RELEASE</p><div class="stack">' +
-    sticky("future", "safari", "Safari 集中検証",
-      "-webkit- / 100vh / date input / backdrop-filter。実機込みで通す（A1）。") +
-    sticky("future", "perf", "キャッシュ方針の決着",
-      "generateStaticParams か cacheComponents か、SSR確定か。ブロック判定をどこで効かせるかとセットで決める（D23）。LCP<2.5s / INP<200ms を計測して守る。") +
-    sticky("future", "sec", "EXIF除去をサーバ側で強制",
-      "クライアント信頼をやめる（A10）。署名URLのレート制限とTOCTOUも同時に塞ぐ。") +
-    sticky("future", "ops", "RLS統合テストをCIへ",
-      "認可の正しさが手元実行頼みになっている状態を終わらせる（D10）。") +
-    sticky("future", "infra", "本番AWS構成を確定",
-      "Vercel先行 → AWS。画像は Supabase Storage → S3 + CloudFront（A5 / C1）。費用アラートも。") +
-    sticky("future", "legal", "法務・運用の整備",
-      "利用規約 / プライバシーポリシー / 特商法表記 / 削除依頼窓口 / モデレーションフロー。") +
-    "</div></div>" +
-
-    '<div class="lane"><h3>H3 — 幹を太らせる</h3><p class="when">AFTER PMF</p><div class="stack">' +
-    sticky("future", "幹A+", "気分の解像度を上げる",
-      "人気度・鮮度・タグ一致の重み付けスコア、「同じ気分の人が保存したカフェ」、シーン開拓バッジ。データが貯まってから効く施策。") +
-    sticky("future", "幹C+", "常連エコシステム",
-      "常連数の推移と投稿パターン分析、行きつけの可視化。オーナーが継続来店を実感できるところまで。") +
-    sticky("future", "幹B", "コミュニティ / オフライン",
-      "朝活カフェ部などの趣味グループ、カフェ巡り会、チェックイン、似た好みのマッチング。MVP後に検討（C5）。") +
-    sticky("future", "behavior", "行動経済学の第2弾",
-      "社会的証明（今週◯人が保存）・希少性・アンカリング。いずれもデータ蓄積が前提で、先に入れても嘘になる。") +
-    sticky("future", "platform", "アプリ化と収益化",
-      "技術選定（C2）と収益化フラグ（C3）。ブラウザ版の手応えを見てから。") +
-    sticky("future", "guard", "やらないことを守る",
-      "DM・ストーリーズ・映えフィルタ・ショップ誘導は入れない。Instagramでもできる機能は3問を通してから。") +
-    "</div></div>" +
-
-    "</div>", "f-future");
-
-  function legendRow(status, label, note) {
-    return '<button type="button" class="legend-row" data-filter="' + status + '" aria-pressed="false">' +
-      '<span class="swatch" style="background:var(--' + status + '-bg);box-shadow:inset 0 0 0 3px var(--' + status + ')"></span>' +
-      "<span><b>" + label + "</b><span>" + note + "</span></span></button>";
-  }
-
-  function tile(k, v, unit, n, ratio) {
-    return '<div class="tile"><div class="k">' + k + '</div><div class="v">' + v +
-      (unit ? "<small>" + unit + "</small>" : "") + "</div>" +
-      (ratio !== null && ratio !== undefined
-        ? '<div class="meter"><i style="width:' + Math.round(ratio * 100) + '%"></i></div>'
-        : "") +
-      '<div class="n">' + n + "</div></div>";
-  }
-
-  function chain(src, outs) {
-    var html = '<div class="chain-row"><span class="chip src">' + src + "</span>";
-    for (var i = 0; i < outs.length; i++) {
-      html += '<span class="arrow">&rarr;</span><span class="chip' + (i === outs.length - 1 ? " end" : "") + '">' + outs[i] + "</span>";
+  var BUILDERS = {
+    title: function () {
+      var m = DATA.meta;
+      return '<p class="eyebrow">' + m.eyebrow + "</p><h1>" + m.headline + "</h1>" +
+        '<p class="sub">' + m.sub + "</p><p>" + m.intro + "</p>" +
+        '<p class="stamp">' + m.updatedAt + " 時点 / " + m.ref + "</p>";
+    },
+    legend: function () {
+      var rows = STATUS_LABELS.map(function (s) {
+        return '<button type="button" class="legend-row" data-filter="' + s[0] + '" aria-pressed="false">' +
+          '<span class="swatch sw-' + s[0] + '"></span>' +
+          "<span><b>" + s[1] + "</b><span>" + s[2] + "</span></span></button>";
+      }).join("");
+      return "<h2>付箋の色</h2><div>" + rows + "</div>" +
+        '<p class="legend-hint">クリックでその色だけを残す。もう一度クリックで解除。</p>';
+    },
+    metrics: function () {
+      return DATA.metrics.map(function (t) {
+        return '<div class="tile"><div class="k">' + t.k + '</div>' +
+          '<div class="v">' + t.v + (t.unit ? "<small>" + t.unit + "</small>" : "") + "</div>" +
+          (t.ratio === null || t.ratio === undefined
+            ? ""
+            : '<div class="meter"><i class="m' + (Math.round(t.ratio / 5) * 5) + '"></i></div>') +
+          '<div class="n">' + t.note + "</div></div>";
+      }).join("");
+    },
+    list: function (s) {
+      return "<h2>" + s.title + '</h2><ul class="steps">' +
+        s.items.map(function (i) { return "<li>" + i + "</li>"; }).join("") + "</ul>";
+    },
+    frame: function (s) {
+      return header(s) + '<div class="stack">' + s.notes.map(sticky).join("") + "</div>";
+    },
+    chain: function (s) {
+      var rows = s.chains.map(function (c) {
+        var html = '<div class="chain-row"><span class="chip src">' + c.src + "</span>";
+        c.outs.forEach(function (o, i) {
+          html += '<span class="arrow">&rarr;</span><span class="chip' +
+            (i === c.outs.length - 1 ? " end" : "") + '">' + o + "</span>";
+        });
+        return html + "</div>";
+      }).join("");
+      return header(s) + '<div class="chain">' + rows + "</div>";
+    },
+    lanes: function (s) {
+      var lanes = s.lanes.map(function (l) {
+        return '<div class="lane"><h3>' + l.title + '</h3><p class="when">' + l.when + "</p>" +
+          '<div class="stack">' + l.notes.map(sticky).join("") + "</div></div>";
+      }).join("");
+      return header(s) + '<div class="lanes">' + lanes + "</div>";
     }
-    return html + "</div>";
-  }
+  };
 
-  /* ---------- render ---------- */
+  var CLASSES = { title: "titlecard", legend: "card", metrics: "tiles", list: "card", frame: "frame", chain: "frame", lanes: "frame" };
+
+  /* ---------- 描画 ---------- */
   var world = document.getElementById("world");
-  var els = nodes.map(function (n) {
+  var els = DATA.sections.map(function (s) {
     var el = document.createElement("div");
-    el.className = "node " + n.cls;
-    if (n.id) el.id = n.id;
-    el.style.left = n.x + "px";
-    el.style.width = n.w + "px";
-    el.innerHTML = n.html;
+    el.className = "node " + CLASSES[s.kind];
+    if (s.id) el.id = s.id;
+    el.style.left = s.x + "px";
+    el.style.width = s.w + "px";
+    el.innerHTML = BUILDERS[s.kind](s);
     world.appendChild(el);
     return el;
   });
 
-  // 行ごとに上端を揃え、直前の行の最大高さで送る
-  var rowTop = [], maxBottom = 0, top = 60;
-  var rows = nodes.map(function (n) { return n.row; });
-  var rowCount = Math.max.apply(null, rows) + 1;
+  // 行ごとに上端を揃え、その行の最大高さ + ROW_GAP で次の行へ送る
+  var rowCount = DATA.sections.reduce(function (m, s) { return Math.max(m, s.row); }, 0) + 1;
+  var top = 60, bottom = 0;
   for (var r = 0; r < rowCount; r++) {
-    rowTop[r] = top;
     var h = 0;
     els.forEach(function (el, i) {
-      if (nodes[i].row !== r) return;
-      el.style.top = rowTop[r] + "px";
+      if (DATA.sections[i].row !== r) return;
+      el.style.top = top + "px";
       h = Math.max(h, el.offsetHeight);
     });
-    top = rowTop[r] + h + GAP;
-    maxBottom = rowTop[r] + h;
+    bottom = top + h;
+    top = bottom + ROW_GAP;
   }
 
-  var contentW = 0;
-  nodes.forEach(function (n) { contentW = Math.max(contentW, n.x + n.w); });
-  var contentH = maxBottom;
-  world.style.width = contentW + 80 + "px";
-  world.style.height = contentH + 80 + "px";
-  var svg = document.getElementById("wires");
-  svg.setAttribute("viewBox", "0 0 " + (contentW + 80) + " " + (contentH + 80));
+  var contentW = DATA.sections.reduce(function (m, s) { return Math.max(m, s.x + s.w); }, 0) + 80;
+  var contentH = bottom + 80;
+  world.style.width = contentW + "px";
+  world.style.height = contentH + "px";
+  document.getElementById("wires").setAttribute("viewBox", "0 0 " + contentW + " " + contentH);
 
-  /* ---------- wires ---------- */
+  /* ---------- コネクタ ---------- */
   function box(id) {
     var el = document.getElementById(id);
     return { x: el.offsetLeft, y: el.offsetTop, w: el.offsetWidth, h: el.offsetHeight };
   }
-  function wire(fromId, toId, label) {
-    var a = box(fromId), b = box(toId), p, lx, ly;
+  var layer = document.getElementById("wire-layer");
+  var SVGNS = "http://www.w3.org/2000/svg";
+
+  DATA.wires.forEach(function (w) {
+    if (!document.getElementById(w.from) || !document.getElementById(w.to)) return;
+    var a = box(w.from), b = box(w.to), d, lx, ly;
     if (Math.abs(a.y - b.y) < 40) {
-      // 横並び: 右端 → 左端
-      var ay = a.y + Math.min(a.h, b.h) * 0.42, by = b.y + Math.min(a.h, b.h) * 0.42;
+      var ay = a.y + Math.min(a.h, b.h) * 0.42, by = ay;
       var x1 = a.x + a.w, x2 = b.x;
       if (x1 > x2) { x1 = a.x; x2 = b.x + b.w; }
-      var mid = (x1 + x2) / 2;
-      p = "M" + x1 + " " + ay + " C " + mid + " " + ay + ", " + mid + " " + by + ", " + x2 + " " + by;
-      lx = mid; ly = Math.min(ay, by) - 16;
+      var mx = (x1 + x2) / 2;
+      d = "M" + x1 + " " + ay + " C " + mx + " " + ay + ", " + mx + " " + by + ", " + x2 + " " + by;
+      lx = mx; ly = ay - 16;
     } else {
-      // 縦: 下端 → 上端
       var ax = a.x + a.w * 0.5, bx = b.x + b.w * 0.5;
       var y1 = a.y + a.h, y2 = b.y;
       var my = (y1 + y2) / 2;
-      p = "M" + ax + " " + y1 + " C " + ax + " " + my + ", " + bx + " " + my + ", " + bx + " " + y2;
+      d = "M" + ax + " " + y1 + " C " + ax + " " + my + ", " + bx + " " + my + ", " + bx + " " + y2;
       lx = (ax + bx) / 2; ly = my + 5;
     }
-    var layer = document.getElementById("wire-layer");
-    var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", p);
+    var path = document.createElementNS(SVGNS, "path");
+    path.setAttribute("d", d);
     path.setAttribute("class", "wire");
     path.setAttribute("marker-end", "url(#arw)");
     layer.appendChild(path);
-    var text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    var text = document.createElementNS(SVGNS, "text");
     text.setAttribute("x", lx);
     text.setAttribute("y", ly);
     text.setAttribute("text-anchor", "middle");
     text.setAttribute("class", "wire-label");
-    text.textContent = label;
+    text.textContent = w.label;
     layer.appendChild(text);
-  }
-  wire("f-base", "f-now", "RLSが認可を全部持つ");
-  wire("f-todo", "f-chain", "テーブルが無い＝画面が無い");
-  wire("f-now", "f-core", "立っているのは幹Aの入口だけ");
-  wire("f-risk", "f-future", "穴はH2で返済する");
+  });
 
-  /* ---------- pan & zoom ---------- */
+  /* ---------- パン・ズーム ---------- */
   var vp = document.getElementById("viewport");
-  var scale = 1, tx = 0, ty = 0;
   var label = document.getElementById("zoomlabel");
+  var scale = 1, tx = 0, ty = 0;
 
   function apply() {
     world.style.transform = "translate(" + tx + "px," + ty + "px) scale(" + scale + ")";
@@ -699,18 +787,15 @@
   }
   function fit() {
     var pad = 60;
-    var s = clamp(Math.min((vp.clientWidth - pad * 2) / (contentW + 80), (vp.clientHeight - pad * 2) / (contentH + 80)));
-    scale = s;
-    tx = (vp.clientWidth - (contentW + 80) * s) / 2;
-    ty = (vp.clientHeight - (contentH + 80) * s) / 2;
+    scale = clamp(Math.min((vp.clientWidth - pad * 2) / contentW, (vp.clientHeight - pad * 2) / contentH));
+    tx = (vp.clientWidth - contentW * scale) / 2;
+    ty = (vp.clientHeight - contentH * scale) / 2;
     apply();
   }
 
   vp.addEventListener("wheel", function (e) {
     e.preventDefault();
-    if (e.ctrlKey || e.metaKey || Math.abs(e.deltaY) > 0) {
-      zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 1 / 1.12);
-    }
+    zoomAt(e.clientX, e.clientY, e.deltaY < 0 ? 1.12 : 1 / 1.12);
   }, { passive: false });
 
   var dragging = false, lastX = 0, lastY = 0, pid = null;
@@ -739,18 +824,18 @@
   document.getElementById("zoom-out").addEventListener("click", function () { zoomAt(vp.clientWidth / 2, vp.clientHeight / 2, 1 / 1.2); });
   document.getElementById("fit").addEventListener("click", fit);
 
-  /* ---------- filter ---------- */
+  /* ---------- 絞り込み ---------- */
   var active = null;
   var stickies = Array.prototype.slice.call(document.querySelectorAll(".sticky"));
   function applyFilter() {
     stickies.forEach(function (s) {
       s.classList.toggle("dim", active !== null && s.dataset.status !== active);
     });
-    document.querySelectorAll(".legend-row").forEach(function (b) {
+    Array.prototype.forEach.call(document.querySelectorAll(".legend-row"), function (b) {
       b.setAttribute("aria-pressed", String(b.dataset.filter === active));
     });
   }
-  document.querySelectorAll(".legend-row").forEach(function (b) {
+  Array.prototype.forEach.call(document.querySelectorAll(".legend-row"), function (b) {
     b.addEventListener("click", function () {
       active = active === b.dataset.filter ? null : b.dataset.filter;
       applyFilter();

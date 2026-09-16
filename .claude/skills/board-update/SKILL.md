@@ -1,0 +1,129 @@
+---
+name: board-update
+description: 実装状況ボード（docs/implementation-board.html）を最新の実装に合わせて更新する。機能実装・マイグレーション追加・pending-items 更新のたびに実行する。
+---
+
+# /board-update — 実装状況ボードの更新
+
+[docs/implementation-board.html](../../../docs/implementation-board.html) は「いま何が動き、何が無く、次に何をやるか」を1枚で見るボード。
+**実装が進むたびに更新しないと即座に嘘になる**ドキュメントなので、更新コストを下げる形（JSON1箇所）にしてある。
+
+## いつ実行するか
+
+- 画面（`page.tsx`）を追加した / 画面の欠けていた要素を埋めた
+- マイグレーションでテーブルを追加した
+- [pending-items.md](../../../docs/product/pending-items.md) に項目を追加した・解消した
+- 幹A / 幹C の施策に進捗があった
+- PR を出す直前（`/self-review` の後）
+
+**逆に不要なとき:** リファクタのみ、テストのみ追加、ドキュメントの誤字修正。ボードの意味が変わらない変更は触らない。
+
+## 触ってよい場所
+
+ボードの内容は **`<script id="board-data" type="application/json">` の JSON だけ** にある。
+
+- ✅ JSON の中身（meta / metrics / sections / wires）
+- ❌ `<style>`、描画スクリプト、HTMLの骨格 — レイアウトは JSON から自動計算される
+
+付箋を足しても行の高さは自動で伸びる。座標 (`x` / `w` / `row`) は基本触らない。
+
+## 手順
+
+### 1. 指標を数える（手で数えない）
+
+```bash
+bash scripts/board-stats.sh
+```
+
+出力（SCREENS / TABLES / MIGRATIONS / TESTS と、未実装の画面・未作成テーブルの一覧）を
+そのまま `metrics` に転記する。`ratio` は 0〜100 の整数（5刻みに丸められて描画される）。
+
+この4つ以外の数（「Server Actions 7本」など）を付箋に書くときは、その場で `ls` / `grep` して確認する。
+
+### 2. 前回からの差分を洗う
+
+```bash
+git log --oneline <前回ボードを更新したコミット>..HEAD
+git diff --stat <前回ボードを更新したコミット>..HEAD -- app supabase/migrations docs/product/pending-items.md
+```
+
+「何が done になったか」より **「何が partial のまま残ったか」** を拾うほうが重要。
+実装時に見送った要素は必ず pending-items に番号があるので、その番号を付箋の `why` に書く。
+
+### 3. JSON を更新する
+
+| セクション | 更新内容 |
+|---|---|
+| `meta.updatedAt` / `meta.ref` | 日付（YYYY-MM-DD）とブランチ名 |
+| `meta.intro` | 「いま動くのはどこまでか」の一文。導線が伸びたら書き換える |
+| `metrics` | 手順1の出力をそのまま |
+| `① いま動く導線` | 実装した画面の付箋を追加。欠けを埋めたら `partial` → `done`、`why` を削除 |
+| `② 足場` | テーブル追加・RPC・ポリシー・CIの変更 |
+| `③ まだ存在しない画面` | 実装したものを削る。手順1の「未実装の画面／未作成のテーブル」と矛盾させない |
+| `④ 差別化の到達度` | 幹A / 幹C の施策が進んだときだけ。判定は positioning.md の主要施策リストに従う |
+| `⑤ 既知の穴` | pending-items の追加・解消を反映。解消したら付箋ごと消す |
+| `⑥ 依存の連鎖` | テーブルを作ったら、その行を消す（`src` は常に「まだ無いもの」） |
+| `⑦ 理想への道筋` | H1 の着手順が変わったとき、または H1 の項目が終わったとき |
+
+### 4. 付箋の書き方
+
+```json
+{ "status": "partial", "tag": "S_CAFE_DETAIL", "title": "カフェ詳細",
+  "body": "営業時間・混雑度・投稿タブ。オーナーからのセクションつき。",
+  "why": "オーナー公式投稿は cafe_owner_verifications 待ちで非表示（D31）" }
+```
+
+- `status` — `done` / `partial` / `todo` / `risk` / `future` の5つだけ
+- `tag` — 画面ID、テーブル名、pending-items 番号、幹の施策番号のいずれか（何の話か1秒で分かるもの）
+- `title` — 体言止めで15文字前後
+- `body` — 1〜2文。**何ができるか**を書く
+- `why` — `partial` / `risk` のときは必須。**なぜ欠けているか** と pending-items 番号
+- `tally` は `"auto"` にしておけば色ごとの件数を自動で数える。手書きの数字を残さない
+
+### 5. status の判定基準
+
+| status | 条件 |
+|---|---|
+| `done` | ワイヤーの主要要素が揃い、テストがあり、pending-items に未了が残っていない |
+| `partial` | 画面/機能は動くが、ワイヤーにあって出していない要素がある（**必ず番号つきで `why` に書く**） |
+| `todo` | ルートもテーブルも無い |
+| `risk` | pending-items の未決。実装の有無ではなく「判断が残っている」もの |
+| `future` | MVP後。H1〜H3のレーンで使う |
+
+**「だいたい出来た」を `done` にしない。** 出していない要素が1つでもあるなら `partial`。
+ボードの価値は欠けの可視化にあるので、ここで盛ると全部の意味が無くなる。
+
+### 6. 検証
+
+```bash
+# JSON が壊れていないか（構文エラーだとボードが真っ白になる）
+node -e 'const s=require("fs").readFileSync("docs/implementation-board.html","utf8");JSON.parse(s.match(/<script id="board-data" type="application\/json">([\s\S]*?)<\/script>/)[1]);console.log("JSON OK")'
+
+# 指標とボードの記述が一致しているか
+bash scripts/board-stats.sh
+```
+
+そのうえで **ブラウザで開いて目視する**（`docs/implementation-board.html` をそのまま開く）。
+確認するのは3点だけ: 付箋が意図した色か / フレームが重なっていないか / コネクタのラベルが被っていないか。
+
+### 7. コミット
+
+ボードの更新は実装コミットに含めず、**別コミットに分ける**（レビュー時に差分が読める）。
+
+```
+docs: 実装状況ボードを更新する（S_CAFE_DETAIL 追加）
+```
+
+## よくある間違い
+
+- **指標だけ更新して付箋を放置** — 数字は合っているのに中身が古い、が一番たちが悪い
+- **`③ まだ存在しない画面` から消し忘れる** — 手順1の出力と突き合わせれば防げる
+- **`why` に番号を書かない** — 後から「なぜ出さなかったか」を追えなくなる。番号が無いなら先に pending-items に書く
+- **description のない新セクション追加** — セクションを足すときは `row` / `x` / `w` を既存の並びに合わせる（同じ行の合計幅は約4240px）
+- **描画スクリプトをいじってレイアウト調整** — 付箋の量で自動調整されるので不要
+
+## やらないこと
+
+- ボードを設計の真実の源泉にすること — 正は常に `docs/` 側。ボードは**現在地の要約**
+- 未確定の予定を `⑦ 理想への道筋` に書き足すこと — 決まったものだけ。未決は `⑤ 既知の穴` か pending-items へ
+- 外部ライブラリの追加 — 単一HTMLで完結させる（フォント以外の外部依存を増やさない）

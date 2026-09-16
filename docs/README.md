@@ -10,6 +10,7 @@
 docs/
 ├── README.md                       ← このファイル
 ├── glossary.md                     ユビキタス言語（全ドキュメント横断）
+├── implementation-board.html       実装状況ボード（ブラウザで開く / 現在地の要約）
 ├── product/                        戦略・スコープ・TODO
 ├── architecture/                   データモデル・ルーティング・エラー
 ├── design/                         デザインシステム・画面遷移・ワイヤーフレーム
@@ -64,6 +65,7 @@ docs/
 | ドキュメント | 内容 |
 |---|---|
 | **[glossary.md](./glossary.md)** ⭐️ | ドメイン用語集（ユビキタス言語）— 日本語UI↔英語コード対応 |
+| [implementation-board.html](./implementation-board.html) | 実装状況ボード。実装済み / 未着手 / 既知の穴 / 3ホライズンを1枚で俯瞰（更新は `/board-update`、指標は `scripts/board-stats.sh`）|
 
 ## 実装前チェックリスト
 
