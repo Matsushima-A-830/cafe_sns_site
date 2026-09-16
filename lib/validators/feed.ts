@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { usernameSchema } from '@/lib/validators/onboarding'
 
 /**
  * フィード（S_HOME / S_EXPLORE）の絞り込み条件。URL のクエリからも
@@ -19,6 +20,12 @@ export const feedQuerySchema = z.object({
   scope: z.enum(FEED_SCOPES),
   tagSlug: tagSlugSchema.nullable().default(null),
   areaCode: areaCodeSchema.nullable().default(null),
+  /**
+   * S_USER_PROFILE_PUBLIC の投稿グリッド。他の絞り込みと違い「誰の投稿か」は
+   * セッションから引けずクライアント入力になるので、形を Zod で検証したうえで
+   * resolveFeedOptions が実在する active なユーザーかを確かめる
+   */
+  authorUsername: usernameSchema.nullable().default(null),
 })
 
 /**
@@ -35,6 +42,9 @@ export function parseFeedQuery(input: {
     scope: input.scope,
     tagSlug: tagSlugSchema.safeParse(input.tagSlug).data ?? null,
     areaCode: areaCodeSchema.safeParse(input.areaCode).data ?? null,
+    // URL クエリからは受け取らない。作者の絞り込みはルートパラメータ由来のものだけ
+    // （壊れた値を null に丸める上の方式だと、絞り込みが外れて全件になってしまう）
+    authorUsername: null,
   }
 }
 

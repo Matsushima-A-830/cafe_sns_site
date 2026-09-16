@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { feedCursorSchema, parseFeedQuery } from './feed'
+import { feedCursorSchema, feedQuerySchema, parseFeedQuery } from './feed'
 
 describe('parseFeedQuery', () => {
   it('正しい絞り込みはそのまま通す', () => {
     expect(
       parseFeedQuery({ scope: 'new', tagSlug: 'morning-cafe', areaCode: 'JP-13-shibuya-ku' }),
-    ).toEqual({ scope: 'new', tagSlug: 'morning-cafe', areaCode: 'JP-13-shibuya-ku' })
+    ).toEqual({
+      scope: 'new',
+      tagSlug: 'morning-cafe',
+      areaCode: 'JP-13-shibuya-ku',
+      authorUsername: null,
+    })
   })
 
   it('壊れた項目だけを捨て、生きている絞り込みは残す', () => {
@@ -14,11 +19,43 @@ describe('parseFeedQuery', () => {
       scope: 'new',
       tagSlug: null,
       areaCode: 'JP-13-shibuya-ku',
+      authorUsername: null,
     })
 
     expect(
       parseFeedQuery({ scope: 'new', tagSlug: 'Morning Cafe', areaCode: 'JP-13-shibuya-ku' }),
-    ).toEqual({ scope: 'new', tagSlug: null, areaCode: 'JP-13-shibuya-ku' })
+    ).toEqual({
+      scope: 'new',
+      tagSlug: null,
+      areaCode: 'JP-13-shibuya-ku',
+      authorUsername: null,
+    })
+  })
+
+  // 作者の絞り込みはルートパラメータ由来のものだけ。URL クエリから拾うと、
+  // 壊れた値を null に丸めた瞬間に絞り込みが外れて全件になる
+  it('URL クエリから作者の絞り込みは拾わない', () => {
+    const query = parseFeedQuery({
+      scope: 'new',
+      tagSlug: null,
+      areaCode: null,
+    } as Parameters<typeof parseFeedQuery>[0])
+
+    expect(query.authorUsername).toBeNull()
+  })
+})
+
+describe('feedQuerySchema の authorUsername', () => {
+  const base = { scope: 'new', tagSlug: null, areaCode: null }
+
+  it('username の形を満たさない値は弾く（「もっと見る」の入力経路）', () => {
+    for (const authorUsername of ['a', 'bad name!', 'x'.repeat(21)]) {
+      expect(feedQuerySchema.safeParse({ ...base, authorUsername }).success).toBe(false)
+    }
+  })
+
+  it('省略時は null', () => {
+    expect(feedQuerySchema.parse(base).authorUsername).toBeNull()
   })
 })
 

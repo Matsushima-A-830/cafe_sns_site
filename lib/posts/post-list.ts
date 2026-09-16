@@ -44,6 +44,8 @@ export type PostListOptions = {
   areaCode?: string | null
   /** 指定するとこのユーザーがフォローしている作者の投稿だけになる */
   followerId?: string | null
+  /** プロフィール（S_USER_PROFILE_PUBLIC）の投稿グリッド。1人の作者に絞る */
+  authorId?: string | null
   cursor?: PostListCursor | null
   limit?: number
 }
@@ -190,6 +192,9 @@ export async function getPostList(
   }
   if (options.followerId) {
     query = query.eq('following.follows.follower_id', options.followerId)
+  }
+  if (options.authorId) {
+    query = query.eq('author_id', options.authorId)
   }
   if (options.cursor) {
     const cursor = assertValidCursor(options.cursor)

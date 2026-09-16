@@ -175,7 +175,7 @@ app/
 | S_SEARCH | `/search` | SSR |
 | S_POST_DETAIL | `/posts/[id]` | SSR ※ISR (300s) を想定していたが未達（[pending-items D23](../product/pending-items.md)） |
 | S_CAFE_DETAIL | `/cafes/[id]` | ISR (300s) |
-| S_USER_PROFILE_PUBLIC | `/users/[username]` | ISR (60s) |
+| S_USER_PROFILE_PUBLIC | `/users/[username]` | SSR ※ISR (60s) を想定していたが、S_POST_DETAIL と同じ理由で断念（[pending-items D23](../product/pending-items.md)） |
 | S_LOGIN | `/login` | SSR |
 | S_SIGNUP (1〜3) | `/signup` `/signup/verify` `/signup/birthdate` | SSR |
 | S_SIGNUP_BLOCKED | `/signup/blocked` | Static |

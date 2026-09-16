@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { PostListOptions, PostListTag } from '@/lib/posts/post-list'
+import { getPublicProfile } from '@/lib/profiles/public-profile'
 import type { FeedQuery } from '@/lib/validators/feed'
 import type { Database } from '@/types/database'
 
@@ -40,7 +41,7 @@ export type FeedResolution = { options: PostListOptions; tag: PostListTag | null
 /**
  * 表示条件（タブ・クエリ）を一覧取得の絞り込みに変換する。
  * null を返したときは「条件を満たす投稿が原理的に0件」（存在しないタグ slug、
- * 未ログインでのフォロー中タブ）で、呼び出し元は取得せず空状態を出す。
+ * 未ログインでのフォロー中タブ、停止・削除済みの作者）で、呼び出し元は取得せず空状態を出す。
  *
  * scope='recommended' の実体は user_interest_tags の単純一致。興味タグ未設定なら
  * 新着と同じになる（スコアリングは likes / bookmarks 実装後 — pending-items D24）
@@ -54,6 +55,15 @@ export async function resolveFeedOptions(
 
   const options: PostListOptions = { areaCode: query.areaCode }
   let tag: PostListTag | null = null
+
+  if (query.authorUsername) {
+    // 「もっと見る」はクライアントから username を受け取るため、ここでも実在する
+    // active なユーザーかを確かめる。ページ本体が404にする相手の投稿を、
+    // 次ページ取得だけがすり抜けて返さないようにする（pending-items D29）
+    const author = await getPublicProfile(supabase, query.authorUsername)
+    if (!author) return null
+    options.authorId = author.id
+  }
 
   if (query.tagSlug) {
     const { data, error } = await supabase
