@@ -137,7 +137,7 @@ function handleLike() { ... }
 cafe_sns_site/
 ├── CLAUDE.md
 ├── .claude/
-│   └── skills/                    # /test /fe-implement 等のスキル
+│   └── skills/<name>/SKILL.md     # /test /fe-implement 等のスキル
 ├── docs/                          # 設計ドキュメント（真実の源泉）
 ├── app/                           # Next.js App Router（[docs/architecture/routing.md] 参照）
 │   ├── (browsing)/
@@ -268,7 +268,7 @@ bg-danger           (危険操作)
 
 ## 使えるスキル
 
-`/{skill}` で呼び出し可能:
+`/{skill}` で呼び出し可能。実体は `.claude/skills/<name>/SKILL.md`（フラットな `.md` は認識されない）:
 
 | コマンド | 用途 |
 |---|---|
@@ -276,8 +276,13 @@ bg-danger           (危険操作)
 | `/fe-implement` | フロントエンド実装（ページ・コンポーネント） |
 | `/be-implement` | バックエンド実装（Server Actions・API Routes） |
 | `/db-implement` | DB実装（マイグレーション・RLS） |
-| `/code-review` | 実装後のセルフレビュー |
+| `/self-review` | 実装後のセルフレビュー（組み込み `/code-review` とは別物） |
 | `/debug` | RLS/Server Actions/キャッシュ/型エラー等の解消手順 |
+| `/board-update` | 実装状況ボード（docs/implementation-board.html）の更新 |
+| （`supabase`） | Supabase 一般知識。スラッシュ起動ではなく内容に応じて自動発動。上流 supabase/agent-skills 由来 |
+
+**組み込みスキルとの併用:** `/code-review`（差分レビュー、`ultra` でクラウド多エージェント）・`/security-review`・`/run` も利用可。
+`docs/` 内の過去ログにある `/code-review` は、2026-09-16 の改名前の本プロジェクトスキル（現 `/self-review`）を指す。
 
 ## Git / デプロイ運用
 

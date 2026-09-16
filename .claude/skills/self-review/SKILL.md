@@ -1,8 +1,9 @@
 ---
+name: self-review
 description: 実装後のセルフレビュー・PR前レビュー。TDD準拠、拡張性、バグリスクを観点別にチェックする。
 ---
 
-# /code-review — コードレビュー
+# /self-review — コードレビュー
 
 ## 起動時に必ずやること
 
@@ -78,7 +79,7 @@ description: 実装後のセルフレビュー・PR前レビュー。TDD準拠�
 - [ ] キーボード操作でフォームが完結するか
 - [ ] `alt` テキスト・aria-label が適切か
 
-### 7-b. デザインシステム遵守（[docs/design/design-system.md](../../docs/design/design-system.md)）
+### 7-b. デザインシステム遵守（[docs/design/design-system.md](../../../docs/design/design-system.md)）
 
 **必ず Grep で機械的に検出する:**
 
@@ -115,10 +116,10 @@ description: 実装後のセルフレビュー・PR前レビュー。TDD準拠�
 ### 9. ドキュメント整合性
 
 - [ ] 画面ID コメントが `page.tsx` 冒頭にあるか
-- [ ] DB変更が [docs/architecture/data-model/tables.md](../../docs/architecture/data-model/tables.md) に反映されているか
-- [ ] URL変更が [docs/architecture/routing.md](../../docs/architecture/routing.md) に反映されているか
-- [ ] 決定事項が [docs/product/mvp-scope.md](../../docs/product/mvp-scope.md) と矛盾していないか
-- [ ] 新規未決事項が [docs/product/pending-items.md](../../docs/product/pending-items.md) に追加されているか
+- [ ] DB変更が [docs/architecture/data-model/tables.md](../../../docs/architecture/data-model/tables.md) に反映されているか
+- [ ] URL変更が [docs/architecture/routing.md](../../../docs/architecture/routing.md) に反映されているか
+- [ ] 決定事項が [docs/product/mvp-scope.md](../../../docs/product/mvp-scope.md) と矛盾していないか
+- [ ] 新規未決事項が [docs/product/pending-items.md](../../../docs/product/pending-items.md) に追加されているか
 
 ### 10. ロジックの見た目
 
@@ -174,7 +175,8 @@ console.log       残置デバッグ
 ## 使い分け（他スキルとの関係）
 
 - **実装中の判断:** `/fe-implement` `/be-implement` `/db-implement`
-- **実装後のセルフレビュー:** `/code-review`（このスキル）
+- **実装後のセルフレビュー:** `/self-review`（このスキル）
+- **実装状況ボードの更新:** `/board-update`（レビュー後・PR前）
 - **リリース前の総合レビュー:** `/ultrareview`（Claude Code組み込み）
 
 ## セルフレビュー vs 他者レビュー
@@ -187,3 +189,4 @@ console.log       残置デバッグ
 - 重大な指摘がすべて修正 or 明示的に許容された
 - テストが Green（`pnpm test:run` `pnpm typecheck` `pnpm lint`）
 - ドキュメント側の整合性が確認された
+- `/board-update` で実装状況ボードを更新した（実装の意味が変わる変更のとき）

@@ -1,4 +1,5 @@
 ---
+name: fe-implement
 description: フロントエンド実装（ページ・コンポーネント・レイアウト）を進める。Next.js App Router + Tailwind + shadcn/ui + Tiptap。
 ---
 
@@ -8,9 +9,9 @@ description: フロントエンド実装（ページ・コンポーネント・�
 
 1. **画面ID の特定:** 実装対象の `S_*` を確認
 2. **ドキュメント3点セット参照:**
-   - [docs/design/wireframes/](../../docs/design/wireframes/) で該当画面のレイアウト
-   - [docs/architecture/routing.md](../../docs/architecture/routing.md) で URL・所属グループ・SSR/ISR方針
-   - [docs/design/screen-flow.md](../../docs/design/screen-flow.md) で前後の遷移
+   - [docs/design/wireframes/](../../../docs/design/wireframes/) で該当画面のレイアウト
+   - [docs/architecture/routing.md](../../../docs/architecture/routing.md) で URL・所属グループ・SSR/ISR方針
+   - [docs/design/screen-flow.md](../../../docs/design/screen-flow.md) で前後の遷移
 3. **モバイル + PC の両方** を確認（別レイアウトが定義されていれば両方対応）
 4. **既存コンポーネントの再利用可能性を Grep で調査**（重複実装しない）
 
@@ -84,7 +85,7 @@ export function LikeButton({ postId, initialLiked, initialCount }: Props) {
 
 ## デザインシステム遵守（必須）
 
-**参照:** [docs/design/design-system.md](../../docs/design/design-system.md)
+**参照:** [docs/design/design-system.md](../../../docs/design/design-system.md)
 
 ### 記述前の3つの必須確認
 
@@ -123,7 +124,7 @@ pnpm dlx shadcn@latest add button dialog form input textarea
 
 - `components/ui/` に生成される（変更可能なコード）
 - **色トークンを必ずbrown系に置換** — 生成直後の CSS 変数は `slate` 等になっているため、`app/globals.css` の `:root` セクションで `--background: var(--color-brown-50)` 等に上書き
-- 詳細は [design/design-system.md #shadcnuiの色調整](../../docs/design/design-system.md#shadcnuiの色調整) 参照
+- 詳細は [design/design-system.md #shadcnuiの色調整](../../../docs/design/design-system.md#shadcnuiの色調整) 参照
 
 ### レスポンシブの分岐点
 
@@ -258,7 +259,8 @@ async function handleFile(file: File) {
   - [ ] 任意値 `[XXpx]` を使っていないか（使う場合は8倍数のみ）
   - [ ] インライン `style=` を使っていないか
   - [ ] `text-brown-*` `bg-brown-*` を使ってブラウン系に統一されているか
-- [ ] `/code-review` を実行
+- [ ] `/self-review` を実行
+- [ ] `/board-update` で実装状況ボードを更新
 
 ## やらないこと
 

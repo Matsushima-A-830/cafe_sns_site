@@ -1,4 +1,5 @@
 ---
+name: debug
 description: 実装中の詰まり所を体系的に解消する。RLS、Server Actions、キャッシュ、型エラー、環境変数など。
 ---
 
@@ -164,7 +165,7 @@ description: 実装中の詰まり所を体系的に解消する。RLS、Server 
 1. **タイポ確認** — Tailwind Intellisense が候補を出すか
 2. `tailwind.config.ts` (v3) or `@source` (v4) にファイルパスが含まれているか
 3. 動的クラス（`bg-${color}-500`）は JIT が検出できない → 完全クラス名を書く or `safelist` に追加
-4. デザインシステム違反で意図しない色 → [design-system.md](../../docs/design/design-system.md) を確認
+4. デザインシステム違反で意図しない色 → [design-system.md](../../../docs/design/design-system.md) を確認
 
 ### 症状: 「shadcn/ui コンポーネントの色が違う」
 
@@ -222,7 +223,7 @@ description: 実装中の詰まり所を体系的に解消する。RLS、Server 
 
 ## 学習の記録
 
-繰り返し発生する問題は [pending-items.md](../../docs/product/pending-items.md) に「解消済みの罠」として記録する。
+繰り返し発生する問題は [pending-items.md](../../../docs/product/pending-items.md) に「解消済みの罠」として記録する。
 
 ## `config.toml` を変えたのに反映されない
 

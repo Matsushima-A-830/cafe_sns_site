@@ -1,4 +1,5 @@
 ---
+name: be-implement
 description: バックエンド実装（Server Actions・Route Handlers・Supabaseクライアント層）を進める。TDD必須の領域。
 ---
 
@@ -6,7 +7,7 @@ description: バックエンド実装（Server Actions・Route Handlers・Supaba
 
 ## 起動時に必ずやること
 
-1. **RLSポリシーの再確認** — 対象テーブルの認可は [docs/architecture/data-model/tables.md](../../docs/architecture/data-model/tables.md) で必ずチェック
+1. **RLSポリシーの再確認** — 対象テーブルの認可は [docs/architecture/data-model/tables.md](../../../docs/architecture/data-model/tables.md) で必ずチェック
 2. **境界の判定** — 実装対象が Server Action か Route Handler かを判断
    - フォーム系ミューテーション → Server Action
    - Webhook / 署名URL発行 / 外部連携 → Route Handler
@@ -223,7 +224,8 @@ export const env = envSchema.parse(process.env)
 - [ ] RLSに認可を委譲している
 - [ ] テスト（ユニット + RLS統合）を書いた
 - [ ] `revalidatePath` / `revalidateTag` を適切に呼んでいる
-- [ ] `/code-review` を実行
+- [ ] `/self-review` を実行
+- [ ] `/board-update` で実装状況ボードを更新
 
 ## やらないこと
 
