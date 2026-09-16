@@ -26,6 +26,9 @@ import type { FeedQuery } from '@/lib/validators/feed'
 
 type PageProps = { params: Promise<{ username: string }> }
 
+/** Server Component 内の複数箇所から同じクライアントを使う（cookies() の読み直しを避ける） */
+const getSupabase = cache(async () => createClient())
+
 /**
  * 404 にする条件をすべてここに集約する。ブロック判定を本体側だけに置くと、
  * generateMetadata は成功して 404 ページのタイトルと description に相手の表示名・bio が
@@ -33,7 +36,7 @@ type PageProps = { params: Promise<{ username: string }> }
  * generateMetadata と本体からの2回の呼び出しは cache() で1回にまとめる
  */
 const loadProfile = cache(async (username: string): Promise<PublicProfile | null> => {
-  const supabase = await createClient()
+  const supabase = await getSupabase()
   const profile = await getPublicProfile(supabase, username)
   if (!profile) return null
 
@@ -106,7 +109,7 @@ export default async function UserProfilePage({ params }: PageProps) {
   const profile = await loadProfile(username)
   if (!profile) notFound()
 
-  const supabase = await createClient()
+  const supabase = await getSupabase()
   const {
     data: { user },
   } = await supabase.auth.getUser()
@@ -152,7 +155,13 @@ export default async function UserProfilePage({ params }: PageProps) {
             当面は自分の公開プロフィールとしてこの画面をそのまま見せる */}
         {!isSelf &&
           (user ? (
-            <FollowButton followeeId={profile.id} initialFollowing={following} />
+            <FollowButton
+              // initialFollowing は useState の初期値にしかならない。別タブでの
+              // フォロー解除などでサーバー側の値がずれたら state ごと作り直す
+              key={`${profile.id}:${following}`}
+              followeeId={profile.id}
+              initialFollowing={following}
+            />
           ) : (
             <Button asChild size="lg">
               <Link href={`/login?next=${encodeURIComponent(`/users/${profile.username}`)}`}>

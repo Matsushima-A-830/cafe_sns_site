@@ -58,8 +58,8 @@ export async function resolveFeedOptions(
 
   if (query.authorUsername) {
     // 「もっと見る」はクライアントから username を受け取るため、ここでも実在する
-    // active なユーザーかを確かめる。ページ本体が404にする相手の投稿を、
-    // 次ページ取得だけがすり抜けて返さないようにする（pending-items D29）
+    // active なユーザーかを確かめる。見ているのは status だけで、ブロック関係は
+    // posts_select の not is_blocked_either_way(author_id) が担う
     const author = await getPublicProfile(supabase, query.authorUsername)
     if (!author) return null
     options.authorId = author.id

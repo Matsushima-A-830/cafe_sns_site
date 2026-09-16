@@ -52,7 +52,6 @@ export function FollowButton({
         size="lg"
         onClick={handleClick}
         disabled={isPending}
-        aria-live="polite"
         className="focus-visible:ring-2 focus-visible:ring-ring-focus"
       >
         {following ? 'フォロー中' : 'フォロー'}

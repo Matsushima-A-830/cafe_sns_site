@@ -15,6 +15,10 @@ import type { Result } from '@/types/result'
  *   supabase/migrations/20260916120000_guard_follows_insert_blocked_and_active_followee.sql
  */
 
+// 自己フォローを弾く CHECK 制約。23514 を一律に自己フォロー扱いにすると、
+// follows へ別の CHECK が増えた瞬間に無関係な違反が同じメッセージになる
+const SELF_FOLLOW_CONSTRAINT = 'follows_no_self_follow'
+
 type FollowUserError =
   | 'INVALID_INPUT'
   | 'UNAUTHENTICATED'
@@ -45,8 +49,8 @@ export async function followUser(input: unknown): Promise<Result<null, FollowUse
 
   if (error) {
     if (error.code === POSTGRES_UNIQUE_VIOLATION) return { ok: false, error: 'ALREADY_FOLLOWING' }
-    // follows_no_self_follow。自分のプロフィールにボタンは出ないので通常は届かない
-    if (error.code === POSTGRES_CHECK_VIOLATION) {
+    // 自分のプロフィールにボタンは出ないので通常は届かない
+    if (error.code === POSTGRES_CHECK_VIOLATION && error.message.includes(SELF_FOLLOW_CONSTRAINT)) {
       return { ok: false, error: 'SELF_FOLLOW_FORBIDDEN' }
     }
     // ブロック関係・相手が active でない・自分が suspended / pending_consent
