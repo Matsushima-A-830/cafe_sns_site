@@ -148,3 +148,107 @@ describe('blocks の RLS', () => {
     expect(error?.code).toBe(RLS_VIOLATION)
   })
 })
+
+// 20260916120000 で follows_insert_own に followee 側のガードを足した。
+// 以前は「ブロックしている/されている相手」「停止中の相手」を誰でもフォローできた
+describe('follows_insert_own の followee 側ガード', () => {
+  let blocker: AuthedUser
+  let blocked: AuthedUser
+  let target: AuthedUser
+  let suspendedTarget: AuthedUser
+
+  beforeAll(async () => {
+    blocker = await createAuthedProfile({ username: 'blocker_guard' })
+    blocked = await createAuthedProfile({ username: 'blocked_guard' })
+    target = await createAuthedProfile({ username: 'target_guard' })
+    suspendedTarget = await createAuthedProfile({
+      username: 'suspended_target_guard',
+      status: 'suspended',
+    })
+
+    await service.from('blocks').insert({ blocker_id: blocker.userId, blocked_id: blocked.userId })
+  })
+
+  afterAll(async () => {
+    await blocker?.cleanup()
+    await blocked?.cleanup()
+    await target?.cleanup()
+    await suspendedTarget?.cleanup()
+  })
+
+  it('自分がブロックしている相手はフォローできない', async () => {
+    const { error } = await blocker.client
+      .from('follows')
+      .insert({ follower_id: blocker.userId, followee_id: blocked.userId })
+
+    expect(error?.code).toBe(RLS_VIOLATION)
+  })
+
+  // ブロックされた側は blocks を読めないので、判定は is_blocked_either_way（security definer）が担う
+  it('自分をブロックしている相手はフォローできない', async () => {
+    const { error } = await blocked.client
+      .from('follows')
+      .insert({ follower_id: blocked.userId, followee_id: blocker.userId })
+
+    expect(error?.code).toBe(RLS_VIOLATION)
+  })
+
+  it('status=suspended の相手はフォローできない', async () => {
+    const { error } = await target.client
+      .from('follows')
+      .insert({ follower_id: target.userId, followee_id: suspendedTarget.userId })
+
+    expect(error?.code).toBe(RLS_VIOLATION)
+  })
+
+  it('ブロック関係のない active な相手はフォローできる', async () => {
+    const { error } = await target.client
+      .from('follows')
+      .insert({ follower_id: target.userId, followee_id: blocker.userId })
+
+    expect(error).toBeNull()
+  })
+})
+
+// 20260916120100: ブロック成立時に両方向のフォローを切るトリガー。
+// insert 時のガードだけだと「フォロー済みの相手をあとからブロック」で行が残る
+describe('blocks 作成時の follows 解除', () => {
+  let one: AuthedUser
+  let two: AuthedUser
+
+  beforeAll(async () => {
+    one = await createAuthedProfile({ username: 'one_unfollow_on_block' })
+    two = await createAuthedProfile({ username: 'two_unfollow_on_block' })
+
+    await service.from('follows').insert([
+      { follower_id: one.userId, followee_id: two.userId },
+      { follower_id: two.userId, followee_id: one.userId },
+    ])
+  })
+
+  afterAll(async () => {
+    await one?.cleanup()
+    await two?.cleanup()
+  })
+
+  it('相互フォローでも両方向の行が消える', async () => {
+    const before = await service
+      .from('follows')
+      .select('follower_id')
+      .in('follower_id', [one.userId, two.userId])
+    expect(before.data).toHaveLength(2)
+
+    const { error } = await one.client
+      .from('blocks')
+      .insert({ blocker_id: one.userId, blocked_id: two.userId })
+    expect(error).toBeNull()
+
+    // ブロックされた側のフォローはブロックした本人には消せない（follows_delete_own）。
+    // security definer のトリガーが両方向を消していることを確かめる
+    const after = await service
+      .from('follows')
+      .select('follower_id')
+      .in('follower_id', [one.userId, two.userId])
+    expect(after.data).toEqual([])
+  })
+})
