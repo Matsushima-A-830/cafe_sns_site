@@ -279,6 +279,7 @@ bg-danger           (危険操作)
 | `/self-review` | 実装後のセルフレビュー（組み込み `/code-review` とは別物） |
 | `/debug` | RLS/Server Actions/キャッシュ/型エラー等の解消手順 |
 | `/board-update` | 実装状況ボード（docs/implementation-board.html）の更新 |
+| （`supabase`） | Supabase 一般知識。スラッシュ起動ではなく内容に応じて自動発動。上流 supabase/agent-skills 由来 |
 
 **組み込みスキルとの併用:** `/code-review`（差分レビュー、`ultra` でクラウド多エージェント）・`/security-review`・`/run` も利用可。
 `docs/` 内の過去ログにある `/code-review` は、2026-09-16 の改名前の本プロジェクトスキル（現 `/self-review`）を指す。

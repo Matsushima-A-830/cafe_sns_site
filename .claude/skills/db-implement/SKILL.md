@@ -13,6 +13,8 @@ description: DBスキーマ・マイグレーション・RLSポリシー実装�
 2. **既存マイグレーション確認:** `supabase/migrations/` を Grep で見て命名規則・パターンを踏襲
 3. **必要な拡張の確認:** `citext`, `pgcrypto`, `PostGIS`, `pg_trgm` などが有効化されているか
 4. **`/test` を先に呼ぶ** — 統合テストでRLS検証を書く
+5. **`supabase` スキルとの役割分担:** Supabase 一般の知識（RLSの罠・Data APIのGRANT・CLI）はそちら、
+   本プロジェクト固有の規約は本スキル。矛盾したら本スキルと `docs/` を優先する
 
 ## マイグレーションファイルの命名
 
