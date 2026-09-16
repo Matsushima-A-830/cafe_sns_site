@@ -9,7 +9,12 @@ const notoSansJp = Noto_Sans_JP({
 })
 
 export const metadata: Metadata = {
-  title: 'カフェSNS',
+  // 各ページは画面名だけを title に持たせ、サービス名はここで一律に付ける
+  // （ページ側が文字列で上書きするとサービス名が消える）
+  title: {
+    default: 'カフェSNS',
+    template: '%s | カフェSNS',
+  },
   description: '気分で見つかる、行きつけと繋がる — カフェ好きのためのSNS',
 }
 
