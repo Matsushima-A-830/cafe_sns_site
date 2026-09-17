@@ -24,15 +24,22 @@ do $$
 declare
   admin_id uuid := '00000000-0000-4000-8000-000000000001';
 begin
+  -- トークン列を空文字で埋めるのは GoTrue の都合。NULL のままだと
+  -- 「converting NULL to string is unsupported」でログイン自体が 500 になる
+  -- （列は nullable だが、GoTrue 側が string として読む）
   insert into auth.users (
     id, instance_id, aud, role, email, encrypted_password,
     email_confirmed_at, created_at, updated_at,
-    raw_app_meta_data, raw_user_meta_data
+    raw_app_meta_data, raw_user_meta_data,
+    confirmation_token, recovery_token, email_change_token_new,
+    email_change_token_current, email_change, phone_change,
+    phone_change_token, reauthentication_token
   ) values (
     admin_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
     'admin@example.test', extensions.crypt('password123', extensions.gen_salt('bf')),
     now(), now(), now(),
-    '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb
+    '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
+    '', '', '', '', '', '', '', ''
   )
   on conflict (id) do nothing;
 
