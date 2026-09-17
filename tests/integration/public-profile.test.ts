@@ -188,6 +188,7 @@ describe('投稿グリッド（authorId 絞り込み）', () => {
     tagSlug: null,
     areaCode: null,
     authorUsername: null,
+    cafeId: null,
     ...overrides,
   })
 

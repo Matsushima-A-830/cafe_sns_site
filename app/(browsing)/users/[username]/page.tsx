@@ -129,6 +129,7 @@ export default async function UserProfilePage({ params }: PageProps) {
     tagSlug: null,
     areaCode: null,
     authorUsername: profile.username,
+    cafeId: null,
   }
 
   return (

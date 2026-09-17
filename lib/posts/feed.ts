@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { cafeExists } from '@/lib/cafes/cafe-detail'
 import type { PostListOptions, PostListTag } from '@/lib/posts/post-list'
 import { getPublicProfile } from '@/lib/profiles/public-profile'
 import type { FeedQuery } from '@/lib/validators/feed'
@@ -63,6 +64,13 @@ export async function resolveFeedOptions(
     const author = await getPublicProfile(supabase, query.authorUsername)
     if (!author) return null
     options.authorId = author.id
+  }
+
+  if (query.cafeId) {
+    // ページ本体が404にするカフェ（存在しない・closed / hidden）を「もっと見る」だけが
+    // すり抜けて返さないよう、ここでも RLS 越しに実在を確かめる
+    if (!(await cafeExists(supabase, query.cafeId))) return null
+    options.cafeId = query.cafeId
   }
 
   if (query.tagSlug) {

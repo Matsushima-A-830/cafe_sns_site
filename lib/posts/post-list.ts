@@ -46,6 +46,8 @@ export type PostListOptions = {
   followerId?: string | null
   /** プロフィール（S_USER_PROFILE_PUBLIC）の投稿グリッド。1人の作者に絞る */
   authorId?: string | null
+  /** カフェ詳細（S_CAFE_DETAIL）の投稿グリッド。1つのカフェに絞る */
+  cafeId?: string | null
   cursor?: PostListCursor | null
   limit?: number
 }
@@ -195,6 +197,9 @@ export async function getPostList(
   }
   if (options.authorId) {
     query = query.eq('author_id', options.authorId)
+  }
+  if (options.cafeId) {
+    query = query.eq('cafe_id', options.cafeId)
   }
   if (options.cursor) {
     const cursor = assertValidCursor(options.cursor)

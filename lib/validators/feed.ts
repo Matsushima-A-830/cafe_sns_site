@@ -26,6 +26,8 @@ export const feedQuerySchema = z.object({
    * resolveFeedOptions が実在する active なユーザーかを確かめる
    */
   authorUsername: usernameSchema.nullable().default(null),
+  /** S_CAFE_DETAIL の投稿グリッド。authorUsername と同じ理由でクライアント入力を検証する */
+  cafeId: z.string().uuid().nullable().default(null),
 })
 
 /**
@@ -42,9 +44,10 @@ export function parseFeedQuery(input: {
     scope: input.scope,
     tagSlug: tagSlugSchema.safeParse(input.tagSlug).data ?? null,
     areaCode: areaCodeSchema.safeParse(input.areaCode).data ?? null,
-    // URL クエリからは受け取らない。作者の絞り込みはルートパラメータ由来のものだけ
+    // URL クエリからは受け取らない。作者・カフェの絞り込みはルートパラメータ由来のものだけ
     // （壊れた値を null に丸める上の方式だと、絞り込みが外れて全件になってしまう）
     authorUsername: null,
+    cafeId: null,
   }
 }
 

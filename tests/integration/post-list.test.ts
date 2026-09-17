@@ -69,6 +69,7 @@ const query = (overrides: Partial<FeedQuery> = {}): FeedQuery => ({
   tagSlug: null,
   areaCode: null,
   authorUsername: null,
+  cafeId: null,
   ...overrides,
 })
 
