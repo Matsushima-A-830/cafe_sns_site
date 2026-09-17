@@ -279,6 +279,7 @@ bg-danger           (危険操作)
 | `/self-review` | 実装後のセルフレビュー（組み込み `/code-review` とは別物） |
 | `/debug` | RLS/Server Actions/キャッシュ/型エラー等の解消手順 |
 | `/board-update` | 実装状況ボード（docs/implementation-board.html）の更新 |
+| `/handoff` | 次セッションへの引き継ぎテキスト生成（マージ後・セッションを切る直前） |
 | （`supabase`） | Supabase 一般知識。スラッシュ起動ではなく内容に応じて自動発動。上流 supabase/agent-skills 由来 |
 
 **組み込みスキルとの併用:** `/code-review`（差分レビュー、`ultra` でクラウド多エージェント）・`/security-review`・`/run` も利用可。
