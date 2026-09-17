@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { getCafeDetail, getCafePostCount } from '@/lib/cafes/cafe-detail'
+import { cafeExists, getCafeDetail, getCafePostCount } from '@/lib/cafes/cafe-detail'
 import { getCafeCongestion, toCongestionSummary } from '@/lib/cafes/congestion'
 import { resolveFeedOptions } from '@/lib/posts/feed'
 import { getPostList } from '@/lib/posts/post-list'
@@ -221,6 +221,15 @@ describe('投稿グリッド（cafeId 絞り込み）', () => {
     expect(
       await resolveFeedOptions(typed(anon), query({ cafeId: crypto.randomUUID() }), null),
     ).toBeNull()
+  })
+})
+
+describe('cafeExists', () => {
+  it('公開中のカフェだけ true。closed / hidden / 不正なIDは false', async () => {
+    expect(await cafeExists(typed(anon), activeCafeId)).toBe(true)
+    expect(await cafeExists(typed(anon), closedCafeId)).toBe(false)
+    expect(await cafeExists(typed(anon), hiddenCafeId)).toBe(false)
+    expect(await cafeExists(typed(anon), 'not-a-uuid')).toBe(false)
   })
 })
 

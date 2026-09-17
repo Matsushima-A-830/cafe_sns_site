@@ -130,13 +130,17 @@ export function getOpenState(hours: BusinessHour[], now: Date): OpenState {
   return { status: 'closed', nextOpen: findNextOpen(hours, dayOfWeek, minutes) }
 }
 
-/** 今日の残り → 明日以降6日ぶんの順に、最初に開く時刻を探す */
+/**
+ * 今日の残り → 明日以降の順に、最初に開く時刻を探す。
+ * 7日先（＝来週の同じ曜日）まで見るのは、営業日が週1日しか無いカフェで
+ * その日の開店時刻を過ぎた場合に「次はいつ開くか」を失わないため
+ */
 function findNextOpen(
   hours: BusinessHour[],
   dayOfWeek: number,
   minutes: number,
 ): { dayOfWeek: number; at: string } | null {
-  for (let offset = 0; offset < 7; offset += 1) {
+  for (let offset = 0; offset <= 7; offset += 1) {
     const day = (dayOfWeek + offset) % 7
     const hour = hours.find((entry) => entry.dayOfWeek === day)
     if (!hasHours(hour)) continue

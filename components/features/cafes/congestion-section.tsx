@@ -83,9 +83,15 @@ export function CongestionSection({
   const router = useRouter()
 
   function handleReport(level: number) {
-    // 楽観更新: 失敗時に戻すため直前の集計を保持する
+    // 楽観更新: 失敗時に戻すため直前の集計を保持する。
+    // 件数を引き継げるのは直近30分（recent）のときだけ。historical の件数は
+    // 過去4週間の集計なので、足すと「直近30分に13件」のような嘘になる
     const previous = summary
-    setSummary({ source: 'recent', levelAvg: level, sampleCount: previous.sampleCount + 1 })
+    setSummary({
+      source: 'recent',
+      levelAvg: level,
+      sampleCount: previous.source === 'recent' ? previous.sampleCount + 1 : 1,
+    })
     setError(null)
 
     startTransition(async () => {

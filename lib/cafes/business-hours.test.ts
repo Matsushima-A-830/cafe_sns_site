@@ -143,6 +143,15 @@ describe('getOpenState', () => {
     })
   })
 
+  it('営業日が週1日のカフェは、その日の閉店後に来週の同じ曜日を返す', () => {
+    // 木曜だけ営業。JST 木曜 23:00 → 次に開くのは来週の木曜 08:00
+    const onlyThursday = [hour(4, '08:00:00', '22:00:00')]
+    expect(getOpenState(onlyThursday, new Date('2026-09-17T14:00:00Z'))).toEqual({
+      status: 'closed',
+      nextOpen: { dayOfWeek: 4, at: '08:00' },
+    })
+  })
+
   it('今日の行が無い（登録漏れ）ときも次の営業日を探す', () => {
     // 木曜（4）の行だけ無い。JST 木曜 12:00
     const hours = weekdayHours().filter((h) => h.dayOfWeek !== 4)
