@@ -5,6 +5,25 @@ description: 実装後のセルフレビュー・PR前レビュー。TDD準拠�
 
 # /self-review — コードレビュー
 
+## いつ走らせるか
+
+**実装が終わり、`pnpm lint` / `pnpm typecheck` / `pnpm test:run` が Green になった直後。PR作成の前。**
+
+`/self-review` と組み込みの `/code-review` は**守備範囲が違うので両方走らせる**。片方で済ませない。
+
+| | `/self-review`（このスキル） | `/code-review`（組み込み） |
+|---|---|---|
+| 探すもの | **規約違反・ドキュメント不整合** | **バグ・再利用漏れ・冗長** |
+| 判断基準 | CLAUDE.md / design-system.md / glossary.md / error-catalog.md に照らす | コードを読んで壊れる入力を探す |
+| 主な手段 | チェックリストと Grep による機械的検出 | 差分と周辺コードの読解 |
+| 見つかる例 | `#000` 系の色、非8倍数の余白、画面IDコメント漏れ、`tables.md` 未更新 | 404ページのタイトルに非公開情報が載る、`router.refresh()` で state が古いまま |
+
+**順番は `/self-review` → `/code-review`。** 規約違反を先に潰しておくと、`/code-review` の指摘が
+本質的なものだけになる。
+
+**実績:** PR #34 では `/code-review` が4件（うち1件は情報漏洩）を出し、その後の人手レビューで
+さらに6件出た。**レビューを1回で終わらせない**ことが効いている。
+
 ## 起動時に必ずやること
 
 1. **変更ファイルの一覧化:** `git status` / `git diff --stat` で範囲確認
@@ -174,10 +193,20 @@ console.log       残置デバッグ
 
 ## 使い分け（他スキルとの関係）
 
-- **実装中の判断:** `/fe-implement` `/be-implement` `/db-implement`
-- **実装後のセルフレビュー:** `/self-review`（このスキル）
-- **実装状況ボードの更新:** `/board-update`（レビュー後・PR前）
-- **リリース前の総合レビュー:** `/ultrareview`（Claude Code組み込み）
+開発サイクルの中での位置:
+
+```
+実装（/fe /be /db + /test）
+  → /self-review（規約・ドキュメント整合）   ← このスキル
+  → /code-review（バグ探索。ultra でクラウド多エージェント）
+  → /board-update（実装状況ボード）
+  → PR → CI green → マージ
+  → /handoff（次セッションへの引き継ぎ）
+```
+
+- **実装中の判断:** `/fe-implement` `/be-implement` `/db-implement` `/test`
+- **詰まったとき:** `/debug`
+- **セキュリティ観点の総ざらい:** `/security-review`（組み込み）
 
 ## セルフレビュー vs 他者レビュー
 
