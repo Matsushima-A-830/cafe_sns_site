@@ -7,6 +7,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     globals: true,
+    setupFiles: ['./tests/setup-integration.ts'],
     include: ['tests/integration/**/*.test.ts'],
     // 単一のローカルDBを共有するため、ファイル間の並列実行はしない
     fileParallelism: false,

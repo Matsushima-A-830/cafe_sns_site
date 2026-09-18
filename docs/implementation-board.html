@@ -1,3 +1,5 @@
+<!doctype html>
+<meta charset="utf-8">
 <title>カフェSNS 実装ボード</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -334,16 +336,16 @@
     "eyebrow": "CAFE SNS / IMPLEMENTATION BOARD",
     "headline": "気分で見つかる、<br>行きつけと繋がる",
     "sub": "いま立っているもの と これから立てるもの",
-    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローする」までの一本。反応（いいね・コメント・保存）、店（カフェ詳細・地図）、オーナー側は、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
-    "updatedAt": "2026-09-16",
-    "ref": "branch: docs/implementation-board"
+    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローして、その店に行けるか確かめる」までの一本。反応（いいね・コメント・保存）、地図、オーナー側は、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
+    "updatedAt": "2026-09-17",
+    "ref": "branch: feature/cafe-detail"
   },
 
   "metrics": [
-    { "k": "SCREENS", "v": "16", "unit": "/ 37", "note": "ワイヤー37画面のうち、画面IDコメント付きの page.tsx があるもの", "ratio": 43 },
+    { "k": "SCREENS", "v": "17", "unit": "/ 37", "note": "ワイヤー37画面のうち、画面IDコメント付きの page.tsx があるもの", "ratio": 46 },
     { "k": "TABLES", "v": "15", "unit": "/ 27", "note": "tables.md の27テーブル中、マイグレーション済み", "ratio": 55 },
     { "k": "MIGRATIONS", "v": "30", "unit": "", "note": "RLSポリシー込み。forward-only 運用", "ratio": null },
-    { "k": "TESTS", "v": "49", "unit": " files", "note": "unit / RLS統合19本 / E2E 2本。統合はCI未実行", "ratio": null }
+    { "k": "TESTS", "v": "52", "unit": " files", "note": "unit / RLS統合20本 / E2E 2本。統合はCI未実行", "ratio": null }
   ],
 
   "sections": [
@@ -396,14 +398,17 @@
         { "status": "partial", "tag": "S_USER_PROFILE_PUBLIC", "title": "他人のプロフィール",
           "body": "アバター・表示名・bio・3カウント・フォローボタン・投稿グリッド。",
           "why": "バッジ・行きつけタブ・通報メニューは対応テーブルが無く非表示（D28）" },
+        { "status": "partial", "tag": "S_CAFE_DETAIL", "title": "カフェ詳細",
+          "body": "営業時間表（JST基準・深夜営業対応の「営業中 / 準備中」バッジ）、混雑度の3段階フォールバックと報告フォーム、基本情報、投稿グリッド。",
+          "why": "行きたい/お気に入り・地図・オーナーからのセクションは元テーブルとデータが未整備（D30）／ヒーロー画像は最新投稿の流用（D31）" },
         { "status": "done", "tag": "S_POST_SHORT / S_POST_BLOG", "title": "composer",
           "body": "Tiptap（JSON保存）、画像アップロード、カフェ選択、厳選タグ、公開範囲、15秒デバウンスの下書き自動保存、プレビュー。" },
         { "status": "done", "tag": "S_POST_SUCCESS", "title": "投稿完了",
           "body": "ピークエンド則の着地点。/new は形式選択シート。" },
         { "status": "done", "tag": "follows", "title": "フォロー",
           "body": "楽観更新つきフォローボタン。ブロック済み相手・停止アカウントは INSERT 時に弾く。" },
-        { "status": "done", "tag": "_actions", "title": "Server Actions 7本",
-          "body": "auth / onboarding / posts / drafts / feed / follows / cafes。入力は全て Zod、返りは Result 型。" }
+        { "status": "done", "tag": "_actions", "title": "Server Actions 8本",
+          "body": "auth / onboarding / posts / drafts / feed / follows / cafes / congestion。入力は全て Zod、返りは Result 型。" }
       ]
     },
 
@@ -427,8 +432,8 @@
           "body": "厳選タグ30 / 東京45エリア / バッジ20の定義。バッジは<strong>マスタのみ</strong>で付与側は無い。" },
         { "status": "done", "tag": "CI", "title": "Biome + tsc + design-system 検査",
           "body": "#000禁止・インラインstyle禁止・非8倍数余白の検出を pre-commit と CI の両方で走らせる。" },
-        { "status": "partial", "tag": "tests", "title": "テスト49ファイル",
-          "body": "RLS統合テスト19本は Supabase local 前提でローカル実行のみ。",
+        { "status": "partial", "tag": "tests", "title": "テスト52ファイル",
+          "body": "RLS統合テスト20本は Supabase local 前提でローカル実行のみ。",
           "why": "CIで動いていない（D10）" }
       ]
     },
@@ -436,13 +441,13 @@
     {
       "kind": "frame", "id": "f-todo", "row": 1, "x": 2980, "w": 1340,
       "title": "③ まだ存在しない画面",
-      "tally": "SCREENS 21 / TABLES 12",
+      "tally": "SCREENS 20 / TABLES 12",
       "lede": "未実装の大半は「テーブルが無いから画面も無い」。逆に言えば、テーブルを1つ足すたびに複数画面が開く。",
       "notes": [
         { "status": "todo", "tag": "likes / comments / post_bookmarks", "title": "投稿への反応",
           "body": "投稿カードのアクション行、コメント欄、保存。SNSとして最も効く欠落。" },
-        { "status": "todo", "tag": "S_CAFE_DETAIL / S_CAFE_NEW", "title": "カフェの面",
-          "body": "cafes テーブルはあるのに、店を見る画面と登録する画面が無い。営業時間・混雑度も置き場だけの状態。" },
+        { "status": "todo", "tag": "S_CAFE_NEW", "title": "カフェ登録画面",
+          "body": "店を見る面（S_CAFE_DETAIL）は開いたが、カフェを新規登録できるのは composer の中だけ。専用画面とオーナーによる情報編集（B8）が無い。" },
         { "status": "todo", "tag": "S_MAP / S_SEARCH / S_FILTER_*", "title": "探す面",
           "body": "地図は areas.center_location の座標45件が未収集（A3）。タグ検索も未着手。" },
         { "status": "todo", "tag": "S_MYPAGE ほか mypage 10画面", "title": "自分の面",
@@ -508,6 +513,12 @@
           "body": "枚数チェックに競合の余地があり、発行回数の上限も無い。" },
         { "status": "risk", "tag": "A3", "title": "エリア座標45件が未収集",
           "body": "S_MAP・現在地検索・エリア自動判定を止めている唯一の残データ。" },
+        { "status": "risk", "tag": "D30",
+          "body": "行きたい/お気に入り（user_cafe_lists）・地図・オーナーからのセクション・通報が未実装。投稿/基本情報のタブも中身が1枚なので出していない。",
+          "title": "カフェ詳細に出していない要素" },
+        { "status": "risk", "tag": "D31",
+          "title": "cafe-images バケットが無い",
+          "body": "cafes.main_image_path の定義先バケットが存在せず、オーナーのアップロード導線も無い。ヒーロー画像は最新投稿の1枚目で代用中。" },
         { "status": "risk", "tag": "D26", "title": "ページ送りが「もっと見る」",
           "body": "クエリは keyset カーソルなのでUIだけ差し替えれば無限スクロールに移行できる。" }
       ]
@@ -774,7 +785,9 @@
     scale = next;
     apply();
   }
-  function fit() {
+  // 関数名を fit にしない: Biome の noFocusedTests が「フォーカスされたテスト」と誤検知し、
+  // unsafe fix が it() へ書き換えてボードが真っ白になる（実際に一度壊れた）
+  function fitToScreen() {
     const pad = 60;
     scale = clamp(Math.min((vp.clientWidth - pad * 2) / contentW, (vp.clientHeight - pad * 2) / contentH));
     tx = (vp.clientWidth - contentW * scale) / 2;
@@ -811,7 +824,7 @@
 
   document.getElementById("zoom-in").addEventListener("click", () => { zoomAt(vp.clientWidth / 2, vp.clientHeight / 2, 1.2); });
   document.getElementById("zoom-out").addEventListener("click", () => { zoomAt(vp.clientWidth / 2, vp.clientHeight / 2, 1 / 1.2); });
-  document.getElementById("fit").addEventListener("click", fit);
+  document.getElementById("fit").addEventListener("click", fitToScreen);
 
   /* ---------- 絞り込み ---------- */
   let active = null;
@@ -832,7 +845,7 @@
   });
   document.getElementById("reset").addEventListener("click", () => { active = null; applyFilter(); });
 
-  window.addEventListener("resize", () => { if (scale < 0.3) it(); });
-  it();
+  window.addEventListener("resize", () => { if (scale < 0.3) fitToScreen(); });
+  fitToScreen();
 })();
 </script>

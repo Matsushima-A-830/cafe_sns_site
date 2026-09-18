@@ -10,6 +10,7 @@ describe('parseFeedQuery', () => {
       tagSlug: 'morning-cafe',
       areaCode: 'JP-13-shibuya-ku',
       authorUsername: null,
+      cafeId: null,
     })
   })
 
@@ -20,6 +21,7 @@ describe('parseFeedQuery', () => {
       tagSlug: null,
       areaCode: 'JP-13-shibuya-ku',
       authorUsername: null,
+      cafeId: null,
     })
 
     expect(
@@ -29,19 +31,23 @@ describe('parseFeedQuery', () => {
       tagSlug: null,
       areaCode: 'JP-13-shibuya-ku',
       authorUsername: null,
+      cafeId: null,
     })
   })
 
   // 作者の絞り込みはルートパラメータ由来のものだけ。URL クエリから拾うと、
   // 壊れた値を null に丸めた瞬間に絞り込みが外れて全件になる
-  it('URL クエリから作者の絞り込みは拾わない', () => {
+  it('URL クエリから作者・カフェの絞り込みは拾わない', () => {
     const query = parseFeedQuery({
       scope: 'new',
       tagSlug: null,
       areaCode: null,
+      authorUsername: 'kaho',
+      cafeId: crypto.randomUUID(),
     } as Parameters<typeof parseFeedQuery>[0])
 
     expect(query.authorUsername).toBeNull()
+    expect(query.cafeId).toBeNull()
   })
 })
 
@@ -56,6 +62,20 @@ describe('feedQuerySchema の authorUsername', () => {
 
   it('省略時は null', () => {
     expect(feedQuerySchema.parse(base).authorUsername).toBeNull()
+  })
+})
+
+describe('feedQuerySchema の cafeId', () => {
+  const base = { scope: 'new', tagSlug: null, areaCode: null }
+
+  it('UUID でない値は弾く（「もっと見る」の入力経路）', () => {
+    for (const cafeId of ['', 'not-a-uuid', '1234']) {
+      expect(feedQuerySchema.safeParse({ ...base, cafeId }).success).toBe(false)
+    }
+  })
+
+  it('省略時は null', () => {
+    expect(feedQuerySchema.parse(base).cafeId).toBeNull()
   })
 })
 

@@ -21,6 +21,8 @@ coverage/
 playwright-report/
 test-results/
 .playwright/
+# Playwright MCP のスクリーンショット・スナップショット置き場
+.playwright-mcp/
 
 # Supabase local
 supabase/.branches/

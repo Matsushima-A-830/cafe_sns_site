@@ -57,8 +57,9 @@ app/
 │   │   ├── [id]/
 │   │   │   ├── page.tsx             # /cafes/[id] (S_CAFE_DETAIL)
 │   │   │   ├── loading.tsx
-│   │   │   └── posts/
-│   │   │       └── page.tsx         # /cafes/[id]/posts (タブ切替の詳細)
+│   │   │   └── not-found.tsx
+│   │   │   # /cafes/[id]/posts (タブ切替の詳細) はタブを出さないため作らない
+│   │   │   #   — pending-items D30（/users/[username]/posts と同じ判断）
 │   │   └── new/                     # 要ログイン (middlewareでガード)
 │   │       └── page.tsx             # /cafes/new (S_CAFE_NEW)
 │   └── users/
@@ -174,7 +175,7 @@ app/
 | S_MAP | `/map` | SSR（Client Component主体） |
 | S_SEARCH | `/search` | SSR |
 | S_POST_DETAIL | `/posts/[id]` | SSR ※ISR (300s) を想定していたが未達（[pending-items D23](../product/pending-items.md)） |
-| S_CAFE_DETAIL | `/cafes/[id]` | ISR (300s) |
+| S_CAFE_DETAIL | `/cafes/[id]` | SSR ※ISR (300s) を想定していたが、S_POST_DETAIL と同じ理由で断念（[pending-items D23](../product/pending-items.md)） |
 | S_USER_PROFILE_PUBLIC | `/users/[username]` | SSR ※ISR (60s) を想定していたが、S_POST_DETAIL と同じ理由で断念（[pending-items D23](../product/pending-items.md)） |
 | S_LOGIN | `/login` | SSR |
 | S_SIGNUP (1〜3) | `/signup` `/signup/verify` `/signup/birthdate` | SSR |

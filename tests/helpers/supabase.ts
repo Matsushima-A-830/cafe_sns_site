@@ -42,9 +42,12 @@ export function assertLocal(url: string): void {
   }
 }
 
-// ローカルの鍵は supabase start のたびに変わりうるので、環境変数が無ければ CLI に聞く。
-// CI では env を渡さずこの経路に乗せてよい（supabase は devDependency なので pnpm exec で届く）。
-function loadCredentials(): LocalCredentials {
+/**
+ * ローカルの鍵は supabase start のたびに変わりうるので、環境変数が無ければ CLI に聞く。
+ * CI では env を渡さずこの経路に乗せてよい（supabase は devDependency なので pnpm exec で届く）。
+ * 実装が lib/env（NEXT_PUBLIC_*）を辿るため、tests/setup-integration.ts からも使う
+ */
+export function loadCredentials(): LocalCredentials {
   if (cached) return cached
 
   const fromEnv = {
