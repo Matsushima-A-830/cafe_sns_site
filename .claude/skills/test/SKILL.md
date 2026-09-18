@@ -58,65 +58,97 @@ description: TDDワークフローとテスト設計を指南する。新機能�
 
 ## Vitest の書き方（Server Actions 例）
 
+Server Actions は主体をセッションから引くため内部で `createClient()` を呼ぶ。**引数DIではなくモジュールモック**で差し替える。
+
 ```typescript
-import { describe, it, expect, vi } from 'vitest'
-import { createPost } from './posts'
+// app/_actions/posts.test.ts
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { reservePost } from './posts'
 
-describe('createPost', () => {
-  it('公開投稿を作成し、下書きを削除する', async () => {
-    // Arrange: モッククライアントを注入
-    const mockClient = createMockSupabase({
-      posts: { insert: vi.fn().mockResolvedValue({ id: 'p1' }) },
-      drafts: { delete: vi.fn().mockResolvedValue({}) },
-    })
+// vi.mock のファクトリは import より前に巻き上げられるので vi.hoisted が要る
+const { createClientMock } = vi.hoisted(() => ({ createClientMock: vi.fn() }))
+vi.mock('@/lib/supabase/server', () => ({ createClient: createClientMock }))
 
-    // Act
-    const result = await createPost({
-      draftId: 'd1',
-      title: 'Test',
-      body: '...',
-    }, { client: mockClient })
+/** テストごとに、そのケースで呼ばれるメソッドだけ生やす */
+function buildSupabaseStub(options: { user?: { id: string } | null; postInsert?: { error?: unknown } }) {
+  const postsInsert = vi.fn().mockResolvedValue(options.postInsert ?? { error: null })
+  return {
+    stub: {
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: options.user ?? { id: userId } } }) },
+      from: vi.fn((table: string) => ({ posts: { insert: postsInsert } })[table]),
+    },
+    spies: { postsInsert },
+  }
+}
 
-    // Assert
-    expect(result).toEqual({ postId: 'p1' })
-    expect(mockClient.from('drafts').delete).toHaveBeenCalledWith('d1')
-  })
+afterEach(() => vi.clearAllMocks())
 
-  it('bodyが空ならZodバリデーションエラーを返す', async () => {
-    await expect(createPost({ body: '' }, {})).rejects.toThrow(/body/)
+describe('reservePost', () => {
+  // Server Actions は事実上公開エンドポイント。未検証の入力でDBに触らないことも認可の一部
+  it('不正な入力は INVALID_INPUT を返し、createClient を呼ばない', async () => {
+    const result = await reservePost({ postType: 'video' })
+
+    expect(result).toEqual({ ok: false, error: 'INVALID_INPUT', details: expect.anything() })
+    expect(createClientMock).not.toHaveBeenCalled()
   })
 })
 ```
 
 **ポイント:**
-- クライアントは引数で注入し、モックしやすくする
-- モックは最小限（呼ばれるメソッドだけ）
-- Zodエラーは `rejects.toThrow` で検証
+- スタブは**そのテストで呼ばれるメソッドだけ**生やす（`from()` が返すオブジェクトを table 名で引く形が扱いやすい）
+- `crypto.randomUUID()` を使う実装は `vi.spyOn(crypto, 'randomUUID').mockReturnValue(...)` で固定する
+- Zod エラーは throw ではなく `Result` で返るので `toEqual` で検証する（`rejects.toThrow` ではない）
+
+## 読み取り関数は実DBで検証する
+
+一覧・詳細の取得（`lib/posts/post-list.ts` `lib/profiles/public-profile.ts` 等）は supabase を**引数で受ける**設計なので、モックせず統合テストで実 DB に当てる。RLS が絡む以上モックでは意味のある検証にならない。
 
 ## RLS を含む統合テストの書き方
 
+ヘルパーは `tests/helpers/supabase.ts`。**`pnpm db:start` でローカル Supabase が動いている必要がある**（`pnpm test:integration` で実行。通常の `pnpm test:run` には含まれない）。
+
 ```typescript
-import { setupTestDb, createTestUser } from 'tests/helpers'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { type AuthedUser, anonClient, createAuthedProfile, serviceRoleClient } from '../helpers/supabase'
 
-describe('posts RLS', () => {
-  it('ブロック相手の投稿は SELECT で見えない', async () => {
-    const db = await setupTestDb()
-    const [alice, bob] = await Promise.all([
-      createTestUser(db, { id: 'alice' }),
-      createTestUser(db, { id: 'bob' }),
-    ])
-    await db.blocks.insert({ blocker_id: 'alice', blocked_id: 'bob' })
-    await db.posts.insert({ author_id: 'bob', body: '...' })
+const service = serviceRoleClient()   // RLS をバイパス。前提データの用意と後片付け専用
+let alice: AuthedUser
+let bob: AuthedUser
 
-    const asAlice = db.impersonate('alice')
-    const { data } = await asAlice.from('posts').select().eq('author_id', 'bob')
+beforeAll(async () => {
+  // profiles 付きの使い捨てユーザー。status や username を上書きできる
+  alice = await createAuthedProfile({ username: 'alice_example' })
+  bob = await createAuthedProfile({ username: 'bob_example', status: 'suspended' })
+})
 
-    expect(data).toHaveLength(0)
-  })
+// テストが作った行は自分で消す。cleanup() は auth.users を消し、profiles は cascade で落ちる
+afterAll(async () => {
+  await alice?.cleanup()
+  await bob?.cleanup()
+})
+
+it('ブロック相手の投稿は SELECT で見えない', async () => {
+  await service.from('blocks').insert({ blocker_id: alice.userId, blocked_id: bob.userId })
+
+  const { data } = await alice.client.from('posts').select('id').eq('author_id', bob.userId)
+
+  expect(data).toEqual([])
 })
 ```
 
-**注意:** 統合テストは並列実行時のDB分離が必要。トランザクションでラップして最後にロールバック、またはスキーマ単位で分離。
+**使い分け:**
+
+| クライアント | Postgres ロール | 用途 |
+|---|---|---|
+| `anonClient()` | `anon` | 未ログインの見え方 |
+| `AuthedUser.client` | `authenticated` | 本人視点。RLS の検証はこれで行う |
+| `serviceRoleClient()` | `service_role` | 前提データの用意・後片付けのみ。**検証には使わない** |
+
+**注意:**
+- `tests/helpers/supabase.ts` の `assertLocal()` が接続先をローカルに限定している。`SUPABASE_URL` を export したまま走らせても本番の行は消えない
+- トランザクションでのロールバックはしていない。**作った行を `afterAll` で消す**（他テストのデータを巻き込まないよう、自分が作った id だけに絞って検証する）
+- **RLS 違反は 42501 のエラーとは限らず、「0件」で返る経路がある。** `expect(error?.code).toBe('42501')` と `expect(data).toEqual([])` のどちらを期待すべきか、実際に走らせて確かめる
+- `auth.uid()` はモックできない。認可の検証は必ずこの実セッション経由
 
 ## E2E（Playwright）の書き方
 
@@ -131,14 +163,16 @@ describe('posts RLS', () => {
 
 ## モックの原則
 
-- **モックは境界のみ:** Supabase Client, S3 SDK, 外部API
+- **モックは境界のみ:** Supabase Client, 外部API
 - **モックしないもの:** Zodスキーマ、ユーティリティ関数、内部ロジック
-- **`vi.mock` は最終手段:** 引数DI が可能なら常に DI を優先
+- **引数で supabase を受けられる関数はモックしない。** 実 DB の統合テストに回す（RLS はモックでは検証できない）
+- **`vi.mock` は Server Actions のように内部で `createClient()` を呼ぶものに限る**
 
 ## テストデータの管理
 
-- **ファクトリ関数** を `tests/factories/` に配置（Fishery 等使用可）
-- **seed データ** はテストで汚染しないよう分離
+- **統合テストのユーザー**は `createAuthedProfile()` で使い捨てを作る。`username` は衝突するとテストごと落ちるので、ファイル名由来の接尾辞を付ける（`alice_follow` `author_post_list` 等）
+- **他テストのデータを巻き込まない。** 一覧を検証するときは「このテストが作った id」に絞ってから件数を数える
+- **`seed.sql` が作るのは admin プロフィール1件だけ。** カフェも投稿も0件なので、必要な前提は自分で用意する
 - **`describe.each`** で境界値ケースを網羅
 
 ## カバレッジ目標（MVP）
@@ -159,11 +193,15 @@ describe('posts RLS', () => {
 - **Server Actions の `redirect()` はスローされる** → try/catch で握らない
 - **Supabase の `auth.uid()` はモック不可** → 統合テストで実セッション使用
 - **Tiptap JSON の等価チェック** → 深い比較 or スナップショット使用
-- **時間依存テスト** → `vi.useFakeTimers()` で固定
+- **時間依存テスト** → ユニットは `vi.useFakeTimers()` で固定。**Postgres 関数は基準時刻を引数で受けられるようにする**（`get_cafe_congestion_current(p_cafe_id, p_now)`）。±1時間の窓を実時刻で検証すると、データ作成から RPC 呼び出しの間に時が進んで境界のケースが稀に落ちる
+- **`RETURNS TABLE` の Postgres 関数** → `supabase gen types` は列を non-nullable に生成するが実際は NULL になりうる。型を信用せず NULL のケースをテストする
+- **書き込みが RLS に弾かれたか** → エラーコードだけでなく「0件で返る」ケースを疑う。`.select()` の返り行で確認する
+- **統合テストはローカル Supabase 必須** → `pnpm db:start` を忘れると接続情報の取得で落ちる。CI では4プロジェクトとも走る
 
 ## 終了時のチェック
 
 - [ ] `pnpm test:run` がすべて Green
+- [ ] DB・RLS に触れたなら `pnpm test:integration` も Green（ローカル Supabase 起動が前提）
 - [ ] `pnpm typecheck` が Green
 - [ ] `pnpm lint` が Green
 - [ ] 追加した/変更したロジックに対応するテストが存在する
