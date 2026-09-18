@@ -5,12 +5,14 @@ import Image from 'next/image'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { BusinessHoursTable } from '@/components/features/cafes/business-hours-table'
+import { CafeListButtons } from '@/components/features/cafes/cafe-list-buttons'
 import { CongestionSection } from '@/components/features/cafes/congestion-section'
 import { OpenStateBadge } from '@/components/features/cafes/open-state-badge'
 import { PostFeed } from '@/components/features/posts/post-feed'
 import { jstDayOfWeek } from '@/lib/cafes/business-hours'
 import { type CafeDetail, getCafeDetail, getCafePostCount } from '@/lib/cafes/cafe-detail'
 import { getCafeCongestion } from '@/lib/cafes/congestion'
+import { getCafeListMembership } from '@/lib/cafes/user-cafe-lists'
 import { getPostList } from '@/lib/posts/post-list'
 import { createClient } from '@/lib/supabase/server'
 import { safeHttpUrl } from '@/lib/utils/safe-url'
@@ -141,18 +143,22 @@ export default async function CafeDetailPage({ params }: PageProps) {
   } = await supabase.auth.getUser()
 
   // 表示に要る残りは往復を直列にしない（CLAUDE.md パフォーマンス「N+1回避」）
-  const [postCount, congestion, page] = await Promise.all([
+  const [postCount, congestion, page, membership] = await Promise.all([
     getCafePostCount(supabase, cafe.id),
     getCafeCongestion(supabase, cafe.id),
     getPostList(supabase, { cafeId: cafe.id }),
+    // 未ログインではリスト行を1件も読めないので問い合わせ自体を省く
+    user
+      ? getCafeListMembership(supabase, cafe.id)
+      : Promise.resolve({ favorite: false, want_to_go: false }),
   ])
 
   // 営業時間・混雑度の判定はどちらも同じ「今」を基準にする
   const now = new Date()
   const today = jstDayOfWeek(now)
 
-  // 「行きたい / お気に入り」（user_cafe_lists）・地図（座標未収集）・「オーナーから」
-  // （幹C本体）・通報（reports）は元テーブル・データが未整備のため出していない — pending-items D30
+  // 地図・「徒歩3分」（座標未収集）・「オーナーから」（幹C本体）・通報（reports）は
+  // 元テーブル・データが未整備のため出していない — pending-items D30
   const query: FeedQuery = {
     scope: 'new',
     tagSlug: null,
@@ -188,6 +194,17 @@ export default async function CafeDetailPage({ params }: PageProps) {
             </p>
           )}
         </div>
+
+        {/* membership を key に混ぜない。トグルのたびに router.refresh() で値が変わり、
+            押した直後にコンポーネントごと作り直されてフォーカスが body に落ち、
+            aria-live の読み上げも描画前に消える。サーバー値とのズレは
+            各ボタンが自分の楽観更新で吸収している */}
+        <CafeListButtons
+          key={cafe.id}
+          cafeId={cafe.id}
+          membership={membership}
+          isAuthenticated={user !== null}
+        />
       </header>
 
       <div className="flex flex-col gap-8 lg:grid lg:grid-cols-3 lg:items-start">

@@ -1,12 +1,13 @@
 // S_USER_PROFILE_PUBLIC: 他人のプロフィール
 // 詳細: docs/design/wireframes/browsing.md#s_user_profile_public他人のプロフィール / docs/architecture/routing.md
 import type { Metadata } from 'next'
-import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { PostFeed } from '@/components/features/posts/post-feed'
 import { FollowButton } from '@/components/features/profiles/follow-button'
+import { ProfileAvatar } from '@/components/features/profiles/profile-avatar'
+import { ProfileCountList } from '@/components/features/profiles/profile-count-list'
 import { Button } from '@/components/ui/button'
 import { getPostList } from '@/lib/posts/post-list'
 import {
@@ -14,10 +15,8 @@ import {
   getPublicProfile,
   isBlockedEitherWay,
   isFollowing,
-  type ProfileCounts,
   type PublicProfile,
 } from '@/lib/profiles/public-profile'
-import { isStoragePublicUrl } from '@/lib/storage/public-url'
 import { createClient } from '@/lib/supabase/server'
 import type { FeedQuery } from '@/lib/validators/feed'
 
@@ -57,53 +56,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
-function ProfileCountList({ counts }: { counts: ProfileCounts }) {
-  const items = [
-    { label: '投稿', value: counts.posts },
-    { label: 'フォロー', value: counts.following },
-    { label: 'フォロワー', value: counts.followers },
-  ]
-
-  return (
-    <dl className="flex flex-wrap items-baseline gap-x-6 gap-y-2 text-base text-foreground">
-      {items.map((item) => (
-        <div key={item.label} className="flex items-baseline gap-2">
-          <dt className="text-sm text-muted-foreground">{item.label}</dt>
-          <dd className="font-bold">{item.value}</dd>
-        </div>
-      ))}
-    </dl>
-  )
-}
-
-function ProfileAvatar({ profile }: { profile: PublicProfile }) {
-  // avatar_url は API 直叩きで書き換えられる（オンボーディングの Zod は URL 形式しか見ない）。
-  // 外部ホストを許すと、プロフィールを開いた全員のIP・UA・Referer が第三者に渡る
-  const url = profile.avatarUrl && isStoragePublicUrl(profile.avatarUrl) ? profile.avatarUrl : null
-
-  if (!url) {
-    return (
-      <span
-        aria-hidden="true"
-        className="flex size-24 shrink-0 items-center justify-center rounded-full bg-muted text-3xl text-muted-foreground"
-      >
-        {profile.displayName.slice(0, 1)}
-      </span>
-    )
-  }
-
-  return (
-    <Image
-      src={url}
-      alt=""
-      width={96}
-      height={96}
-      priority
-      className="size-24 shrink-0 rounded-full object-cover"
-    />
-  )
-}
-
 export default async function UserProfilePage({ params }: PageProps) {
   const { username } = await params
   const profile = await loadProfile(username)
@@ -135,7 +87,7 @@ export default async function UserProfilePage({ params }: PageProps) {
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-8">
       <header className="flex flex-col items-center gap-6 text-center md:flex-row md:items-start md:text-left">
-        <ProfileAvatar profile={profile} />
+        <ProfileAvatar avatarUrl={profile.avatarUrl} displayName={profile.displayName} priority />
 
         <div className="flex min-w-0 flex-1 flex-col items-center gap-3 md:items-start">
           <div className="flex flex-col gap-1">
@@ -152,8 +104,14 @@ export default async function UserProfilePage({ params }: PageProps) {
           <ProfileCountList counts={counts} />
         </div>
 
-        {/* 自分のプロフィールにフォローボタンは出さない。S_MYPAGE（/me）は未実装のため、
-            当面は自分の公開プロフィールとしてこの画面をそのまま見せる */}
+        {/* 自分のプロフィールにフォローボタンは出さず、マイページへの導線に替える
+            （この画面は「他人から見た自分」の確認にも使える） */}
+        {isSelf && (
+          <Button asChild variant="outline" size="lg">
+            <Link href="/me">マイページへ</Link>
+          </Button>
+        )}
+
         {!isSelf &&
           (user ? (
             <FollowButton

@@ -630,6 +630,45 @@ export type Database = {
         }
         Relationships: []
       }
+      user_cafe_lists: {
+        Row: {
+          cafe_id: string
+          created_at: string
+          list_type: string
+          note: string | null
+          user_id: string
+        }
+        Insert: {
+          cafe_id: string
+          created_at?: string
+          list_type: string
+          note?: string | null
+          user_id: string
+        }
+        Update: {
+          cafe_id?: string
+          created_at?: string
+          list_type?: string
+          note?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'user_cafe_lists_cafe_id_fkey'
+            columns: ['cafe_id']
+            isOneToOne: false
+            referencedRelation: 'cafes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'user_cafe_lists_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       user_interest_tags: {
         Row: {
           created_at: string

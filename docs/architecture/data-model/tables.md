@@ -726,15 +726,26 @@ body_search tsvector GENERATED ALWAYS AS (
 
 | カラム | 型 | 制約 |
 |---|---|---|
-| user_id | uuid | PK, FK → profiles(id) |
-| cafe_id | uuid | PK, FK → cafes(id) |
+| user_id | uuid | PK, FK → profiles(id) ON DELETE CASCADE |
+| cafe_id | uuid | PK, FK → cafes(id) ON DELETE CASCADE |
 | list_type | text | PK, NOT NULL |
 | note | text | ユーザーメモ |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 
 **制約:** `CHECK (list_type IN ('favorite','want_to_go'))`
 
-**RLS:** SELECT・INSERT・DELETE は本人のみ
+**インデックス:** `(user_id, list_type, created_at desc)` — 一覧（S_FAVORITES / S_WANT_TO_GO）の
+「本人 + list_type を追加日の新しい順」。主キーは `list_type` が第3列なので並び替えに使えない
+
+**RLS:** SELECT・INSERT・DELETE は本人のみ（admin にも開けない: 「どの店に行きたいか」は
+行動履歴そのものなので `cafe_congestion_reports` と同じ扱いにする）。INSERT のみ
+`is_active_user()` を要求し、DELETE は停止中でも通す（自分のリストから外せない状態に閉じ込めない）。
+**UPDATE ポリシーは置かない**ため、`note` は INSERT 時しか値を入れられない（編集導線は
+[pending-items D32](../../product/pending-items.md)）
+
+**読み取りの注意:** 埋め込みは必ず `cafes!inner`。`cafes_select_active_*` が `status='active'` で
+絞るため、外側の join だと閉店・非公開の店が「リスト行はあるのに cafes が null」で返る
+（`lib/cafes/user-cafe-lists.ts`）
 
 ---
 

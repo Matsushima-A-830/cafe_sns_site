@@ -1,12 +1,14 @@
-import { Compass, House, PencilLine } from 'lucide-react'
+import { Compass, House, PencilLine, User } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils/cn'
 
 /**
  * S_HOME（PC）の3カラム左側。タブレット（md）はアイコンレール、PC（lg）でラベルを出す。
  *
- * ワイヤーには地図・通知・マイ・お気に入り・行きたい・下書き・設定も並ぶが、
- * ルート自体が未実装なので置いていない（404 へのリンクを先に作らない — pending-items D27）
+ * ワイヤーには地図・通知・お気に入り・行きたい・下書き・設定も並ぶが、ルート自体が
+ * 未実装なので置いていない（404 へのリンクを先に作らない — pending-items D27）。
+ * 「マイ」は /me の実装に合わせて追加した（お気に入り・行きたい・下書きへは
+ * マイページの4カードから辿れる）
  *   docs/design/wireframes/browsing.md #S_HOME PC
  */
 const ITEMS = [
@@ -14,11 +16,14 @@ const ITEMS = [
   { key: 'explore', href: '/explore', label: '発見', Icon: Compass },
 ] as const
 
+/** ログイン中だけ出す項目。未ログインで踏むと /login へ飛ぶだけなので並べない */
+const AUTHED_ITEMS = [{ key: 'me', href: '/me', label: 'マイ', Icon: User }] as const
+
 export function HomeSideNav({ current, isAuthed }: { current: string; isAuthed: boolean }) {
   return (
     <nav aria-label="メインナビゲーション" className="hidden w-16 shrink-0 md:block lg:w-48">
       <ul className="flex flex-col gap-2">
-        {ITEMS.map(({ key, href, label, Icon }) => (
+        {[...ITEMS, ...(isAuthed ? AUTHED_ITEMS : [])].map(({ key, href, label, Icon }) => (
           <li key={key}>
             <Link
               href={href}

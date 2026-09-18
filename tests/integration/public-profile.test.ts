@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { resolveFeedOptions } from '@/lib/posts/feed'
 import { getPostList } from '@/lib/posts/post-list'
 import {
+  getProfileById,
   getProfileCounts,
   getPublicProfile,
   isBlockedEitherWay,
@@ -132,6 +133,30 @@ describe('getPublicProfile', () => {
   it('username の形式が不正なら DB に問い合わせず null', async () => {
     expect(await getPublicProfile(typed(anonClient()), 'a')).toBeNull()
     expect(await getPublicProfile(typed(anonClient()), 'bad name!')).toBeNull()
+  })
+})
+
+describe('getProfileById', () => {
+  // /me は username を持たないので id で引く。列の許可リストは getPublicProfile と共有する
+  it('username 引きと同じ列だけを返す（自分のセッションでも非公開列を取らない）', async () => {
+    const profile = await getProfileById(typed(author.client), author.userId)
+
+    expect(Object.keys(profile ?? {}).sort()).toEqual([
+      'avatarUrl',
+      'bio',
+      'displayName',
+      'id',
+      'username',
+    ])
+    expect(profile?.username).toBe('Author_Profile')
+  })
+
+  it('status が active でなければ null（middleware の隔離に依存しない）', async () => {
+    expect(await getProfileById(typed(suspended.client), suspended.userId)).toBeNull()
+  })
+
+  it('存在しない id は null', async () => {
+    expect(await getProfileById(typed(author.client), crypto.randomUUID())).toBeNull()
   })
 })
 

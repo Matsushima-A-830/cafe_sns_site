@@ -97,12 +97,12 @@ app/
 │   ├── layout.tsx                   # サイドナビ + ボトムナビのアプリシェル
 │   ├── me/
 │   │   ├── page.tsx                 # /me (S_MYPAGE)
-│   │   ├── edit/page.tsx            # /me/edit (S_PROFILE_EDIT)
+│   │   ├── edit/page.tsx            # /me/edit (S_PROFILE_EDIT) ※未実装: アバター差し替えの Storage 導線とセットで実装する
 │   │   ├── favorites/page.tsx       # /me/favorites (S_FAVORITES)
 │   │   ├── want-to-go/page.tsx      # /me/want-to-go (S_WANT_TO_GO)
-│   │   ├── bookmarks/page.tsx       # /me/bookmarks (S_BOOKMARKS)
+│   │   ├── bookmarks/page.tsx       # /me/bookmarks (S_BOOKMARKS) ※未実装: post_bookmarks が無い
 │   │   ├── drafts/page.tsx          # /me/drafts (S_DRAFTS)
-│   │   └── badges/page.tsx          # /me/badges (S_BADGES)
+│   │   └── badges/page.tsx          # /me/badges (S_BADGES) ※未実装: user_badges / area_visits が無い
 │   ├── notifications/
 │   │   └── page.tsx                 # /notifications (S_NOTIFICATIONS)
 │   ├── settings/

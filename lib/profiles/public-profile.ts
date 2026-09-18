@@ -63,6 +63,40 @@ export async function getPublicProfile(
 }
 
 /**
+ * id から1件引く（マイページ S_MYPAGE）。セッションが持っているのは user.id だけで、
+ * username を引くためだけに往復を増やすのは本末転倒なので getPublicProfile とは別に用意する。
+ *
+ * 取る列は PUBLIC_COLUMNS のまま。「自分のページだから全列でよい」は成り立たない
+ * — /me の HTML は RSC ペイロードとしてクライアントに渡るので、取った列はそのまま
+ * ブラウザに届く（profiles_select_all は行も列も絞らない）。
+ *
+ * status が active 以外は null。middleware.ts が pending_consent / suspended を
+ * それぞれ /account/pending・/account/suspended へ隔離するので通常は到達しないが、
+ * matcher の変更で無防備になるのを避けるため呼び出し元でも分岐できるようにしておく
+ */
+export async function getProfileById(
+  supabase: Client,
+  profileId: string,
+): Promise<PublicProfile | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select(PUBLIC_COLUMNS)
+    .eq('id', profileId)
+    .maybeSingle()
+
+  if (error) throw new Error(`プロフィールの取得に失敗しました: ${error.message}`)
+  if (data?.status !== 'active') return null
+
+  return {
+    id: data.id,
+    username: data.username,
+    displayName: data.display_name,
+    bio: data.bio,
+    avatarUrl: data.avatar_url,
+  }
+}
+
+/**
  * ヘッダの「投稿 42 · フォロー 128 · フォロワー 89」。
  *
  * 投稿数は一覧（getPostList）と必ず同じ条件で数える。posts_select_own は author_id 一致だけを

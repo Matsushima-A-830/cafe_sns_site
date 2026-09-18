@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useState } from 'react'
 import type { DraftSummary, LoadedDraft } from '@/app/_actions/drafts'
 import { Button } from '@/components/ui/button'
-import { tiptapDocToText } from '@/lib/composer/tiptap'
+import { draftPostTypeLabel, draftPreviewText, draftResumeHref } from '@/lib/composer/draft-summary'
 
 const FORMATS = [
   {
@@ -21,19 +21,6 @@ const FORMATS = [
     description: 'タイトル + 本文で詳しく',
   },
 ] as const
-
-const PREVIEW_MAX_CHARS = 40
-
-function draftLabel(draft: LoadedDraft): string {
-  const body = tiptapDocToText(draft.payload.body_json).trim()
-  const text = draft.payload.title?.trim() || body || '（本文なし）'
-  return text.length > PREVIEW_MAX_CHARS ? `${text.slice(0, PREVIEW_MAX_CHARS)}…` : text
-}
-
-function draftHref(draft: LoadedDraft): string {
-  const path = draft.payload.post_type === 'blog' ? '/new/blog' : '/new/short'
-  return `${path}?draft=${encodeURIComponent(draft.clientDraftKey)}`
-}
 
 /**
  * 投稿形式の選択。下書きがあれば「続きを書く」導線を併せて出す（損失回避）
@@ -84,12 +71,12 @@ export function EntrySheet({ drafts }: { drafts: DraftSummary[] }) {
               {resumable.map((draft) => (
                 <li key={draft.clientDraftKey}>
                   <Link
-                    href={draftHref(draft)}
+                    href={draftResumeHref(draft)}
                     className="flex flex-col gap-1 rounded-md bg-surface px-4 py-2 hover:bg-background focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
                   >
-                    <span className="text-sm text-foreground">{draftLabel(draft)}</span>
+                    <span className="text-sm text-foreground">{draftPreviewText(draft)}</span>
                     <span className="text-xs text-muted-foreground">
-                      {draft.payload.post_type === 'blog' ? 'ブログ' : '短文'} ・{' '}
+                      {draftPostTypeLabel(draft)} ・{' '}
                       {new Date(draft.lastSavedAt).toLocaleString('ja-JP')}
                     </span>
                   </Link>

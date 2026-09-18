@@ -49,6 +49,17 @@ export function AuthNav() {
   if (isAuthed) {
     return (
       <>
+        {/* HomeSideNav の「マイ」は hidden md:block かつ / と /explore にしか無いので、
+            スマホからは /me に辿り着く導線がここしか無い（pending-items D27） */}
+        <Link
+          href="/me"
+          // 表記はサイドナビと揃えて「マイ」。390px 幅だと「マイページ」では折り返して
+          // ロゴまで2行に崩れる。読み上げ名には全体を渡す（可視文字を含むので 2.5.3 を満たす）
+          aria-label="マイページ"
+          className="whitespace-nowrap text-link underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
+        >
+          マイ
+        </Link>
         <Button asChild size="sm">
           <Link href="/new">＋ 投稿する</Link>
         </Button>
