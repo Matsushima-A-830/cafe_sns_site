@@ -337,15 +337,15 @@
     "headline": "気分で見つかる、<br>行きつけと繋がる",
     "sub": "いま立っているもの と これから立てるもの",
     "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローして、その店に行けるか確かめて、自分の店リストに貯める」までの一本。反応（いいね・コメント・保存）、地図、オーナー側は、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
-    "updatedAt": "2026-09-18",
-    "ref": "branch: feature/mypage"
+    "updatedAt": "2026-09-19",
+    "ref": "branch: docs/d34-unverified-screens"
   },
 
   "metrics": [
     { "k": "SCREENS", "v": "21", "unit": "/ 37", "note": "ワイヤー37画面のうち、画面IDコメント付きの page.tsx があるもの", "ratio": 57 },
     { "k": "TABLES", "v": "16", "unit": "/ 27", "note": "tables.md の27テーブル中、マイグレーション済み", "ratio": 59 },
     { "k": "MIGRATIONS", "v": "31", "unit": "", "note": "RLSポリシー込み。forward-only 運用", "ratio": null },
-    { "k": "TESTS", "v": "60", "unit": " files", "note": "unit / RLS統合21本 / E2E 2本。統合・E2EともCIで実行", "ratio": null }
+    { "k": "TESTS", "v": "61", "unit": " files", "note": "unit / RLS統合21本 / E2E 3本。統合・E2EともCIで実行", "ratio": null }
   ],
 
   "sections": [
@@ -509,6 +509,8 @@
       "notes": [
         { "status": "risk", "tag": "A10", "title": "EXIF除去がクライアント任せ",
           "body": "署名付きURLで直PUTするため、サーバ側で位置情報の除去を強制できない。若年層の安全に直結する。" },
+        { "status": "risk", "tag": "D34", "title": "実機未確認の画面が5つ",
+          "body": "composer・投稿詳細・S_HOME・S_EXPLORE・プロフィールは実ブラウザで一度も触られておらずE2Eも無い。ロジックはユニットで覆われているが、canvasのWebP変換・実JPEGのEXIF除去・15秒デバウンスは実機でしか確かめられない。" },
         { "status": "risk", "tag": "D23", "title": "閲覧系がキャッシュに載らない",
           "body": "動的セグメント＋cookie 参照で ISR から外れる。加えて anon で静的に描くとブロック関係が効かない。速度と認可がセットの問題。" },
         { "status": "risk", "tag": "D29", "title": "停止・削除ユーザーの投稿が残る",
