@@ -185,11 +185,31 @@ cookie を読む**動的レンダリング**で、フルルートキャッシュ
 
 ## カテゴリ8: Playwright E2E
 
+### 症状: 「全テストが一斉に落ちる」（smoke まで落ちたら実装を疑わない）
+
+1. **Playwright を bump した直後か** — `@playwright/test` のバージョンが上がるとブラウザ本体の
+   ビルド番号も変わり、ローカルの `~/.cache/ms-playwright` に無いものを起動しようとして落ちる。
+   `Executable doesn't exist at .../chromium_headless_shell-XXXX/...` が目印。
+   対処: `pnpm exec playwright install chromium`（CI はキャッシュキーに `pnpm-lock.yaml` の
+   ハッシュを含むので自動で入れ直される）
+2. ローカル Supabase が落ちていないか — `pnpm db:start`
+3. dev サーバーが起動できているか — `[WebServer]` の出力を読む
+
 ### 症状: 「ローカルで通るが CI で落ちる」
 
-1. タイミング依存 — `await page.waitForXxx()` を使い、`sleep` は禁止
-2. 環境変数の差（テスト用DB）
-3. フォント差でスクリーンショット比較が失敗 → フォントを固定 or 比較無効化
+1. **WebKit だけ落ちる** — ローカルに webkit / mobile-safari のブラウザ本体が入らない
+   （`playwright install webkit` が OS ライブラリ不足で失敗する）ため、CI で初めて出る。
+   典型は**書き込みの完了を待たずに `page.reload()` や画面遷移をしている**ケースで、
+   Chromium は間に合ってしまい WebKit だけ取りこぼす（`/test` の「状態が変わるまで待つ」参照）
+2. タイミング依存 — `await expect(...)` の自動リトライを使い、`sleep` は禁止
+3. 環境変数の差（テスト用DB）
+4. フォント差でスクリーンショット比較が失敗 → フォントを固定 or 比較無効化
+
+### 症状: 「テストは通るのにDBに行が残る」
+
+前提データを `Promise.all` で並列に作っていないか。**片方の作成が失敗するともう片方が
+孤立して残る**（登録前に例外が飛ぶため後片付けの対象にならない）。作った端から
+クリーンアップ対象に登録する。
 
 ### 症状: 「セレクタが特定できない」
 

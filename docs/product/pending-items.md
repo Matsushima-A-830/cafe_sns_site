@@ -376,11 +376,19 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 
 ### D8. Biome バージョン Bump 時の手順
 
-- **課題:** Dependabot が Biome を bump した PR は `biome.json` の `$schema` が古いバージョンURLのため lint 失敗する
-- **対応手順（Bump 時に必ず実施）:**
-  1. `biome.json` の `$schema` を新バージョン URL に更新
-  2. `pnpm exec biome migrate --write` で設定移行
-  3. `pnpm biome check --write` で再フォーマット
+- **課題:** Dependabot が Biome を bump した PR は `biome.json` の `$schema` が古いバージョンURLのまま残る。
+  Dependabot は `package.json` と `pnpm-lock.yaml` しか触らないため、設定ファイル側は手で追従させる
+- **⚠️ 旧記述の訂正（2026-09-19 実測）:** ここには「`$schema` が古いと **lint 失敗する**」と書かれていたが、
+  **事実と異なる。** `$schema` を実バージョンとずらして `pnpm lint` を実行すると、
+  `i Run the command biome migrate to migrate the configuration file.` が出るだけで
+  **終了コードは 0**、CI も落ちない。**マージのブロッカーではない**（PR #43 の Lint ジョブも green だった）。
+  この誤りを残すと、次の bump で存在しない失敗の調査に時間を使うため訂正した
+- **対応手順（Bump 時に実施。マージ前でもマージ後でもよい）:**
+  1. `biome.json` の `$schema` を新バージョン URL に更新 ← **patch bump で実際に要るのはこれだけ**
+  2. `pnpm exec biome migrate --write` で設定移行（patch では `no migration needed` になる）
+  3. `pnpm exec biome check --write` で再フォーマット（patch では差分ゼロ）
+- **2.5.12 → 2.5.13 の実績（2026-09-19）:** 手順2は `no migration needed`、手順3は差分なし。
+  **minor / major の bump では 2・3 が効く可能性があるため、手順自体は残す**
 - **自動化候補:** Dependabot 用 GitHub Actions workflow で PR 更新後に自動 biome migrate を実行
 - **決定期限:** Biome bump が頻繁に来るようになった時
 
