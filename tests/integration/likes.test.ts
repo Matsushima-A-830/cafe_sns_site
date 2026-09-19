@@ -321,6 +321,73 @@ describe('いいね状態の埋め込み（getPostDetail）', () => {
   })
 })
 
+describe('RLS（ブロック関係）', () => {
+  // ブロックしている相手のいいねは読めない。using (true) のままだと、ブロックされた側が
+  // likes を user_id で絞るだけで「相手がいいねした投稿」を列挙でき、posts_select が
+  // 隠しているはずの投稿の存在まで ID として漏れる
+  let blocker: AuthedUser
+  let blocked: AuthedUser
+  let blockedPostId: string
+
+  beforeAll(async () => {
+    blocker = await createAuthedProfile({ username: 'blocker_likes' })
+    blocked = await createAuthedProfile({ username: 'blocked_likes' })
+
+    blockedPostId = await insertPost(feedAuthor.userId)
+    await blocker.client.from('likes').insert({ user_id: blocker.userId, post_id: blockedPostId })
+    await blocked.client.from('likes').insert({ user_id: blocked.userId, post_id: blockedPostId })
+
+    const { error } = await service
+      .from('blocks')
+      .insert({ blocker_id: blocker.userId, blocked_id: blocked.userId })
+    if (error) throw new Error(`テスト用 blocks の作成に失敗: ${error.message}`)
+  })
+
+  afterAll(async () => {
+    await blocker?.cleanup()
+    await blocked?.cleanup()
+  })
+
+  it('ブロックした側からは相手のいいねが見えない', async () => {
+    const { data } = await blocker.client
+      .from('likes')
+      .select('user_id')
+      .eq('post_id', blockedPostId)
+
+    expect((data ?? []).map((row) => row.user_id)).toEqual([blocker.userId])
+  })
+
+  it('ブロックされた側からも相手のいいねが見えない（両方向）', async () => {
+    const { data } = await blocked.client
+      .from('likes')
+      .select('user_id')
+      .eq('post_id', blockedPostId)
+
+    expect((data ?? []).map((row) => row.user_id)).toEqual([blocked.userId])
+  })
+
+  it('自分のいいねは当然読める（my_like 埋め込みを壊していない）', async () => {
+    const page = await getPostList(typed(blocked.client), {
+      authorId: feedAuthor.userId,
+      viewerId: blocked.userId,
+    })
+
+    expect(page.items.find((item) => item.id === blockedPostId)?.likedByViewer).toBe(true)
+  })
+
+  it('like_count はブロックしても減らない（表示件数は全体の値のまま）', async () => {
+    // 隠すのは「誰がいいねしたか」だけ。カウントはトリガーが維持する集計値で、
+    // 閲覧者ごとに変えるとカードの件数がブロックの有無で食い違う
+    expect(await getPostLikeCount(typed(blocker.client), blockedPostId)).toBe(2)
+  })
+
+  it('未ログインからは全件見える（auth.uid() が null で常に false）', async () => {
+    const { data } = await anon.from('likes').select('user_id').eq('post_id', blockedPostId)
+
+    expect((data ?? []).length).toBe(2)
+  })
+})
+
 describe('getPostLikeCount', () => {
   it('トリガーが維持している確定件数を返す', async () => {
     expect(await getPostLikeCount(typed(liker.client), likedPostId)).toBe(2)

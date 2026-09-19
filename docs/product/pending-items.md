@@ -851,10 +851,10 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 | 画面 | 実装PR | 実機確認 | E2E |
 |---|---|---|---|
 | `/new` `/new/short` `/new/blog` `/new/success`（composer） | #29 / #30 | ❌ | ❌ |
-| `/posts/[id]`（S_POST_DETAIL） | #32 | ❌ | ❌ |
+| `/posts/[id]`（S_POST_DETAIL） | #32 | ❌ | △ `likes.spec.ts` がいいね導線のみ |
 | `/`（S_HOME） | #33 | ❌ | △ `smoke.spec.ts` が h1 と title を見るだけ |
 | `/explore`（S_EXPLORE） | #33 | ❌ | ❌ |
-| `/users/[username]`（S_USER_PROFILE_PUBLIC） | #34 | ❌ | ❌ |
+| `/users/[username]`（S_USER_PROFILE_PUBLIC） | #34 | ❌ | △ 同上（カードのいいね表示のみ） |
 | `/signup/*` `/onboarding/*` | 初期 | ❌ | ✅ `signup-onboarding.spec.ts` が4ブラウザで完走 |
 | `/cafes/[id]`（S_CAFE_DETAIL） | #37 | ✅ | ✅ `cafe-list-toggle.spec.ts` |
 | `/me`（S_MYPAGE） | #39 | ✅ | ✅ 同上 |
@@ -877,6 +877,12 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   composer → 投稿詳細 → S_HOME の順が、投稿を作らないと後続を確認できないため自然）
   b) composer だけ先に潰す（実機でしか確認できない項目が集中しているため）
   c) 現状維持（新規実装を優先し、触るときに一緒に確認する）
+- **追記（2026-09-19、likes 実装時）:** いいねボタンを `/`・`/explore`・`/posts/[id]`・
+  `/users/[username]` に追加した。**いずれも上の表で「実機確認 ❌」の画面**で、未確認の画面に
+  新しい UI を足した形になる。`likes.spec.ts` が実ブラウザ（chromium / mobile-chrome）で
+  押下・`aria-pressed`・件数・リロード後の永続化を押さえているので「壊れても気づけない」
+  状態ではないが、**レイアウト崩れと live region の読み上げ文言は未検証**。
+  実機確認を先に潰す案（対応案 b）の優先度が上がった
 - 参照: PR #42 で実機確認をE2Eに残す仕組みを入れた際に、過去分が未処理であることが判明（2026-09-19）
 
 ### D35. いいねの返報性通知が作れない（`notifications` 未作成）

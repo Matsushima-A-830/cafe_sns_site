@@ -91,10 +91,19 @@ create trigger posts_updated_at
 -- ============================================
 -- RLS
 --
--- SELECT は全ユーザーに開ける（tables.md #likes）。user_cafe_lists を本人限定に
--- したのとは判断が異なる: 「誰が何にいいねしたか」は SNS の公開情報で、閉じると
--- 他人のカードで like_count と実データの突き合わせができなくなる。
+-- SELECT は原則すべてのユーザーに開ける（tables.md #likes）。user_cafe_lists を
+-- 本人限定にしたのとは判断が異なる: 「誰が何にいいねしたか」は SNS の公開情報で、
+-- 閉じると他人のカードで like_count と実データの突き合わせができなくなる。
 -- 「いいねした人の一覧」画面はワイヤーに無いので UI には出さない。
+--
+-- ただしブロック関係だけは反映する（CLAUDE.md「通報・ブロックは即時RLSに反映」）。
+-- using (true) のままだと、ブロックされた側が likes を user_id で絞るだけで
+-- 「相手がいいねした投稿」を列挙でき、posts_select が隠しているはずの投稿の
+-- 存在まで ID として漏れる。follows_select_all は using (true) のままだが、
+-- あちらは件数表示に使う前提で、こちらのように相手の行動履歴を引けはしない。
+--
+-- UPDATE ポリシーは置かない（＝拒否）。更新できる列が無く、付け外しは
+-- INSERT / DELETE で行う（user_cafe_lists と同じ）。
 --
 -- 通知（返報性）はここでは発火させない。notifications テーブルが未作成のため
 -- （user_settings.notify_like だけが先に在る）。docs/product/pending-items.md D35
@@ -102,9 +111,11 @@ create trigger posts_updated_at
 
 alter table public.likes enable row level security;
 
+-- anon では auth.uid() が null になり is_blocked_either_way は常に false を返す
+-- （＝未ログインからは全件見える）。posts_select と同じ挙動
 create policy likes_select_all
   on public.likes for select
-  using (true);
+  using (not public.is_blocked_either_way(likes.user_id));
 
 -- CLAUDE.md「未成年アカウントは追加のガード」。suspended / pending_consent は
 -- いいねできない（user_cafe_lists_insert_own と同じ）

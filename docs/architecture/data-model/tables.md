@@ -732,10 +732,23 @@ body_search tsvector GENERATED ALWAYS AS (
 - **返報性通知は発火させない。** `notifications` テーブルが未作成のため
   （[pending-items D35](../../product/pending-items.md)）
 
-**RLS:** SELECT 全ユーザー / INSERT・DELETE は本人。INSERT のみ `is_active_user()` を要求し、
-DELETE は停止中でも通す（自分のいいねを外せない状態に閉じ込めない）。
-SELECT を全公開にするのは `user_cafe_lists`（本人のみ）とは逆の判断で、本人限定に締めると
-他人のカードで `like_count` と実データの突き合わせができなくなるため
+**RLS:** SELECT は**ブロックしていない相手のぶんだけ**全ユーザー
+（`using (not is_blocked_either_way(user_id))`）/ INSERT・DELETE は本人。
+INSERT のみ `is_active_user()` を要求し、DELETE は停止中でも通す
+（自分のいいねを外せない状態に閉じ込めない）。**UPDATE ポリシーは置かない**（＝拒否。
+更新できる列が無く、付け外しは INSERT / DELETE で行う）。
+
+SELECT を原則公開にするのは `user_cafe_lists`（本人のみ）とは逆の判断で、本人限定に締めると
+他人のカードで `like_count` と実データの突き合わせができなくなるため。
+ただしブロックだけは反映する（CLAUDE.md「通報・ブロックは即時RLSに反映」）— `using (true)` だと
+ブロックされた側が `likes` を `user_id` で絞るだけで相手のいいねした投稿を列挙でき、
+`posts_select` が隠しているはずの投稿の存在まで ID として漏れる。
+`follows_select_all` が `using (true)` のままなのは、あちらが件数表示前提で
+相手の行動履歴を引けないため。未ログインでは `auth.uid()` が null になり全件見える
+
+**`like_count` は閲覧者によって変えない。** 隠すのは「誰がいいねしたか」だけで、
+カウントはトリガーが維持する集計値。閲覧者ごとに引き算すると、同じ投稿の件数が
+ブロックの有無で食い違う
 
 **読み取りの注意:** 「自分がいいね済みか」は別名埋め込み（`my_like:likes (user_id)` +
 `.eq('my_like.user_id', viewerId)`）で1クエリにまとめる。**`!inner` を付けてはいけない**
