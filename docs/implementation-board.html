@@ -540,6 +540,8 @@
           "body": "無効化された瞬間にフォーカスが body へ落ちる。CafeListButtons と LikeButton は aria-busy に置き換え済み（実機でフォーカス保持を確認）。CongestionSection と FollowButton には残っている。" },
         { "status": "risk", "tag": "D35", "title": "いいねの返報性通知が作れない",
           "body": "tables.md は likes から notifications を INSERT する設計だが、そのテーブルが無い。通知は S_NOTIFICATIONS・未読管理まで含めて1スコープなので、器だけ先に作らない判断。行動経済学の「返報性」が MVP では働かない。" },
+        { "status": "risk", "tag": "D36", "title": "follows がブロックを反映していない",
+          "body": "likes の SELECT にはブロックを入れたが、follows_select_all は using (true) のまま。ブロック相手との行は delete_follows_on_block が消すので関係は残らないが、「その人が他に誰をフォローしているか」は読める。フォロワー一覧を作るときに揃えるか決める。" },
         { "status": "risk", "tag": "D26", "title": "ページ送りが「もっと見る」",
           "body": "クエリは keyset カーソルなのでUIだけ差し替えれば無限スクロールに移行できる。" }
       ]
