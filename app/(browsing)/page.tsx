@@ -75,6 +75,7 @@ export default async function HomePage({ searchParams }: PageProps) {
           key={`${query.scope}:${query.tagSlug}:${query.areaCode}`}
           initialPage={page}
           query={query}
+          isAuthenticated={user != null}
           emptyMessage={
             query.scope === 'following'
               ? 'フォロー中のユーザーの投稿はまだありません。「発見」から気になる人を探してみましょう。'

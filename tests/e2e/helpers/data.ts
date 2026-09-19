@@ -89,9 +89,36 @@ export async function createActiveCafe(suffix: string): Promise<E2ECafe> {
   return { id: data.id as string, name }
 }
 
+export type E2EPost = { id: string; excerpt: string }
+
 /**
- * テストが作った行を消す。`user_cafe_lists` は profiles / cafes の双方から
- * `on delete cascade` で落ちるので個別に消さなくてよい
+ * 公開中の短文投稿。`published_at` は posts_set_published_at トリガーが補う。
+ * 抜粋は一覧・詳細のどちらでも投稿を名指しで掴めるよう、suffix を混ぜて一意にする
+ */
+export async function createPublishedPost(authorId: string, suffix: string): Promise<E2EPost> {
+  const service = serviceRoleClient()
+  const excerpt = `E2Eいいねの投稿 ${suffix}`
+
+  const { data, error } = await service
+    .from('posts')
+    .insert({
+      author_id: authorId,
+      body_json: {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: excerpt }] }],
+      },
+    })
+    .select('id')
+    .single()
+
+  if (error || !data) throw new Error(`E2E 投稿の作成に失敗: ${error?.message}`)
+  return { id: data.id as string, excerpt }
+}
+
+/**
+ * テストが作った行を消す。`user_cafe_lists` は profiles / cafes の双方から、
+ * `posts` と `likes` は profiles から `on delete cascade` で落ちるので
+ * 個別に消さなくてよい
  */
 export async function cleanup(options: { userIds?: string[]; cafeIds?: string[] }): Promise<void> {
   const service: SupabaseClient = serviceRoleClient()

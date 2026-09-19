@@ -1,7 +1,12 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { PostListItem } from '@/lib/posts/post-list'
 import { PostCard } from './post-card'
+
+// カード内の LikeButton が useRouter を使う
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}))
 
 const base: PostListItem = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -13,6 +18,8 @@ const base: PostListItem = {
   cafe: null,
   image: null,
   tags: [],
+  likeCount: 0,
+  likedByViewer: false,
 }
 
 const storageImage = {
@@ -22,7 +29,7 @@ const storageImage = {
 
 describe('PostCard', () => {
   it('本文の抜粋から投稿詳細へリンクする', () => {
-    render(<PostCard post={base} />)
+    render(<PostCard post={base} isAuthenticated />)
     expect(screen.getByRole('link', { name: '朝のカフェで一息' })).toHaveAttribute(
       'href',
       `/posts/${base.id}`,
@@ -30,24 +37,29 @@ describe('PostCard', () => {
   })
 
   it('ブログはタイトルを見出しで出す', () => {
-    render(<PostCard post={{ ...base, postType: 'blog', title: '渋谷の朝カフェ3選' }} />)
+    render(
+      <PostCard post={{ ...base, postType: 'blog', title: '渋谷の朝カフェ3選' }} isAuthenticated />,
+    )
     expect(screen.getByRole('heading', { name: '渋谷の朝カフェ3選' })).toBeInTheDocument()
   })
 
   it('自前の Storage の画像だけを出し、外部ホストは描画しない', () => {
-    const { container: own } = render(<PostCard post={{ ...base, image: storageImage }} />)
+    const { container: own } = render(
+      <PostCard post={{ ...base, image: storageImage }} isAuthenticated />,
+    )
     expect(own.querySelector('img')).not.toBeNull()
 
     const { container: external } = render(
       <PostCard
         post={{ ...base, image: { url: 'https://attacker.example/px.gif', altText: '' } }}
+        isAuthenticated
       />,
     )
     expect(external.querySelector('img')).toBeNull()
   })
 
   it('写真だけの投稿でもリンクに名前が付く', () => {
-    render(<PostCard post={{ ...base, excerpt: '', image: storageImage }} />)
+    render(<PostCard post={{ ...base, excerpt: '', image: storageImage }} isAuthenticated />)
     expect(screen.getByRole('link', { name: 'かほさんの投稿' })).toBeInTheDocument()
   })
 
@@ -59,6 +71,7 @@ describe('PostCard', () => {
           cafe: { id: 'c1', name: 'テスト珈琲店', areaLabel: '渋谷区' },
           tags: [{ id: 't1', slug: 'morning-cafe', label: '朝カフェ' }],
         }}
+        isAuthenticated
       />,
     )
     expect(screen.getByRole('link', { name: /テスト珈琲店/ })).toHaveAttribute('href', '/cafes/c1')
@@ -68,8 +81,31 @@ describe('PostCard', () => {
     )
   })
 
-  it('いいね・コメント・保存のアクションは出さない（インタラクション未実装）', () => {
-    render(<PostCard post={base} />)
+  it('いいねボタンを件数付きで出す', () => {
+    render(<PostCard post={{ ...base, likeCount: 12 }} isAuthenticated />)
+
+    const button = screen.getByRole('button', { name: /いいね/ })
+    expect(button).toHaveAttribute('aria-pressed', 'false')
+    // 件数を数字だけにしない（読み上げで何の数か分かるようにする）
+    expect(button).toHaveTextContent('12件')
+  })
+
+  it('いいね済みは aria-pressed とラベルの両方で示す（色だけにしない）', () => {
+    render(<PostCard post={{ ...base, likeCount: 3, likedByViewer: true }} isAuthenticated />)
+
+    const button = screen.getByRole('button', { name: /いいね済み/ })
+    expect(button).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('未ログインではボタンを出さず件数だけ見せる', () => {
+    render(<PostCard post={{ ...base, likeCount: 5 }} isAuthenticated={false} />)
+
     expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.getByText('いいね 5件')).toBeInTheDocument()
+  })
+
+  it('コメント・保存のアクションは出さない（comments / post_bookmarks 未実装）', () => {
+    render(<PostCard post={base} isAuthenticated />)
+    expect(screen.queryByRole('button', { name: /コメント|保存/ })).toBeNull()
   })
 })

@@ -146,7 +146,7 @@ export default async function CafeDetailPage({ params }: PageProps) {
   const [postCount, congestion, page, membership] = await Promise.all([
     getCafePostCount(supabase, cafe.id),
     getCafeCongestion(supabase, cafe.id),
-    getPostList(supabase, { cafeId: cafe.id }),
+    getPostList(supabase, { cafeId: cafe.id, viewerId: user?.id ?? null }),
     // 未ログインではリスト行を1件も読めないので問い合わせ自体を省く
     user
       ? getCafeListMembership(supabase, cafe.id)
@@ -214,6 +214,7 @@ export default async function CafeDetailPage({ params }: PageProps) {
           <PostFeed
             initialPage={page}
             query={query}
+            isAuthenticated={user != null}
             emptyMessage={`${cafe.name}の投稿はまだありません。最初の1件を投稿してみましょう。`}
           />
         </section>

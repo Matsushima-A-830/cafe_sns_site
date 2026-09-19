@@ -725,9 +725,11 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
     （D25 と同じ判断）。`routing.md` のツリーにある `/users/[username]/posts` も同じ理由で作っていない
   - **「⋯」メニュー（通報 / ブロック）** — `reports` が未作成で通報は出せない。`blocks` だけはあるが、
     ブロックのみ・解除導線なしの片肺になるため見送り（S_SETTINGS のブロック一覧とセットで戻る）
-  - **投稿カードのアクション行（いいね / コメント / 保存）** — S_HOME・S_POST_DETAIL と同じ判断
+  - **投稿カードのアクション行のうち コメント / 保存** — `comments` / `post_bookmarks` が未作成。
+    **いいねは 2026-09-19 に実装済み**（`likes` の作成に合わせて全画面のカードに出した）。
+    中身が1つでも押せるものは出す方針なので、行そのものは出している
 - **対応判断:** 各テーブルの実装時に戻る
-- 参照: S_USER_PROFILE_PUBLIC 実装時にスコープ外と判断（2026-09-16）
+- 参照: S_USER_PROFILE_PUBLIC 実装時にスコープ外と判断（2026-09-16）／いいねのみ解消（2026-09-19）
 
 ### D29. 停止・削除・ブロック関係のプロフィールをすべて404にしている
 
@@ -767,10 +769,10 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
     曜日×時間帯の集計には Postgres 関数の新規追加が要る。報告データが実質ゼロの状態で
     枠だけ出しても読み取れる情報が無いため見送り
   - **「⋯」メニューの通報** — `reports` が未作成（D28 と同じ）
-  - **投稿カードのアクション行（いいね / コメント / 保存）** — S_HOME・S_POST_DETAIL・
-    S_USER_PROFILE_PUBLIC と同じ判断
+  - **投稿カードのアクション行のうち コメント / 保存** — S_HOME・S_POST_DETAIL・
+    S_USER_PROFILE_PUBLIC と同じ判断（**いいねは 2026-09-19 に実装済み**）
 - **対応判断:** 各テーブル・幹C の実装時に戻る
-- 参照: S_CAFE_DETAIL 実装時にスコープ外と判断（2026-09-17）
+- 参照: S_CAFE_DETAIL 実装時にスコープ外と判断（2026-09-17）／いいねのみ解消（2026-09-19）
 
 ### D31. カフェのヒーロー画像が最新投稿へのフォールバックだけで成り立っている
 
@@ -831,12 +833,23 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **決定（2026-09-18）:** `CafeListButtons` では `disabled` をやめ、`aria-busy={isPending}` +
   ハンドラ冒頭の `if (isPending) return` ガードに置き換えた。実ブラウザで
   「Enter で押した後もフォーカスがボタンに残り、読み上げも出る」ことを確認済み
-- **未対応:** 同じ `disabled={isPending}` は **`CongestionSection`（混雑度の報告ボタン5個）と
-  `FollowButton`** にも残っている。`FollowButton` は `key={`${profile.id}:${following}`}` で
-  毎回作り直してもいるため、フォーカス喪失とアナウンス消失の両方を踏む
-- **対応案:** a) 2つを同じ方式に揃える（小さい差分。次に触るときでよい）
+- **未対応（2026-09-19 に再計測して2件追加）:** 同じ `disabled={isPending}` が残っているのは
+  **4コンポーネント**。起票時は2つとしていたが数え漏れがあった
+
+| コンポーネント | 該当行 | 備考 |
+|---|---|---|
+| `CongestionSection` | 132 | 混雑度の報告ボタン5個 |
+| `FollowButton` | 54 | `key={`${profile.id}:${following}`}` で毎回作り直すため、フォーカス喪失とアナウンス消失の両方を踏む |
+| `DraftList` | 95 / 148 | 削除・続きを書くの2種 |
+| `CafeListView` | 92 | 一覧からの解除ボタン |
+
+- **対応済み:** `CafeListButtons`（2026-09-18）と `LikeButton`（2026-09-19）。
+  どちらも実ブラウザでフォーカスが残ることを確認済み
+- **対応案:** a) 4つを同じ方式に揃える（小さい差分。次に触るときでよい）
   b) `aria-busy` + ガードを共通の Button ラッパーに寄せる
-- 参照: S_MYPAGE 実装のレビューで判明（2026-09-18）
+- **D37 と併せて直すほうがよい** — あちらを直すと `isPending` が真の時間そのものが
+  短くなり、この問題の実害も小さくなる
+- 参照: S_MYPAGE 実装のレビューで判明（2026-09-18）／対象の数え漏れを訂正（2026-09-19）
 
 ### D34. 実機（ブラウザ）で一度も確認していない画面が残っている
 
@@ -849,10 +862,10 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 | 画面 | 実装PR | 実機確認 | E2E |
 |---|---|---|---|
 | `/new` `/new/short` `/new/blog` `/new/success`（composer） | #29 / #30 | ❌ | ❌ |
-| `/posts/[id]`（S_POST_DETAIL） | #32 | ❌ | ❌ |
-| `/`（S_HOME） | #33 | ❌ | △ `smoke.spec.ts` が h1 と title を見るだけ |
-| `/explore`（S_EXPLORE） | #33 | ❌ | ❌ |
-| `/users/[username]`（S_USER_PROFILE_PUBLIC） | #34 | ❌ | ❌ |
+| `/posts/[id]`（S_POST_DETAIL） | #32 | △ いいね導線のみ（2026-09-19） | △ `likes.spec.ts` がいいね導線のみ |
+| `/`（S_HOME） | #33 | △ カード表示のみ（2026-09-19） | △ `smoke.spec.ts` が h1 と title を見るだけ |
+| `/explore`（S_EXPLORE） | #33 | △ カードのいいねのみ（2026-09-19） | ❌ |
+| `/users/[username]`（S_USER_PROFILE_PUBLIC） | #34 | △ カード表示のみ（2026-09-19） | △ 同上（カードのいいね表示のみ） |
 | `/signup/*` `/onboarding/*` | 初期 | ❌ | ✅ `signup-onboarding.spec.ts` が4ブラウザで完走 |
 | `/cafes/[id]`（S_CAFE_DETAIL） | #37 | ✅ | ✅ `cafe-list-toggle.spec.ts` |
 | `/me`（S_MYPAGE） | #39 | ✅ | ✅ 同上 |
@@ -875,7 +888,89 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   composer → 投稿詳細 → S_HOME の順が、投稿を作らないと後続を確認できないため自然）
   b) composer だけ先に潰す（実機でしか確認できない項目が集中しているため）
   c) 現状維持（新規実装を優先し、触るときに一緒に確認する）
+- **追記（2026-09-19、likes 実装時）:** いいねボタンを `/`・`/explore`・`/posts/[id]`・
+  `/users/[username]`・`/cafes/[id]` に追加し、**5画面すべてを Playwright MCP で実機確認した**。
+  ただし確認したのは**いいね導線と、その周辺が崩れていないことだけ**。各画面の本来の機能
+  （composer からの投稿、気分チップの絞り込み、フォロー、ページ送り等）は依然として未確認なので、
+  表の判定は ✅ ではなく △ に留めている
+- **実機確認で分かったこと（2026-09-19）:**
+  - 未ログイン → いいね押下 → ログイン → `next` で元の投稿へ復帰、まで通る
+  - 他人の投稿へのいいねで件数が 1→2 に増える（`security definer` の経路を実ブラウザで確認）
+  - **クリック後もフォーカスがボタンに残る**（`disabled` を避けた D33 の狙いどおり。
+    アクセシビリティスナップショットで `[active]` が維持されていることを確認）
+  - live region に「いいねしました」「いいねを外しました」が入る
+  - 390px 幅でカードが1列に積まれ、崩れない。いいね済みは色だけでなくラベルと
+    ハートの塗りでも区別できる
+  - **未いいねの投稿が一覧に残る**（`!inner` を付けていたら消えていた箇所を目視でも確認）
+  - コンソールのエラー・警告は0件
+- **残る未確認（今回触れていない）:** composer の EXIF 除去・WebP 変換（A10 / Safari 判断の材料）、
+  15秒デバウンスの自動保存、署名付きURL直PUT。**対応案 b（composer を先に潰す）の優先度は
+  変わらず高い** — 実機でしか確認できない項目がそこに集中している
 - 参照: PR #42 で実機確認をE2Eに残す仕組みを入れた際に、過去分が未処理であることが判明（2026-09-19）
+
+### D35. いいねの返報性通知が作れない（`notifications` 未作成）
+
+- **課題:** [tables.md #likes](../architecture/data-model/tables.md) は「返報性通知のトリガーも
+  ここで発火（notifications INSERT）」としているが、**`notifications` テーブルが存在しない**。
+  先に在るのは `user_settings.notify_like`（`20260905130100_create_user_settings.sql`、
+  DEFAULT true）だけで、参照先が無い設定値が宙に浮いている
+- **今回の判断（2026-09-19）:** `likes` の実装では**通知を作らない**。通知は
+  S_NOTIFICATIONS 画面・`user_settings` 連携・未読カウント・既読管理まで含めて
+  初めて意味を持つので、テーブルだけ先に足しても使い道が無い。`tables.md #likes` の
+  該当行にも注記を入れた
+- **影響:** 行動経済学上の「返報性」（いいねされたら返したくなる）が MVP では働かない。
+  [positioning.md](positioning.md) の幹A・幹Cには直接効かないが、初期の滞在時間には効く
+- **対応判断:** 通知機能をまとめて1スコープとして着手するときに戻る。
+  `comments` / `follows` / `post_bookmarks` も同じ通知先を必要とするため、
+  それらが揃ってからのほうが設計しやすい
+- 参照: `likes` 実装時にスコープ外と判断（2026-09-19）
+
+### D36. `follows` の SELECT がブロックを反映していない（likes と判断が揃っていない）
+
+- **課題:** `likes` の SELECT には `not is_blocked_either_way(user_id)` を入れたが、
+  `follows_select_all` は `using (true)` のまま（`20260905130300`）。
+  `follower_id` で絞れば**その人が誰をフォローしているかは誰でも列挙できる**。
+  露出の種類としては「いいねした投稿の列挙」と同じで、likes だけ締めた状態になっている
+- **ただし穴の大きさは違う:**
+  - フォロー数・フォロワー数は**ワイヤーで公開表示される設計**
+    （[wireframes/browsing.md](../design/wireframes/browsing.md) #S_USER_PROFILE_PUBLIC）。
+    likes には「いいねした人の一覧」画面が無く、公開する設計意図が無い
+  - ブロック相手との行は `delete_follows_on_block`（`20260916120100`）が両方向とも消すので、
+    **ブロックした相手との関係は follows に残らない**。漏れるのは「その人の他のフォロー先」
+- **判断が要る点:** フォロワー一覧画面（未実装）を作るときに、ブロック相手を一覧から
+  外すのか、`follows` の RLS 側で締めるのか。RLS で締めるとフォロー数がブロックの有無で
+  閲覧者ごとに変わり、`likes` で「`like_count` は閲覧者によって変えない」とした判断と
+  ぶつかる（[tables.md #likes](../architecture/data-model/tables.md)）
+- **対応判断:** フォロワー一覧（S_USER_PROFILE_PUBLIC のタブ）実装時に決める。
+  それまでは現状維持。決めた内容は `tables.md #follows` に書く
+- 参照: `likes` の SELECT にブロックを反映した際、`follows` と揃っていないことが判明（2026-09-19）
+
+### D37. `router.refresh()` を `startTransition` の中で呼んでいる
+
+- **課題:** 楽観更新するコンポーネントが、Server Action の完了後に同じ
+  `startTransition` の中で `router.refresh()` を呼んでいる。`refresh()` は
+  トランザクションに参加するため、**`isPending` が RSC の往復が終わるまで真のまま**になる。
+  その間、押下は `if (isPending) return` ガード（または `disabled`）に黙って捨てられる
+- **対象（2026-09-19 実測）:** `startTransition` の中で `refresh()` を呼ぶのは6コンポーネント。
+  `LikeButton` / `CafeListButtons` / `FollowButton` / `CongestionSection` / `DraftList` /
+  `CafeListView`（`login-form.tsx` も `refresh()` を呼ぶが `startTransition` の外なので対象外）
+- **2つの症状が重なっている:**
+  1. **押下が捨てられる時間が長い。** `aria-busy` に置き換えた側（`LikeButton` /
+     `CafeListButtons`）は視覚的な待機表示が無いので、ユーザーには「反応しない」としか映らない。
+     実機では短い無反応を確認した（ローカルのデータ量では軽微）
+  2. **`LikeButton` では refresh の結果が必ず捨てられる。** `PostFeed` は
+     `useState(initialPage.items)` で一覧を抱え、`LikeButton` も props から state を
+     1度しか初期化しない。サーバーの再描画コストを払って結果を捨てている
+     （投稿詳細でも同じ。件数のズレは Server Action の戻り値で直す設計にした）
+- **未確認:** 他の5コンポーネントで `refresh()` の結果が実際に使われているかは個別に見ていない。
+  `CongestionSection` のように「サーバー側の集計値を読み直す」ものは必要な可能性がある
+- **対応案:** a) `refresh()` を `startTransition` の外に出す（`isPending` が書き込みの完了で
+  終わる。最小の差分） b) 結果を使っていないコンポーネントでは `refresh()` 自体をやめる
+  c) 待機表示を足して「反応しない」に見えないようにする
+- **注意:** `refresh()` を外に出すと E2E の `waitIdle`（`aria-busy` が false に戻るのを待つ）が
+  書き込み完了だけを待つようになる。`cafe-list-toggle.spec.ts` / `likes.spec.ts` の
+  リロード前の待機が足りるかは直すときに確認が要る
+- 参照: `likes` 実装後の `/code-review` で指摘され、実機確認でも再現（2026-09-19）
 
 ## 削除・アーカイブ判断待ち
 

@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { LikeButton } from '@/components/features/posts/like-button'
 import { PostAuthor } from '@/components/features/posts/post-author'
 import type { PostListItem } from '@/lib/posts/post-list'
 import { isStoragePublicUrl } from '@/lib/storage/public-url'
@@ -7,13 +8,19 @@ import { isStoragePublicUrl } from '@/lib/storage/public-url'
 /**
  * フィードの投稿カード（S_HOME / S_EXPLORE）。
  *
- * いいね・コメント・保存のアクション行はワイヤーにあるが、likes / comments /
- * post_bookmarks テーブルが未作成で posts.like_count 等が常に0のため出さない
- * （投稿詳細と同じ判断）。本文は PostBody ではなく抜粋にする — 見出しやリスト、
- * 埋め込み画像がそのまま出るとカードの高さが揃わない
+ * アクション行はいいねだけ置く。コメント・保存は comments / post_bookmarks が
+ * 未作成なので、枠やプレースホルダを先に出さない（投稿詳細と同じ判断）。
+ * 本文は PostBody ではなく抜粋にする — 見出しやリスト、埋め込み画像が
+ * そのまま出るとカードの高さが揃わない
  *   docs/design/wireframes/browsing.md #S_HOME
  */
-export function PostCard({ post }: { post: PostListItem }) {
+export function PostCard({
+  post,
+  isAuthenticated,
+}: {
+  post: PostListItem
+  isAuthenticated: boolean
+}) {
   const href = `/posts/${post.id}`
   // 本文JSONもプロフィールも API 直叩きで書き換えられる。自前 Storage の URL だけ描画する
   const imageUrl = post.image && isStoragePublicUrl(post.image.url) ? post.image.url : null
@@ -82,6 +89,14 @@ export function PostCard({ post }: { post: PostListItem }) {
             ))}
           </ul>
         )}
+
+        <LikeButton
+          postId={post.id}
+          initialLiked={post.likedByViewer}
+          initialCount={post.likeCount}
+          isAuthenticated={isAuthenticated}
+          returnTo={href}
+        />
       </div>
     </article>
   )

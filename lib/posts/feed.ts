@@ -54,7 +54,9 @@ export async function resolveFeedOptions(
 ): Promise<FeedResolution | null> {
   if (query.scope === 'following' && !userId) return null
 
-  const options: PostListOptions = { areaCode: query.areaCode }
+  // viewerId は絞り込みではなく「いいね済みか」を同じクエリで取るためだけに渡す。
+  // ここで1度入れると5画面のフィードと「もっと見る」が揃って対応する
+  const options: PostListOptions = { areaCode: query.areaCode, viewerId: userId }
   let tag: PostListTag | null = null
 
   if (query.authorUsername) {
