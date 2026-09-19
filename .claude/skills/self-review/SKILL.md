@@ -97,6 +97,10 @@ description: 実装後のセルフレビュー・PR前レビュー。TDD準拠�
 - [ ] 楽観更新でモバイルの体感速度が確保されているか
 - [ ] キーボード操作でフォームが完結するか
 - [ ] `alt` テキスト・aria-label が適切か
+- [ ] **実機（Playwright MCP）で確認したか** — 楽観更新・リロード後の永続化・押下状態（`aria-pressed`）・
+      live region の文言・390px 幅は、実際に触らないと壊れていても気づけない
+- [ ] **確認したシナリオのうち1〜2本を E2E spec に落としたか** — 手の確認はセッションが終われば
+      消える。残さない限り次に壊れたとき CI は気づかない（書き方は `/test`）
 
 ### 7-b. デザインシステム遵守（[docs/design/design-system.md](../../../docs/design/design-system.md)）
 
@@ -199,6 +203,7 @@ console.log       残置デバッグ
 実装（/fe /be /db + /test）
   → /self-review（規約・ドキュメント整合）   ← このスキル
   → /code-review（バグ探索。ultra でクラウド多エージェント）
+  → 実機確認（Playwright MCP）→ 1〜2本を E2E spec に落とす
   → /board-update（実装状況ボード）
   → PR → CI green → マージ
   → /handoff（次セッションへの引き継ぎ）
@@ -217,5 +222,6 @@ console.log       残置デバッグ
 
 - 重大な指摘がすべて修正 or 明示的に許容された
 - テストが Green（`pnpm test:run` `pnpm typecheck` `pnpm lint`）
+- UI を変えたなら実機確認済みで、その成果が E2E spec として残っている
 - ドキュメント側の整合性が確認された
 - `/board-update` で実装状況ボードを更新した（実装の意味が変わる変更のとき）

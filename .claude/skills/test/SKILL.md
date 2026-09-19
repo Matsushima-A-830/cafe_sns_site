@@ -152,14 +152,60 @@ it('ブロック相手の投稿は SELECT で見えない', async () => {
 
 ## E2E（Playwright）の書き方
 
-**書くべきシナリオ:**
-- クリティカルパス（新規登録 → 投稿 → 削除 等）
-- 認可の境界（未ログイン → 保護ページ → ログイン後元のページへ）
-- 損失回避 UX（下書き自動保存 → リロード → 復元）
+### 実機確認を1〜2本だけ spec に落とす
+
+**Playwright MCP で実機確認したら、そのシナリオのうち「壊れたら気づきたいもの」を spec にする。**
+手で確認した結果はセッションが終われば消える。残さない限り、次に壊れたとき CI は気づかない。
+
+全部は書かない。**1機能あたり1〜2本**、次の観点で選ぶ。
+
+- **サーバーを跨がないと壊れ方が見えないもの** — 楽観更新 + `router.refresh()` は画面上だけ
+  成功して DB に入っていない・リロードで消える、という壊れ方をする。ユニットとコンポーネントの
+  テストはサーバーをモックするためこの層を通らない
+- **画面を跨ぐ不変条件** — 「カフェ詳細で付けた印がマイページの件数に出る」など
+- **認可の境界** — 未ログイン → 保護ページ → ログイン後に元のページへ
 
 **書かないシナリオ:**
 - ユニット/統合で検証できることの重複
-- CSS ピクセル比較（Percy等のビジュアルテストは別レイヤー）
+- CSS ピクセル比較（ビジュアルテストは別レイヤー）
+- ラベル文言だけの確認（コンポーネントテストで足りる）
+
+### 前提データは自分で作り、自分で片付ける
+
+`seed.sql` が作るのは admin プロフィール1件だけで、カフェも投稿も0件。ヘルパーは
+`tests/e2e/helpers/`（`createOnboardedUser` / `createActiveCafe` / `cleanup` / `login`）。
+
+```typescript
+import { cleanup, createActiveCafe, createOnboardedUser, uniqueSuffix } from './helpers/data'
+import { login } from './helpers/login'
+
+test.afterAll(async () => {
+  await cleanup({ userIds: createdUserIds, cafeIds: createdCafeIds })
+})
+
+const { user, cafe } = await setup(test.info().project.name)
+await login(page, user, `/cafes/${cafe.id}`)   // ?next= 付きでログインし、目的の画面へ直行する
+```
+
+**サインアップ導線を毎回通さない。** `signup-onboarding.spec.ts` は OTP メールまで含めた縦切りで
+1本あたり数十秒かかる。それ以外のテストは service role で「オンボーディング済みユーザー」を
+直接作り、UI ではログインだけ行う（`onboarded_at` が無いと middleware に `/onboarding` へ飛ばされる）。
+
+**識別子は乱数で作る。** 4プロジェクト（chromium / webkit / mobile-*）とファイル内の並行テストが
+同時に走るため、`Date.now()` だけでは同一ミリ秒で衝突する。`username` は3〜20文字の上限があり、
+長い接尾辞を詰めると切り詰めで重なる。
+
+### 状態が変わるまで待つ
+
+トグル類は送信中に `disabled` にせず、`handleClick` の `isPending` ガードで連打を止めている
+（無効化するとフォーカスが `body` に落ちるため）。**`router.refresh()` の完了まで押下は黙って
+捨てられる**ので、次の操作の前に `aria-busy` が `false` に戻るのを待つ。
+
+```typescript
+await expect(button).toHaveAttribute('aria-busy', 'false')
+```
+
+待たずに連続で押すと「クリックしたのに状態が変わらない」で落ち、実装のバグに見えてしまう。
 
 ## モックの原則
 
@@ -202,6 +248,7 @@ it('ブロック相手の投稿は SELECT で見えない', async () => {
 
 - [ ] `pnpm test:run` がすべて Green
 - [ ] DB・RLS に触れたなら `pnpm test:integration` も Green（ローカル Supabase 起動が前提）
+- [ ] 実機確認したシナリオのうち、壊れたら気づきたいものを E2E に落とした（`pnpm test:e2e`）
 - [ ] `pnpm typecheck` が Green
 - [ ] `pnpm lint` が Green
 - [ ] 追加した/変更したロジックに対応するテストが存在する
