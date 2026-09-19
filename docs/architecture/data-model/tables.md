@@ -743,8 +743,14 @@ SELECT を原則公開にするのは `user_cafe_lists`（本人のみ）とは�
 ただしブロックだけは反映する（CLAUDE.md「通報・ブロックは即時RLSに反映」）— `using (true)` だと
 ブロックされた側が `likes` を `user_id` で絞るだけで相手のいいねした投稿を列挙でき、
 `posts_select` が隠しているはずの投稿の存在まで ID として漏れる。
-`follows_select_all` が `using (true)` のままなのは、あちらが件数表示前提で
-相手の行動履歴を引けないため。未ログインでは `auth.uid()` が null になり全件見える
+未ログインでは `auth.uid()` が null になり全件見える。
+
+`follows_select_all` が `using (true)` のままなのは、フォロー数・フォロワー数が
+ワイヤーで公開表示される設計だから（[wireframes/browsing.md](../../design/wireframes/browsing.md)
+#S_USER_PROFILE_PUBLIC）。ブロック相手との行は `delete_follows_on_block` が消すので
+関係そのものは残らない。ただし**「その人が他に誰をフォローしているか」は誰でも読めるまま**で、
+露出の種類としては likes と同じ。揃えるかは
+[pending-items D36](../../product/pending-items.md) で保留している
 
 **`like_count` は閲覧者によって変えない。** 隠すのは「誰がいいねしたか」だけで、
 カウントはトリガーが維持する集計値。閲覧者ごとに引き算すると、同じ投稿の件数が

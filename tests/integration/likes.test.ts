@@ -327,13 +327,19 @@ describe('RLS（ブロック関係）', () => {
   // 隠しているはずの投稿の存在まで ID として漏れる
   let blocker: AuthedUser
   let blocked: AuthedUser
+  /**
+   * 対象の投稿はこの describe 専用の作者で作る。feedAuthor を使うと一覧テストが
+   * 固定している件数（2件）に3件目が混ざり、describe の宣言順にしか緑にならない
+   */
+  let postAuthor: AuthedUser
   let blockedPostId: string
 
   beforeAll(async () => {
     blocker = await createAuthedProfile({ username: 'blocker_likes' })
     blocked = await createAuthedProfile({ username: 'blocked_likes' })
+    postAuthor = await createAuthedProfile({ username: 'block_post_author_likes' })
 
-    blockedPostId = await insertPost(feedAuthor.userId)
+    blockedPostId = await insertPost(postAuthor.userId)
     await blocker.client.from('likes').insert({ user_id: blocker.userId, post_id: blockedPostId })
     await blocked.client.from('likes').insert({ user_id: blocked.userId, post_id: blockedPostId })
 
@@ -346,6 +352,7 @@ describe('RLS（ブロック関係）', () => {
   afterAll(async () => {
     await blocker?.cleanup()
     await blocked?.cleanup()
+    await postAuthor?.cleanup()
   })
 
   it('ブロックした側からは相手のいいねが見えない', async () => {
@@ -368,7 +375,7 @@ describe('RLS（ブロック関係）', () => {
 
   it('自分のいいねは当然読める（my_like 埋め込みを壊していない）', async () => {
     const page = await getPostList(typed(blocked.client), {
-      authorId: feedAuthor.userId,
+      authorId: postAuthor.userId,
       viewerId: blocked.userId,
     })
 

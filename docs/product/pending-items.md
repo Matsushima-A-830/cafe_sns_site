@@ -914,6 +914,26 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   それらが揃ってからのほうが設計しやすい
 - 参照: `likes` 実装時にスコープ外と判断（2026-09-19）
 
+### D36. `follows` の SELECT がブロックを反映していない（likes と判断が揃っていない）
+
+- **課題:** `likes` の SELECT には `not is_blocked_either_way(user_id)` を入れたが、
+  `follows_select_all` は `using (true)` のまま（`20260905130300`）。
+  `follower_id` で絞れば**その人が誰をフォローしているかは誰でも列挙できる**。
+  露出の種類としては「いいねした投稿の列挙」と同じで、likes だけ締めた状態になっている
+- **ただし穴の大きさは違う:**
+  - フォロー数・フォロワー数は**ワイヤーで公開表示される設計**
+    （[wireframes/browsing.md](../design/wireframes/browsing.md) #S_USER_PROFILE_PUBLIC）。
+    likes には「いいねした人の一覧」画面が無く、公開する設計意図が無い
+  - ブロック相手との行は `delete_follows_on_block`（`20260916120100`）が両方向とも消すので、
+    **ブロックした相手との関係は follows に残らない**。漏れるのは「その人の他のフォロー先」
+- **判断が要る点:** フォロワー一覧画面（未実装）を作るときに、ブロック相手を一覧から
+  外すのか、`follows` の RLS 側で締めるのか。RLS で締めるとフォロー数がブロックの有無で
+  閲覧者ごとに変わり、`likes` で「`like_count` は閲覧者によって変えない」とした判断と
+  ぶつかる（[tables.md #likes](../architecture/data-model/tables.md)）
+- **対応判断:** フォロワー一覧（S_USER_PROFILE_PUBLIC のタブ）実装時に決める。
+  それまでは現状維持。決めた内容は `tables.md #follows` に書く
+- 参照: `likes` の SELECT にブロックを反映した際、`follows` と揃っていないことが判明（2026-09-19）
+
 ## 削除・アーカイブ判断待ち
 
 現時点で「削除する」と決めた項目はなし。追加・変更発生時にここに追記。

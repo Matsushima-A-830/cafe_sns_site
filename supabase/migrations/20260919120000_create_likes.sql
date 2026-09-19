@@ -99,8 +99,13 @@ create trigger posts_updated_at
 -- ただしブロック関係だけは反映する（CLAUDE.md「通報・ブロックは即時RLSに反映」）。
 -- using (true) のままだと、ブロックされた側が likes を user_id で絞るだけで
 -- 「相手がいいねした投稿」を列挙でき、posts_select が隠しているはずの投稿の
--- 存在まで ID として漏れる。follows_select_all は using (true) のままだが、
--- あちらは件数表示に使う前提で、こちらのように相手の行動履歴を引けはしない。
+-- 存在まで ID として漏れる。
+--
+-- follows_select_all が using (true) のままなのは、フォロー数・フォロワー数が
+-- ワイヤーで公開表示される設計だから（browsing.md #S_USER_PROFILE_PUBLIC）。
+-- ブロック相手との行は delete_follows_on_block が消すので関係も残らない。
+-- ただし「その人が他に誰をフォローしているか」は誰でも読めるままで、
+-- 露出の種類としては likes と同じ。揃えるかは pending-items D36 で保留。
 --
 -- UPDATE ポリシーは置かない（＝拒否）。更新できる列が無く、付け外しは
 -- INSERT / DELETE で行う（user_cafe_lists と同じ）。
