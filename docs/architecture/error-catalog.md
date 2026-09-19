@@ -66,7 +66,7 @@
 
 | コード | 意味 | 発生源 |
 |---|---|---|
-| `ALREADY_LIKED` | 二重いいね | likePost |
+| `ALREADY_LIKED` | 二重いいね | **未使用** — `likePost` は二重いいねを成功として扱い、確定件数を返す |
 | `ALREADY_BOOKMARKED` | 二重保存 | toggleBookmark |
 | `ALREADY_FOLLOWING` | 二重フォロー | toggleFollow |
 | `SELF_FOLLOW_FORBIDDEN` | 自分自身フォロー禁止 | toggleFollow |

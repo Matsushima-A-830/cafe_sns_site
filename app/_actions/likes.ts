@@ -5,7 +5,7 @@ import {
   POSTGRES_INSUFFICIENT_PRIVILEGE,
   POSTGRES_UNIQUE_VIOLATION,
 } from '@/lib/constants/postgres-error-codes'
-import { publishedPostExists } from '@/lib/posts/post-detail'
+import { getPostLikeCount, publishedPostExists } from '@/lib/posts/post-detail'
 import { createClient } from '@/lib/supabase/server'
 import { type LikeEntryInput, likeEntrySchema } from '@/lib/validators/likes'
 import type { Result } from '@/types/result'
@@ -17,27 +17,33 @@ import type { Result } from '@/types/result'
  *   supabase/migrations/20260919120000_create_likes.sql
  *
  * glossary の `toggleLike()` は追加と解除に分けている（followUser / addCafeToList と同じ。
- * トグルにすると二重クリックで「どちらの状態を求めたのか」がサーバー側で決められない）
+ * トグルにすると二重クリックで「どちらの状態を求めたのか」がサーバー側で決められない）。
+ *
+ * 成功時は確定した件数を返す。クライアントの楽観更新は ±1 しかできず、押した時点の
+ * 表示が古いとズレが残り続ける（件数の state は props から1度しか初期化されない）
  */
 
 // 23503 の出どころを見分けるための FK 名。user_id → profiles の違反と混ぜない
 const POST_FK_CONSTRAINT = 'likes_post_id_fkey'
+
+/** 付け外しの後の確定件数。クライアントはこれで楽観更新を上書きする */
+export type LikeCount = { likeCount: number }
 
 type LikeError =
   | 'INVALID_INPUT'
   | 'UNAUTHENTICATED'
   | 'FORBIDDEN'
   | 'POST_NOT_FOUND'
-  | 'ALREADY_LIKED'
   | 'INTERNAL_ERROR'
 
 type UnlikeError = 'INVALID_INPUT' | 'UNAUTHENTICATED' | 'INTERNAL_ERROR'
 
-export async function likePost(input: unknown): Promise<Result<null, LikeError>> {
+export async function likePost(input: unknown): Promise<Result<LikeCount, LikeError>> {
   const parsed = likeEntrySchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: 'INVALID_INPUT', details: parsed.error.flatten() }
 
-  // publishedPostExists は失敗を例外にする。Server Actions の境界なのでここで Result に畳む
+  // publishedPostExists / getPostLikeCount は失敗を例外にする。Server Actions の境界なので
+  // ここで Result に畳む
   try {
     return await insertLike(parsed.data)
   } catch (cause) {
@@ -46,7 +52,7 @@ export async function likePost(input: unknown): Promise<Result<null, LikeError>>
   }
 }
 
-async function insertLike(input: LikeEntryInput): Promise<Result<null, LikeError>> {
+async function insertLike(input: LikeEntryInput): Promise<Result<LikeCount, LikeError>> {
   const supabase = await createClient()
   const {
     data: { user },
@@ -68,8 +74,12 @@ async function insertLike(input: LikeEntryInput): Promise<Result<null, LikeError
     .maybeSingle()
 
   if (error) {
-    // 主キー (user_id, post_id) の重複
-    if (error.code === POSTGRES_UNIQUE_VIOLATION) return { ok: false, error: 'ALREADY_LIKED' }
+    // 主キー (user_id, post_id) の重複。求められた状態（いいね済み）は既に成立して
+    // いるので成功として返す。ALREADY_LIKED を返すとクライアントは件数を直せない
+    // （エラー側の Result は data を運べない）
+    if (error.code === POSTGRES_UNIQUE_VIOLATION) {
+      return { ok: true, data: { likeCount: await getPostLikeCount(supabase, input.postId) } }
+    }
     if (error.code === POSTGRES_FOREIGN_KEY_VIOLATION) {
       // FK は post_id だけでなく user_id → profiles にもある。23503 を一律に
       // 「投稿が無い」と読むと、profiles 行がまだ無いユーザー（OTP確認後・
@@ -89,17 +99,28 @@ async function insertLike(input: LikeEntryInput): Promise<Result<null, LikeError
 
   // revalidatePath は呼ばない: フィードも投稿詳細も auth.getUser() で cookie を読む
   // 動的レンダリングで、そもそもキャッシュに載っていない（pending-items D23）
-  return { ok: true, data: null }
+  return { ok: true, data: { likeCount: await getPostLikeCount(supabase, input.postId) } }
 }
 
 /**
  * いいねを外す。存在しない行の delete は 0件成功で返るが、そのまま成功にしてよい
  * （二重クリックや既に解除済みでも「いいねしていない」という結果は同じ）
  */
-export async function unlikePost(input: unknown): Promise<Result<null, UnlikeError>> {
+export async function unlikePost(input: unknown): Promise<Result<LikeCount, UnlikeError>> {
   const parsed = likeEntrySchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: 'INVALID_INPUT', details: parsed.error.flatten() }
 
+  // likePost と同じく境界で握る。ここで例外を漏らすとクライアントの
+  // startTransition 内で reject し、楽観更新の巻き戻しもエラー表示も走らない
+  try {
+    return await deleteLike(parsed.data)
+  } catch (cause) {
+    console.error('[likes] いいね解除に失敗:', cause)
+    return { ok: false, error: 'INTERNAL_ERROR' }
+  }
+}
+
+async function deleteLike(input: LikeEntryInput): Promise<Result<LikeCount, UnlikeError>> {
   const supabase = await createClient()
   const {
     data: { user },
@@ -111,11 +132,12 @@ export async function unlikePost(input: unknown): Promise<Result<null, UnlikeErr
     .from('likes')
     .delete()
     .eq('user_id', user.id)
-    .eq('post_id', parsed.data.postId)
+    .eq('post_id', input.postId)
 
   if (error) {
     console.error('[likes] いいね解除に失敗:', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
-  return { ok: true, data: null }
+
+  return { ok: true, data: { likeCount: await getPostLikeCount(supabase, input.postId) } }
 }

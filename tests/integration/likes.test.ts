@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { getPostDetail, publishedPostExists } from '@/lib/posts/post-detail'
+import { getPostDetail, getPostLikeCount, publishedPostExists } from '@/lib/posts/post-detail'
 import { getPostList } from '@/lib/posts/post-list'
 import type { Database } from '@/types/database'
 import {
@@ -318,6 +318,23 @@ describe('いいね状態の埋め込み（getPostDetail）', () => {
 
     expect(detail?.id).toBe(likedPostId)
     expect(detail?.likedByViewer).toBe(false)
+  })
+})
+
+describe('getPostLikeCount', () => {
+  it('トリガーが維持している確定件数を返す', async () => {
+    expect(await getPostLikeCount(typed(liker.client), likedPostId)).toBe(2)
+    expect(await getPostLikeCount(typed(liker.client), unlikedPostId)).toBe(0)
+  })
+
+  it('未ログインでも読める（件数は公開情報）', async () => {
+    expect(await getPostLikeCount(typed(anon), likedPostId)).toBe(2)
+  })
+
+  it('消えた投稿は 0（対象が無いのだから件数も無い）', async () => {
+    const deletedId = await insertPost(feedAuthor.userId, { deleted_at: '2026-02-04T00:00:00Z' })
+
+    expect(await getPostLikeCount(typed(feedAuthor.client), deletedId)).toBe(0)
   })
 })
 

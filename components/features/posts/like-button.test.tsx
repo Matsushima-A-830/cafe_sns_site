@@ -33,8 +33,8 @@ function setup(props: Partial<Parameters<typeof LikeButton>[0]> = {}) {
 beforeEach(() => {
   likePost.mockReset()
   unlikePost.mockReset()
-  likePost.mockResolvedValue({ ok: true, data: null })
-  unlikePost.mockResolvedValue({ ok: true, data: null })
+  likePost.mockResolvedValue({ ok: true, data: { likeCount: 4 } })
+  unlikePost.mockResolvedValue({ ok: true, data: { likeCount: 2 } })
 })
 
 describe('LikeButton', () => {
@@ -72,18 +72,30 @@ describe('LikeButton', () => {
     expect(button).toHaveTextContent('3件')
   })
 
-  it('ALREADY_LIKED は成功として扱う（押す前の表示が古かっただけ）', async () => {
-    likePost.mockResolvedValue({ ok: false, error: 'ALREADY_LIKED' })
+  it('サーバーが返した件数で楽観更新の ±1 を上書きする', async () => {
+    // 押した時点の表示（3件）が古く、実際には他にもいいねが付いていた場合
+    likePost.mockResolvedValue({ ok: true, data: { likeCount: 9 } })
+    setup()
+
+    await userEvent.click(screen.getByRole('button', { name: /いいね/ }))
+
+    // 楽観更新の 4件 ではなく確定値の 9件 に落ち着く
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /いいね済み/ })).toHaveTextContent('9件'),
+    )
+  })
+
+  it('二重いいねはサーバー側で成功として返り、件数も確定値になる', async () => {
+    likePost.mockResolvedValue({ ok: true, data: { likeCount: 1 } })
     setup()
 
     await userEvent.click(screen.getByRole('button', { name: /いいね/ }))
 
     await waitFor(() => expect(likePost).toHaveBeenCalled())
     expect(screen.queryByRole('alert')).toBeNull()
-    expect(screen.getByRole('button', { name: /いいね済み/ })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    )
+    const button = screen.getByRole('button', { name: /いいね済み/ })
+    expect(button).toHaveAttribute('aria-pressed', 'true')
+    expect(button).toHaveTextContent('1件')
   })
 
   it('送信中も disabled にしない（フォーカスを body へ落とさない — D33）', async () => {

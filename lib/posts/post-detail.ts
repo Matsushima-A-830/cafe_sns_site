@@ -186,6 +186,28 @@ export async function getPostDetail(
 }
 
 /**
+ * いいねの付け外しの後に、権威ある件数を読み直す。
+ *
+ * 楽観更新の ±1 を確定値で上書きするために使う。クライアントの表示が古いまま押された
+ * 場合（別タブで既に操作した等）、±1 だけではズレが残り続ける — 件数の state は
+ * props から1度しか初期化されないため router.refresh() でも直らない。
+ *
+ * 投稿が消えている場合は 0。対象が無いのだから件数も無い
+ */
+export async function getPostLikeCount(supabase: Client, postId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('posts')
+    .select('like_count')
+    .eq('id', postId)
+    .eq('status', 'published')
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (error) throw new Error(`いいね数の取得に失敗しました (id=${postId}): ${error.message}`)
+  return data?.like_count ?? 0
+}
+
+/**
  * いいねの対象にしてよい投稿かだけを確かめる軽い問い合わせ（cafeExists の投稿版）。
  *
  * likes.post_id の FK は posts(id) を見るだけで status も deleted_at も見ない。

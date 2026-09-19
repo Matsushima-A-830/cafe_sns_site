@@ -53,13 +53,16 @@ export function LikeButton({
     startTransition(async () => {
       const result = previousLiked ? await unlikePost({ postId }) : await likePost({ postId })
 
-      // 既にいいね済みなら、押す前の表示が古かっただけなので成功として扱う
-      if (!result.ok && result.error !== 'ALREADY_LIKED') {
+      if (!result.ok) {
         setLiked(previousLiked)
         setCount(previousCount)
         setError(errorMessage(result.error))
         return
       }
+      // 楽観更新の ±1 を確定値で上書きする。押した時点の表示が古いと（別タブで
+      // 操作した・他人がいいねした）ズレが残り、この state は props から
+      // 1度しか初期化されないため router.refresh() でも直らない
+      setCount(result.data.likeCount)
       setStatus(previousLiked ? 'いいねを外しました' : 'いいねしました')
       router.refresh()
     })
