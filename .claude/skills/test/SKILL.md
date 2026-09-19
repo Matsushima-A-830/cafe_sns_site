@@ -205,7 +205,10 @@ await login(page, user, `/cafes/${cafe.id}`)   // ?next= 付きでログイン�
 await expect(button).toHaveAttribute('aria-busy', 'false')
 ```
 
-待たずに連続で押すと「クリックしたのに状態が変わらない」で落ち、実装のバグに見えてしまう。
+**待つべきなのは「次のクリック」の前だけではない。`page.reload()` と画面遷移の前にも要る。**
+楽観更新の `aria-pressed` は同期的に変わるため、書き込みの完了を待たずにリロードすると
+送信中のリクエストが破棄される。Chromium では間に合ってしまい、**WebKit だけで落ちる**
+（ローカルに webkit が無いため CI で初めて出る典型例）。
 
 ## モックの原則
 

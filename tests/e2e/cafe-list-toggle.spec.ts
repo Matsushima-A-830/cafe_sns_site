@@ -56,6 +56,10 @@ test('お気に入りに追加するとリロード後も残り、マイペー�
   await expect(favorite).toHaveAccessibleName('お気に入り済み')
   await expect(favorite).toHaveAttribute('aria-pressed', 'true')
 
+  // aria-pressed は楽観更新で同期的に変わる。書き込みの完了を待たずにリロードすると
+  // 送信中のリクエストが破棄され、WebKit では実際に取りこぼす
+  await waitIdle(favorite)
+
   // 楽観更新が DB に届いているか。リロードするとサーバー描画の値だけが残る
   await page.reload()
   await expect(page.getByRole('button', { name: 'お気に入り済み' })).toHaveAttribute(
