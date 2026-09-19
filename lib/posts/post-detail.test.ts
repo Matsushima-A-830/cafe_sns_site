@@ -18,6 +18,7 @@ function row(overrides: Record<string, unknown> = {}) {
     visibility: 'public',
     published_at: '2026-09-14T01:00:00Z',
     created_at: '2026-09-14T00:00:00Z',
+    like_count: 0,
     author: {
       id: 'user-1',
       username: 'kaho',

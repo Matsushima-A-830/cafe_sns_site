@@ -96,6 +96,7 @@ export default async function ExplorePage({ searchParams }: PageProps) {
           key={`${query.scope}:${query.tagSlug}:${query.areaCode}`}
           initialPage={page}
           query={query}
+          isAuthenticated={user != null}
           emptyMessage={
             activeTag
               ? `#${activeTag} の投稿はまだありません。別の気分から探してみましょう。`

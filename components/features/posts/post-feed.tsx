@@ -16,10 +16,13 @@ import type { FeedQuery } from '@/lib/validators/feed'
 export function PostFeed({
   initialPage,
   query,
+  isAuthenticated,
   emptyMessage = 'まだ投稿がありません。',
 }: {
   initialPage: PostListPage
   query: FeedQuery
+  /** カードのいいねボタンの出し分けに使う。ここでは取れないのでページから渡す */
+  isAuthenticated: boolean
   emptyMessage?: string
 }) {
   const [items, setItems] = useState<PostListItem[]>(initialPage.items)
@@ -54,7 +57,7 @@ export function PostFeed({
       <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
         {items.map((post) => (
           <li key={post.id}>
-            <PostCard post={post} />
+            <PostCard post={post} isAuthenticated={isAuthenticated} />
           </li>
         ))}
       </ul>

@@ -27,6 +27,8 @@ const messages: Partial<Record<ErrorCode, string>> = {
   POST_TAGS_LIMIT_EXCEEDED: 'タグは5個までです',
   POST_IMAGES_LIMIT_EXCEEDED: '写真は10枚までです',
   CAFE_NOT_FOUND: '選択したカフェが見つかりませんでした。選び直してください',
+  // いいね
+  ALREADY_LIKED: 'すでにいいねしています',
   // フォロー
   ALREADY_FOLLOWING: 'すでにフォローしています',
   SELF_FOLLOW_FORBIDDEN: '自分自身はフォローできません',

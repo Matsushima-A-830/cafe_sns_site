@@ -71,7 +71,7 @@ export default async function UserProfilePage({ params }: PageProps) {
   const [counts, following, page] = await Promise.all([
     getProfileCounts(supabase, profile.id),
     user && !isSelf ? isFollowing(supabase, user.id, profile.id) : Promise.resolve(false),
-    getPostList(supabase, { authorId: profile.id }),
+    getPostList(supabase, { authorId: profile.id, viewerId: user?.id ?? null }),
   ])
 
   // バッジ（user_badges）・「行きつけ」タブ（regular_customers）・⋯メニューの通報（reports）は
@@ -139,6 +139,7 @@ export default async function UserProfilePage({ params }: PageProps) {
           key={`${profile.id}:${following}`}
           initialPage={page}
           query={query}
+          isAuthenticated={user != null}
           emptyMessage={
             isSelf
               ? 'まだ投稿がありません。最初の1件を投稿してみましょう。'

@@ -710,13 +710,38 @@ body_search tsvector GENERATED ALWAYS AS (
 
 | カラム | 型 | 制約 |
 |---|---|---|
-| user_id | uuid | PK, FK → profiles(id) |
+| user_id | uuid | PK, FK → profiles(id) ON DELETE CASCADE |
 | post_id | uuid | PK, FK → posts(id) ON DELETE CASCADE |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 
-**運用:** トリガーで `posts.like_count` を維持。返報性通知のトリガーもここで発火（notifications INSERT）。
+**インデックス:** `(post_id, created_at desc)` — 主キーは `post_id` が第2列なので
+「この投稿へのいいね」を引けない
 
-**RLS:** SELECT 全ユーザー / INSERT・DELETE は本人
+**自己いいね:** **許可**する（`follows_no_self_follow` とは判断が異なる）。禁止すると
+「自分の投稿だけボタンを出さない」出し分けが全画面に増えるため。CHECK は置かない
+
+**運用:** `sync_post_like_count()` トリガーで `posts.like_count` を維持する。
+- **`security definer` が必須。** `posts_update_own` は `using (author_id = auth.uid())` なので、
+  呼び出し元の権限のままだと「いいねした人＝投稿者」のときしか UPDATE が通らず、他人の投稿への
+  いいねは0件更新になる。UPDATE が0件でもエラーにならないため、行は入りボタンも成功表示のまま
+  カウントだけ増えないという形で壊れる（`delete_follows_on_block()` と同じ理由）
+- 解除側は `greatest(like_count - 1, 0)` で負に振れないようにする
+- **カウント更新では `posts.updated_at` を動かさない。** `posts_updated_at` トリガーに
+  「3つのカウント列がいずれも変わっていないとき」という WHEN 句を足して抑止している。
+  `updated_at` は「作者が本文を編集した時刻」として読めるべきで、他人の操作で動くと破綻する
+- **返報性通知は発火させない。** `notifications` テーブルが未作成のため
+  （[pending-items D35](../../product/pending-items.md)）
+
+**RLS:** SELECT 全ユーザー / INSERT・DELETE は本人。INSERT のみ `is_active_user()` を要求し、
+DELETE は停止中でも通す（自分のいいねを外せない状態に閉じ込めない）。
+SELECT を全公開にするのは `user_cafe_lists`（本人のみ）とは逆の判断で、本人限定に締めると
+他人のカードで `like_count` と実データの突き合わせができなくなるため
+
+**読み取りの注意:** 「自分がいいね済みか」は別名埋め込み（`my_like:likes (user_id)` +
+`.eq('my_like.user_id', viewerId)`）で1クエリにまとめる。**`!inner` を付けてはいけない**
+（`user_cafe_lists` とは逆）。付けると「まだいいねしていない投稿」が一覧から丸ごと消え、
+投稿詳細は404になる。未ログイン時は埋め込みフィルタ自体を付けない
+（`lib/posts/post-list.ts` / `post-detail.ts`）
 
 ---
 

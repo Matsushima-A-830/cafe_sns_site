@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
+import { LikeButton } from '@/components/features/posts/like-button'
 import { PostAuthor } from '@/components/features/posts/post-author'
 import { PostBody } from '@/components/features/posts/post-body'
 import { PostGallery } from '@/components/features/posts/post-gallery'
@@ -27,6 +28,15 @@ function displayTitle(post: PostDetail): string {
   return postDisplayTitle(post.title, post.bodyJson, `${post.author.displayName}さんの投稿`)
 }
 
+/** generateMetadata と本体で2回引かないよう、loadPost と同じく cache() でまとめる */
+const loadViewerId = cache(async (): Promise<string | null> => {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  return user?.id ?? null
+})
+
 /**
  * 閲覧者のセッションで読む。anon（cookie を読まない）クライアントで先に読む案もあったが、
  * `posts_select` の最後の条件 `not is_blocked_either_way(author_id)` は anon では常に真に
@@ -42,7 +52,8 @@ const loadPost = cache(async (id: string): Promise<PostDetail | null> => {
   if (!postIdSchema.safeParse({ postId: id }).success) return null
 
   const supabase = await createClient()
-  return getPostDetail(supabase, id)
+  // いいね済みかを同じクエリで取る。1リクエスト中は閲覧者が変わらないので cache(id) のままでよい
+  return getPostDetail(supabase, id, await loadViewerId())
 })
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -71,8 +82,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
-/** カフェ・タグ・本文。短文とブログでレイアウトは変えるが、この中身は共通 */
-function PostContent({ post }: { post: PostDetail }) {
+/** カフェ・タグ・本文・いいね。短文とブログでレイアウトは変えるが、この中身は共通 */
+function PostContent({ post, isAuthenticated }: { post: PostDetail; isAuthenticated: boolean }) {
   return (
     <div className="flex flex-col gap-4">
       {post.cafe && (
@@ -105,6 +116,15 @@ function PostContent({ post }: { post: PostDetail }) {
       )}
 
       <PostBody doc={post.bodyJson} />
+
+      <LikeButton
+        postId={post.id}
+        initialLiked={post.likedByViewer}
+        initialCount={post.likeCount}
+        isAuthenticated={isAuthenticated}
+        returnTo={`/posts/${post.id}`}
+        showLoginHint
+      />
     </div>
   )
 }
@@ -113,9 +133,10 @@ export default async function PostDetailPage({ params }: PageProps) {
   const { id } = await params
   const post = await loadPost(id)
   if (!post) notFound()
+  const isAuthenticated = (await loadViewerId()) !== null
 
-  // いいね・コメント・保存・通報の各テーブルが未作成のため、今回は表示に徹する。
-  // （likes / comments / post_bookmarks / reports は未実装で、posts.like_count 等は常に0）
+  // アクション行はいいねだけ。コメント・保存・通報は comments / post_bookmarks /
+  // reports が未作成なので、枠やプレースホルダを先に出さない（投稿カードと同じ判断）
   //   docs/design/wireframes/browsing.md #S_POST_DETAIL
   if (post.postType === 'blog') {
     return (
@@ -123,7 +144,7 @@ export default async function PostDetailPage({ params }: PageProps) {
         <h1 className="text-3xl font-bold text-foreground">{displayTitle(post)}</h1>
         <PostAuthor author={post.author} publishedAt={post.publishedAt} />
         <PostGallery images={post.images} />
-        <PostContent post={post} />
+        <PostContent post={post} isAuthenticated={isAuthenticated} />
       </article>
     )
   }
@@ -148,7 +169,7 @@ export default async function PostDetailPage({ params }: PageProps) {
         {/* 短文投稿にタイトルは無い。見出しの階層を崩さないよう h1 は作者行が兼ねる */}
         <h1 className="sr-only">{displayTitle(post)}</h1>
         <PostAuthor author={post.author} publishedAt={post.publishedAt} />
-        <PostContent post={post} />
+        <PostContent post={post} isAuthenticated={isAuthenticated} />
       </div>
     </article>
   )

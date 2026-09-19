@@ -75,7 +75,7 @@
 | 公開する | `publish` | drafts → posts | `publishDraft()` |
 | 下書き保存 | `save draft` | drafts | `saveDraft()` |
 | 削除する | `delete` (soft) | posts / comments | `deletePost()` |
-| いいねする / いいね解除 | `toggle like` | posts | `toggleLike()` |
+| いいねする / いいね解除 | `like` / `unlike` | posts | `likePost()` / `unlikePost()` |
 | 保存 / 保存解除 | `toggle bookmark` | posts | `toggleBookmark()` |
 | お気に入り登録 / 解除 | `toggle favorite` | cafes | `toggleFavorite()` |
 | 行きたい追加 / 解除 | `toggle wantToGo` | cafes | `toggleWantToGo()` |
@@ -91,6 +91,12 @@
 | 常連認定する | `award regular` | regular_customers | `awardRegular()` |
 | 常連認定を取り消す | `revoke regular` | regular_customers | `revokeRegular()` |
 | 申請を取り下げる | `withdraw` | cafe_owner_verifications | `withdrawClaim()` |
+
+> **`toggleXxx()` は実装では追加と解除に分ける。** トグル1本にすると、二重クリックや
+> 表示が古いまま押されたときに「どちらの状態を求めたのか」をサーバー側で決められない。
+> 実装済みのものはすべてこの形になっている（`likePost()` / `unlikePost()`、
+> `followUser()` / `unfollowUser()`、`addCafeToList()` / `removeCafeFromList()`）。
+> UI 上の文言が「トグル」であることは変わらない。
 
 ---
 

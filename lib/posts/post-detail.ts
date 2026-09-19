@@ -28,16 +28,28 @@ export type PostDetail = {
   cafe: { id: string; name: string; areaLabel: string | null } | null
   images: PostDetailImage[]
   tags: PostDetailTag[]
+  likeCount: number
+  /** 閲覧者自身がいいね済みか。未ログインでは常に false */
+  likedByViewer: boolean
 }
 
-/** 1クエリで投稿・作者・カフェ・画像・タグをまとめて取る（N+1回避） */
-const POST_DETAIL_SELECT = `
-  id, post_type, title, body_json, visibility, published_at, created_at,
-  author:profiles!posts_author_id_fkey (id, username, display_name, avatar_url),
-  cafe:cafes!posts_cafe_id_fkey (id, name, area_code, areas!cafes_area_code_fkey (label)),
-  post_images (storage_path, alt_text, display_order),
-  post_tags (tags (id, slug, label))
-` as const
+/**
+ * 1クエリで投稿・作者・カフェ・画像・タグ・いいね状態をまとめて取る（N+1回避）。
+ *
+ * いいね済みかの埋め込みに `!inner` は付けない。付けると「まだいいねしていない投稿」が
+ * 0件になり、詳細ページがまるごと 404 になる
+ */
+function buildPostDetailSelect(viewerId: string | null): string {
+  const parts = [
+    'id, post_type, title, body_json, visibility, published_at, created_at, like_count',
+    'author:profiles!posts_author_id_fkey (id, username, display_name, avatar_url)',
+    'cafe:cafes!posts_cafe_id_fkey (id, name, area_code, areas!cafes_area_code_fkey (label))',
+    'post_images (storage_path, alt_text, display_order)',
+    'post_tags (tags (id, slug, label))',
+  ]
+  if (viewerId) parts.push('my_like:likes (user_id)')
+  return parts.join(', ')
+}
 
 type PostDetailRow = {
   id: string
@@ -47,6 +59,9 @@ type PostDetailRow = {
   visibility: string
   published_at: string | null
   created_at: string
+  like_count: number
+  /** viewerId を渡したときだけ付く。空配列＝まだいいねしていない */
+  my_like?: { user_id: string }[]
   author: {
     id: string
     username: string
@@ -125,6 +140,8 @@ export function toPostDetail(
     tags: row.post_tags
       .map((entry) => entry.tags)
       .filter((tag): tag is PostDetailTag => tag !== null),
+    likeCount: row.like_count,
+    likedByViewer: (row.my_like ?? []).length > 0,
   }
 }
 
@@ -140,19 +157,49 @@ export function toPostDetail(
  *   supabase/migrations/20260910120000_fix_posts_select_own.sql
  *   docs/architecture/data-model/tables.md #posts
  */
-export async function getPostDetail(supabase: Client, postId: string): Promise<PostDetail | null> {
-  const { data, error } = await supabase
+export async function getPostDetail(
+  supabase: Client,
+  postId: string,
+  viewerId: string | null = null,
+): Promise<PostDetail | null> {
+  let query = supabase
     .from('posts')
-    .select(POST_DETAIL_SELECT)
+    .select(buildPostDetailSelect(viewerId))
     .eq('id', postId)
     .eq('status', 'published')
     .is('deleted_at', null)
-    .maybeSingle()
+
+  // 埋め込みへのフィルタは「返す子行」に効く。投稿そのものは消えない。
+  // null を渡すと壊れるので、未ログインでは条件ごと付けない
+  if (viewerId) query = query.eq('my_like.user_id', viewerId)
+
+  const { data, error } = await query.maybeSingle()
 
   if (error) {
     throw new Error(`投稿の取得に失敗しました (id=${postId}): ${error.message}`)
   }
   if (!data) return null
 
-  return toPostDetail(data as PostDetailRow, (path) => getPostImagePublicUrl(supabase, path))
+  return toPostDetail(data as unknown as PostDetailRow, (path) =>
+    getPostImagePublicUrl(supabase, path),
+  )
+}
+
+/**
+ * いいねの対象にしてよい投稿かだけを確かめる軽い問い合わせ（cafeExists の投稿版）。
+ *
+ * likes.post_id の FK は posts(id) を見るだけで status も deleted_at も見ない。
+ * ここで明示しないと posts_select_own（author_id 一致のみ）が OR で合成され、
+ * 作者本人に限っては hidden な予約行や論理削除済みの投稿にもいいねが通る
+ */
+export async function publishedPostExists(supabase: Client, postId: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from('posts')
+    .select('id', { count: 'exact', head: true })
+    .eq('id', postId)
+    .eq('status', 'published')
+    .is('deleted_at', null)
+
+  if (error) throw new Error(`投稿の取得に失敗しました (id=${postId}): ${error.message}`)
+  return (count ?? 0) > 0
 }

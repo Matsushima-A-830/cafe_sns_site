@@ -33,6 +33,9 @@ export type PostListItem = {
   /** カードに出すのは1枚目だけ。写真なしの短文投稿は null */
   image: { url: string; altText: string } | null
   tags: PostListTag[]
+  likeCount: number
+  /** 閲覧者自身がいいね済みか。未ログインでは常に false */
+  likedByViewer: boolean
 }
 
 export type PostListPage = { items: PostListItem[]; nextCursor: PostListCursor | null }
@@ -48,6 +51,11 @@ export type PostListOptions = {
   authorId?: string | null
   /** カフェ詳細（S_CAFE_DETAIL）の投稿グリッド。1つのカフェに絞る */
   cafeId?: string | null
+  /**
+   * 閲覧者。いいね済みかを1クエリで一緒に取るためだけに使う（絞り込みではない）。
+   * 未ログインでは渡さない
+   */
+  viewerId?: string | null
   cursor?: PostListCursor | null
   limit?: number
 }
@@ -59,6 +67,9 @@ type PostListRow = {
   body_text: string | null
   published_at: string | null
   created_at: string
+  like_count: number
+  /** viewerId を渡したときだけ付く。空配列＝まだいいねしていない */
+  my_like?: { user_id: string }[]
   author: {
     id: string
     username: string
@@ -91,7 +102,7 @@ export function postExcerpt(bodyText: string | null): string {
  */
 function buildSelect(options: PostListOptions): string {
   const parts = [
-    'id, post_type, title, body_text, published_at, created_at',
+    'id, post_type, title, body_text, published_at, created_at, like_count',
     'author:profiles!posts_author_id_fkey (id, username, display_name, avatar_url)',
     `cafe:cafes!posts_cafe_id_fkey${options.areaCode ? '!inner' : ''} (id, name, area_code, areas!cafes_area_code_fkey (label))`,
     'post_images (storage_path, alt_text)',
@@ -104,6 +115,11 @@ function buildSelect(options: PostListOptions): string {
     parts.push(
       'following:profiles!posts_author_id_fkey!inner (follows!follows_followee_id_fkey!inner (follower_id))',
     )
+  }
+  if (options.viewerId) {
+    // ここは `!inner` にしてはいけない。付けると「閲覧者がいいねしていない投稿」が
+    // 一覧から丸ごと消える。外側の埋め込みにして、空配列＝未いいね と読む
+    parts.push('my_like:likes (user_id)')
   }
   return parts.join(', ')
 }
@@ -150,6 +166,8 @@ export function toPostListItem(
     tags: row.post_tags
       .map((entry) => entry.tags)
       .filter((tag): tag is PostListTag => tag !== null),
+    likeCount: row.like_count,
+    likedByViewer: (row.my_like ?? []).length > 0,
   }
 }
 
@@ -200,6 +218,10 @@ export async function getPostList(
   }
   if (options.cafeId) {
     query = query.eq('cafe_id', options.cafeId)
+  }
+  if (options.viewerId) {
+    // 埋め込みへのフィルタは「返す子行」に効く。親（投稿）の件数は減らない
+    query = query.eq('my_like.user_id', options.viewerId)
   }
   if (options.cursor) {
     const cursor = assertValidCursor(options.cursor)

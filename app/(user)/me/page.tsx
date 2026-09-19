@@ -62,7 +62,7 @@ export default async function MyPage() {
     getUserCafeList(supabase, 'want_to_go', CAFE_LIST_PREVIEW_LIMIT),
     // 下書きは件数もここから数える。listDrafts が期限切れ除外と50件上限を担保している
     listDrafts(),
-    getPostList(supabase, { authorId: profile.id }),
+    getPostList(supabase, { authorId: profile.id, viewerId: user.id }),
   ])
 
   // 下書きだけは取得に失敗してもページ全体を落とさない（マイページの主役ではない）。
@@ -174,6 +174,7 @@ export default async function MyPage() {
         <PostFeed
           initialPage={page}
           query={query}
+          isAuthenticated={user != null}
           emptyMessage="まだ投稿がありません。最初の1件を投稿してみましょう。"
         />
       </section>
