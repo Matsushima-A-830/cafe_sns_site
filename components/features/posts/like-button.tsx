@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { likePost, unlikePost } from '@/app/_actions/likes'
+import { cn } from '@/lib/utils/cn'
 import { errorMessage } from '@/lib/utils/error-messages'
 
 /**
@@ -98,9 +99,10 @@ export function LikeButton({
         // 連打は handleClick 側の isPending ガードで止める
         aria-busy={isPending}
         onClick={handleClick}
-        className={`inline-flex w-fit items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none ${
-          liked ? 'text-primary' : 'text-muted-foreground'
-        }`}
+        className={cn(
+          'inline-flex w-fit items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none',
+          liked ? 'text-primary' : 'text-muted-foreground',
+        )}
       >
         <Heart aria-hidden="true" className="h-4 w-4" fill={liked ? 'currentColor' : 'none'} />
         {/* 件数を数字だけにしない。読み上げで「12」とだけ言われても何の数か伝わらない */}
