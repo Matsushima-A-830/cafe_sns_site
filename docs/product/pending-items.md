@@ -833,12 +833,23 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **決定（2026-09-18）:** `CafeListButtons` では `disabled` をやめ、`aria-busy={isPending}` +
   ハンドラ冒頭の `if (isPending) return` ガードに置き換えた。実ブラウザで
   「Enter で押した後もフォーカスがボタンに残り、読み上げも出る」ことを確認済み
-- **未対応:** 同じ `disabled={isPending}` は **`CongestionSection`（混雑度の報告ボタン5個）と
-  `FollowButton`** にも残っている。`FollowButton` は `key={`${profile.id}:${following}`}` で
-  毎回作り直してもいるため、フォーカス喪失とアナウンス消失の両方を踏む
-- **対応案:** a) 2つを同じ方式に揃える（小さい差分。次に触るときでよい）
+- **未対応（2026-09-19 に再計測して2件追加）:** 同じ `disabled={isPending}` が残っているのは
+  **4コンポーネント**。起票時は2つとしていたが数え漏れがあった
+
+| コンポーネント | 該当行 | 備考 |
+|---|---|---|
+| `CongestionSection` | 132 | 混雑度の報告ボタン5個 |
+| `FollowButton` | 54 | `key={`${profile.id}:${following}`}` で毎回作り直すため、フォーカス喪失とアナウンス消失の両方を踏む |
+| `DraftList` | 95 / 148 | 削除・続きを書くの2種 |
+| `CafeListView` | 92 | 一覧からの解除ボタン |
+
+- **対応済み:** `CafeListButtons`（2026-09-18）と `LikeButton`（2026-09-19）。
+  どちらも実ブラウザでフォーカスが残ることを確認済み
+- **対応案:** a) 4つを同じ方式に揃える（小さい差分。次に触るときでよい）
   b) `aria-busy` + ガードを共通の Button ラッパーに寄せる
-- 参照: S_MYPAGE 実装のレビューで判明（2026-09-18）
+- **D37 と併せて直すほうがよい** — あちらを直すと `isPending` が真の時間そのものが
+  短くなり、この問題の実害も小さくなる
+- 参照: S_MYPAGE 実装のレビューで判明（2026-09-18）／対象の数え漏れを訂正（2026-09-19）
 
 ### D34. 実機（ブラウザ）で一度も確認していない画面が残っている
 
@@ -933,6 +944,33 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **対応判断:** フォロワー一覧（S_USER_PROFILE_PUBLIC のタブ）実装時に決める。
   それまでは現状維持。決めた内容は `tables.md #follows` に書く
 - 参照: `likes` の SELECT にブロックを反映した際、`follows` と揃っていないことが判明（2026-09-19）
+
+### D37. `router.refresh()` を `startTransition` の中で呼んでいる
+
+- **課題:** 楽観更新するコンポーネントが、Server Action の完了後に同じ
+  `startTransition` の中で `router.refresh()` を呼んでいる。`refresh()` は
+  トランザクションに参加するため、**`isPending` が RSC の往復が終わるまで真のまま**になる。
+  その間、押下は `if (isPending) return` ガード（または `disabled`）に黙って捨てられる
+- **対象（2026-09-19 実測）:** `startTransition` の中で `refresh()` を呼ぶのは6コンポーネント。
+  `LikeButton` / `CafeListButtons` / `FollowButton` / `CongestionSection` / `DraftList` /
+  `CafeListView`（`login-form.tsx` も `refresh()` を呼ぶが `startTransition` の外なので対象外）
+- **2つの症状が重なっている:**
+  1. **押下が捨てられる時間が長い。** `aria-busy` に置き換えた側（`LikeButton` /
+     `CafeListButtons`）は視覚的な待機表示が無いので、ユーザーには「反応しない」としか映らない。
+     実機では短い無反応を確認した（ローカルのデータ量では軽微）
+  2. **`LikeButton` では refresh の結果が必ず捨てられる。** `PostFeed` は
+     `useState(initialPage.items)` で一覧を抱え、`LikeButton` も props から state を
+     1度しか初期化しない。サーバーの再描画コストを払って結果を捨てている
+     （投稿詳細でも同じ。件数のズレは Server Action の戻り値で直す設計にした）
+- **未確認:** 他の5コンポーネントで `refresh()` の結果が実際に使われているかは個別に見ていない。
+  `CongestionSection` のように「サーバー側の集計値を読み直す」ものは必要な可能性がある
+- **対応案:** a) `refresh()` を `startTransition` の外に出す（`isPending` が書き込みの完了で
+  終わる。最小の差分） b) 結果を使っていないコンポーネントでは `refresh()` 自体をやめる
+  c) 待機表示を足して「反応しない」に見えないようにする
+- **注意:** `refresh()` を外に出すと E2E の `waitIdle`（`aria-busy` が false に戻るのを待つ）が
+  書き込み完了だけを待つようになる。`cafe-list-toggle.spec.ts` / `likes.spec.ts` の
+  リロード前の待機が足りるかは直すときに確認が要る
+- 参照: `likes` 実装後の `/code-review` で指摘され、実機確認でも再現（2026-09-19）
 
 ## 削除・アーカイブ判断待ち
 
