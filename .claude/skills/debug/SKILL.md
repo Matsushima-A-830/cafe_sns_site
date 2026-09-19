@@ -76,24 +76,32 @@ description: 実装中の詰まり所を体系的に解消する。RLS、Server 
 
 ## カテゴリ3: Next.js キャッシュ問題
 
+### まず前提を疑う: このプロジェクトの閲覧系ページはキャッシュされていない
+
+`/` `/explore` `/posts/[id]` `/users/[username]` `/cafes/[id]` `/me` はすべて `auth.getUser()` で
+cookie を読む**動的レンダリング**で、フルルートキャッシュに載っていない（[pending-items D23](../../../docs/product/pending-items.md)）。
+`pnpm build` の出力で `ƒ (Dynamic)` になっていることを確認できる。
+
+したがって **「古いデータが出る」の原因がサーバー側のキャッシュであることは、まず無い。**
+`revalidatePath` を足して直そうとするのは誤った方向で、実際のコードでも1箇所も呼んでいない。
+
 ### 症状: 「更新したのに古いデータが表示される」
 
 **チェック順:**
 
-1. 対象がどの層のキャッシュか特定:
-   - **Data Cache** — `fetch()` の自動キャッシュ → `revalidate` オプション or `revalidatePath`
-   - **Full Route Cache** — ページ全体 → `revalidatePath('/path')` or `router.refresh()`
-   - **Router Cache** — クライアント側 → `router.refresh()`
-   - **Request Memoization** — 同一リクエスト内 → 自動、通常問題にならない
-
-2. Server Actions 内で `revalidatePath` を呼んでいるか
-3. dynamic route の場合、`revalidatePath('/posts/[id]', 'page')` の型指定が必要な場合あり
+1. `pnpm build` でそのルートが `ƒ (Dynamic)` か `○ (Static)` かを確認する。`ƒ` ならサーバー側のキャッシュは無関係
+2. **Client Component の state が古いままではないか** — 最有力。`useState` の初期値はサーバーから
+   新しい props が来ても更新されない。`router.refresh()` はサーバーを再描画するが**子の state は捨てない**
+   - 対処: 値が変わったら作り直したい要素に `key={...}` を付ける（`PostFeed` / `FollowButton` が実例）
+3. Router Cache（クライアント側のナビゲーション履歴）→ `router.refresh()`
+4. `next dev` のビルドキャッシュ → 後述の「ブランチを切り替えたら `.next` を消す」
 
 ### 症状: 「本番ビルドで動作が変わる」
 
 1. `next dev` は毎回SSRだが、`next build` は静的化される場合あり
-2. `export const dynamic = 'force-dynamic'` で動的化を強制
-3. `cookies()`, `headers()` を呼ぶと自動的に dynamic になる
+2. `cookies()` `headers()` `auth.getUser()` を呼ぶと自動的に dynamic になる
+3. **動的セグメント（`[id]`）のルートは `generateStaticParams` が無いと `revalidate` を置いても
+   フルルートキャッシュに載らない** — D23 に実測の切り分けがある
 
 ---
 
@@ -232,3 +240,20 @@ Auth のフック設定（`[auth.hook.custom_access_token]`）など、コンテ
 `pnpm db:stop && pnpm db:start` が要る。
 
 症状: フックを有効化したのに JWT のカスタムクレイム（`role` / `status` / `onboarded`）が載らない。
+
+## ブランチを切り替えたら `.next` を消す
+
+Next.js は App Router のルート型を `.next/types/validator.ts` と `.next/dev/types/validator.ts` に
+**生成する**が、これらはブランチ切り替えで消えない。別ブランチにしか無いページを参照したまま残るため、
+そのページが存在しないブランチで型チェックが落ちる。
+
+```
+.next/types/validator.ts(152,39): error TS2307:
+  Cannot find module '../../app/(browsing)/cafes/[id]/page.js' or its corresponding type declarations.
+```
+
+症状: **自分の変更と無関係なファイルで `tsc` が落ちる。** pre-push hook（`pnpm typecheck`）で
+push が拒否される形で表面化することが多い。
+
+対処: `rm -rf .next`（`.gitignore` 済みのビルド成果物なので消して問題ない）。
+`--no-verify` で hook を回避しないこと — この現象は環境側の問題だが、回避すると本物の型エラーも素通りする。
