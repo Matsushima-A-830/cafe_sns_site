@@ -559,7 +559,11 @@
         { "status": "risk", "tag": "D38", "title": "likes の SELECT が投稿の可視性を継承していない",
           "body": "comments 実装時に発見。likes_select_all はブロック関係しか見ておらず、hidden・論理削除済み・非公開投稿への「いいね」の存在（user_id の羅列）が post_id さえ分かれば読める。comments で固めた exists(posts) パターンを横展開すれば直るが、意図的に別PRに切り出した（放置期間あり）。" },
         { "status": "risk", "tag": "D40", "title": "登録直後のカフェが即全公開",
-          "body": "status='active' 即時公開で中間状態が無い。reports が未作成のため、通報機能とセットで対処する前提であえて許容した（S_CAFE_NEW 実装時の決定）。" }
+          "body": "status='active' 即時公開で中間状態が無い。reports が未作成のため、通報機能とセットで対処する前提であえて許容した（S_CAFE_NEW 実装時の決定）。" },
+        { "status": "risk", "tag": "D43", "title": "通知の個別既読化にロールバックが無い",
+          "body": "NotificationList.handleMarkRead は楽観更新後の Server Action 呼び出しを結果を見ずに投げっぱなしにしており、失敗しても readAt を戻さない。すべて既読ボタン側は /code-review で見つかった同種のバグを修正済みだが、個別クリックの方は未対応のまま。" },
+        { "status": "risk", "tag": "D44", "title": "通知一覧の相対時刻がハイドレーションミスマッチのリスク",
+          "body": "NotificationItem は 'use client' のままSSRされ、formatRelativeTime が new Date() を引数無しで呼ぶため、作成直後（1分未満）の通知でサーバーとクライアントの表示が食い違いうる。" }
       ]
     },
 
