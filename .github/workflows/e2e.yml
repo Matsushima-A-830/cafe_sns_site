@@ -59,6 +59,16 @@ jobs:
             echo "NEXT_PUBLIC_SITE_URL=http://localhost:3000"
           } >> "$GITHUB_ENV"
 
+      # .next/cache はソース変更後も前回ビルドの成果物を使って差分だけ再ビルドできる。
+      # 完全一致しなければ直近の pnpm-lock.yaml 向けキャッシュにフォールバックする
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-
+
       # playwright.config.ts の webServer が `pnpm start` を叩くため、先にビルドが必要
       - name: Build
         run: pnpm build
