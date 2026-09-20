@@ -178,14 +178,17 @@ async function insertCafe(
     .from('cafes')
     .insert({
       name: input.name,
-      name_kana: input.nameKana ?? null,
+      // 未入力の optional 項目は Zod を通ると '' になる（undefined にはならない）。
+      // ?? null は '' を弾けないため || null にする。空文字のまま入ると
+      // `cafe.description ?? fallback` (S_CAFE_DETAIL) のフォールバックが効かなくなる
+      name_kana: input.nameKana || null,
       prefecture: input.prefecture,
       city: input.city,
       area_code: input.areaCode ?? null,
-      address: input.address ?? null,
-      phone: input.phone ?? null,
-      website: input.website ? input.website : null,
-      description: input.description ?? null,
+      address: input.address || null,
+      phone: input.phone || null,
+      website: input.website || null,
+      description: input.description || null,
       created_by: user.id,
     })
     .select('id')

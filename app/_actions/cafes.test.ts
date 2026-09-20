@@ -80,13 +80,30 @@ describe('createCafe', () => {
     )
   })
 
-  it('website の空文字は null として送る（未入力扱い）', async () => {
+  it('未入力の任意項目（空文字）はすべて null として送る', async () => {
     const { stub, spies } = buildSupabaseStub()
     createClientMock.mockResolvedValue(stub)
 
-    await createCafe({ ...validInput, website: '' })
+    await createCafe({
+      ...validInput,
+      nameKana: '',
+      address: '',
+      phone: '',
+      website: '',
+      description: '',
+    })
 
-    expect(spies.insert).toHaveBeenCalledWith(expect.objectContaining({ website: null }))
+    // description が '' のまま入ると S_CAFE_DETAIL の `cafe.description ?? fallback`
+    // が効かず空のメタ説明になる（??は空文字を弾けない）ため、必ず null で送る
+    expect(spies.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name_kana: null,
+        address: null,
+        phone: null,
+        website: null,
+        description: null,
+      }),
+    )
   })
 
   it('area_code の FK 違反は AREA_CODE_UNKNOWN を返す', async () => {
