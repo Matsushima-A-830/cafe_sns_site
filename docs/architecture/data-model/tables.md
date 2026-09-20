@@ -663,6 +663,7 @@ body_search tsvector GENERATED ALWAYS AS (
 **本文サイズ上限:** 500 文字以内（アプリ層 Zod で検証。posts の50,000字は投稿本文向けで、コメントには長すぎるため別途定める）。
 
 **返信の整合性:** `parent_id` は自己参照 FK のみでは「別の投稿のコメントへの返信」「返信への返信（2階層目）」を防げない。`before insert or update` トリガーで、`new.parent_id` が指す行の `post_id` が `new.post_id` と一致すること、かつその行自身が `parent_id is null`（＝トップレベルのコメントであること）を検証する。自己参照（`parent_id = id`）は CHECK 制約で弾く。
+存在しない/削除済みの `parent_id` は `raise exception 'COMMENT_NOT_FOUND'` で区別できるメッセージにする（23503 の外部キー制約チェックより先にこの BEFORE トリガーが発火するため、FK 違反としては到達しない）。
 
 **RLS:**
 - SELECT: 2本の permissive policy の OR。
@@ -670,7 +671,8 @@ body_search tsvector GENERATED ALWAYS AS (
   2. `comments_select_own`: `author_id = auth.uid() or is_post_author(post_id)`（`deleted_at` を見ない）。[posts_select_own](#posts) と同じ理由 — PostgreSQL の RLS は UPDATE 対象行の選択だけでなく「更新後の新しい行が何らかの SELECT ポリシーを満たすか」も検証するため、`deleted_at` を立てる論理削除の UPDATE は当人であっても`comments_select_visible`単独では常に RLS 違反になる。この permissive policy が無いと投稿主も作者も自分のコメントを一切削除できない。
   **注意:** 2番目のポリシーにより「削除済みコメントは誰にも見えない」という保証は RLS だけでは成立しない（作者・投稿主には見え続ける）。一覧取得は必ずアプリ層で `deleted_at is null` を明示すること（`posts_select_own` と同じ運用）
 - INSERT: 認証済み。`is_official = true` は該当カフェの `verified_owner_id = auth.uid()` の場合のみ許可（RLS の `WITH CHECK` に加えて、posts と同様に `security definer` トリガー `guard_comments_official_owner` も併置する。RLS の `WITH CHECK` は `auth.uid()` 前提のため service_role 経由の書き込みでは迂回できてしまうため）
-- UPDATE: `auth.uid() = author_id or is_post_author(post_id)`。ただし `body` を変更できるのはコメント作者本人のみで、投稿主は `deleted_at`（論理削除）以外の列を変更できない — `guard_comments_moderation_columns` トリガーで列単位に強制する（[profiles の `guard_privileged_profile_columns`](#profiles) と同じ形）
+- UPDATE: `auth.uid() = author_id or is_post_author(post_id)`。ただし `body` を変更できるのはコメント作者本人のみで、投稿主は `deleted_at`（論理削除）以外の列を変更できない — `guard_comments_moderation_columns` トリガーで列単位に強制する（[profiles の `guard_privileged_profile_columns`](#profiles) と同じ形）。
+  さらに、**返信が付いたトップレベルコメントは、投稿主でない作者本人には削除させない**（`COMMENT_HAS_REPLIES` を raise）。他人が書いた返信を、コメントの作者というだけの権限で道連れに消せてしまうのを防ぐため。投稿主が削除する場合は制限を受けず、`cascade_delete_comment_replies` トリガーが未削除の返信を連動して論理削除し、`comment_count` も行単位のカウントトリガーで正しく減算される（そうしないと、返信だけが `comment_count` に残ったまま `getPostComments` の親フィルタ越しに永久に取得できなくなる）
 - DELETE: 物理 DELETE は許可しない（`deleted_at` を立てる論理削除のみ。UPDATE ポリシーでカバー）
 
 ---
