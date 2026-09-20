@@ -910,22 +910,16 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   変わらず高い** — 実機でしか確認できない項目がそこに集中している
 - 参照: PR #42 で実機確認をE2Eに残す仕組みを入れた際に、過去分が未処理であることが判明（2026-09-19）
 
-### D35. いいねの返報性通知が作れない（`notifications` 未作成）
+### D35. ～~いいねの返報性通知が作れない（`notifications` 未作成）~~（解消）
 
-- **課題:** [tables.md #likes](../architecture/data-model/tables.md) は「返報性通知のトリガーも
-  ここで発火（notifications INSERT）」としているが、**`notifications` テーブルが存在しない**。
-  先に在るのは `user_settings.notify_like`（`20260905130100_create_user_settings.sql`、
-  DEFAULT true）だけで、参照先が無い設定値が宙に浮いている
-- **今回の判断（2026-09-19）:** `likes` の実装では**通知を作らない**。通知は
-  S_NOTIFICATIONS 画面・`user_settings` 連携・未読カウント・既読管理まで含めて
-  初めて意味を持つので、テーブルだけ先に足しても使い道が無い。`tables.md #likes` の
-  該当行にも注記を入れた
-- **影響:** 行動経済学上の「返報性」（いいねされたら返したくなる）が MVP では働かない。
-  [positioning.md](positioning.md) の幹A・幹Cには直接効かないが、初期の滞在時間には効く
-- **対応判断:** 通知機能をまとめて1スコープとして着手するときに戻る。
-  `comments` / `follows` / `post_bookmarks` も同じ通知先を必要とするため、
-  それらが揃ってからのほうが設計しやすい
-- 参照: `likes` 実装時にスコープ外と判断（2026-09-19）
+- **解消（2026-09-20）:** `notifications` テーブルと like/comment/follow の3トリガーを実装した
+  （`20260920150000_create_notifications.sql` / `20260920160000_notify_on_comment_payload_post_id.sql`）。
+  S_NOTIFICATIONS 画面（一覧・フィルタタブ・既読化・フォローバック）も実装済み。
+  `user_settings.notify_like/comment/follow` は既に参照先を持つ
+- **残課題:** `badge` / `owner_verified` / `regular_awarded` / `official_post` / `report_resolved` の
+  5種は CHECK 制約に型だけ確保し、発火元（バッジ付与・オーナー認証・常連認定・公式投稿・通報解決）
+  が未実装のためトリガーは無い。それぞれの機能実装時に発火元トリガーを追加する
+- 参照: 通知機能実装時にlikes/comments/followsとまとめて着手（2026-09-20）
 
 ### D36. `follows` の SELECT がブロックを反映していない（likes と判断が揃っていない）
 

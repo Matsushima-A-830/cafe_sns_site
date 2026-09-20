@@ -15,3 +15,16 @@ export const NOTIFICATION_FILTERS = ['all', 'like', 'comment', 'follow'] as cons
 export type NotificationFilter = (typeof NOTIFICATION_FILTERS)[number]
 
 export const notificationFilterSchema = z.enum(NOTIFICATION_FILTERS)
+
+/** keyset カーソル。lib/notifications/notification-list.ts の NotificationListCursor と同じ形 */
+export const notificationListCursorSchema = z.object({
+  createdAt: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/),
+  id: z.string().uuid(),
+})
+
+export const loadMoreNotificationsSchema = z.object({
+  filter: notificationFilterSchema,
+  cursor: notificationListCursorSchema,
+})

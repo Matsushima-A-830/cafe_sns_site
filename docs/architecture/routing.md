@@ -378,7 +378,7 @@ app/_actions/
 ├── blocks.ts         # toggleBlock
 ├── profiles.ts       # updateProfile, updateAvatar
 ├── drafts.ts         # saveDraft, deleteDraft (autosave)
-├── notifications.ts  # markAsRead, markAllAsRead
+├── notifications.ts  # markNotificationAsRead, markAllNotificationsAsRead, loadMoreNotifications
 ├── owner.ts          # claimCafe, withdrawClaim, updateCafeInfo,
 │                     # awardRegular, revokeRegular, updateRegularNote (幹C)
 └── admin.ts          # resolveReport, approveOwnerClaim, rejectOwnerClaim

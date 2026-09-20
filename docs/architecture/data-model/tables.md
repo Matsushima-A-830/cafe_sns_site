@@ -738,8 +738,9 @@ body_search tsvector GENERATED ALWAYS AS (
 - **カウント更新では `posts.updated_at` を動かさない。** `posts_updated_at` トリガーに
   「3つのカウント列がいずれも変わっていないとき」という WHEN 句を足して抑止している。
   `updated_at` は「作者が本文を編集した時刻」として読めるべきで、他人の操作で動くと破綻する
-- **返報性通知は発火させない。** `notifications` テーブルが未作成のため
-  （[pending-items D35](../../product/pending-items.md)）
+- **返報性通知:** `likes` テーブル自体のトリガーではなく、`notify_on_like()`
+  （`20260920150000_create_notifications.sql`）が別トリガーとして発火する。自己いいね・
+  ブロック関係・`user_settings.notify_like=false` は通知を作らない（[notifications](#notifications)）
 
 **RLS:** SELECT は**ブロックしていない相手のぶんだけ**全ユーザー
 （`using (not is_blocked_either_way(user_id))`）/ INSERT・DELETE は本人。

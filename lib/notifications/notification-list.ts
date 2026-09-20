@@ -35,6 +35,8 @@ export type NotificationItem = {
   readAt: string | null
   createdAt: string
   actor: NotificationActor
+  /** 遷移先。type/entity から解決できないもの（badge等、未実装のtype）は null */
+  href: string | null
 }
 
 export type NotificationListPage = {
@@ -54,15 +56,35 @@ type NotificationRow = {
   type: string
   entity_type: string | null
   entity_id: string | null
+  payload: Record<string, unknown>
   read_at: string | null
   created_at: string
   actor: NotificationActorRow
 }
 
 const SELECT = [
-  'id, type, entity_type, entity_id, read_at, created_at',
+  'id, type, entity_type, entity_id, payload, read_at, created_at',
   'actor:profiles!notifications_actor_id_fkey (id, username, display_name, avatar_url)',
 ].join(', ')
+
+/**
+ * 通知カードの遷移先。like/comment/follow の3種だけ解決できる。badge 等の
+ * 未実装typeは払い出し元自体が無いので href なし（アイコン+テキスト+日時の表示に倒す）
+ */
+function resolveHref(row: NotificationRow, actor: NotificationActor): string | null {
+  switch (row.type) {
+    case 'like':
+      return row.entity_type === 'post' && row.entity_id ? `/posts/${row.entity_id}` : null
+    case 'comment': {
+      const postId = row.payload.postId
+      return typeof postId === 'string' ? `/posts/${postId}` : null
+    }
+    case 'follow':
+      return actor ? `/users/${actor.username}` : null
+    default:
+      return null
+  }
+}
 
 function assertValidCursor(cursor: NotificationListCursor): NotificationListCursor {
   if (!TIMESTAMP_PATTERN.test(cursor.createdAt) || !UUID_PATTERN.test(cursor.id)) {
@@ -82,6 +104,7 @@ function toNotificationActor(row: NotificationActorRow): NotificationActor {
 }
 
 function toNotificationItem(row: NotificationRow): NotificationItem {
+  const actor = toNotificationActor(row.actor)
   return {
     id: row.id,
     type: row.type,
@@ -89,7 +112,8 @@ function toNotificationItem(row: NotificationRow): NotificationItem {
     entityId: row.entity_id,
     readAt: row.read_at,
     createdAt: row.created_at,
-    actor: toNotificationActor(row.actor),
+    actor,
+    href: resolveHref(row, actor),
   }
 }
 
