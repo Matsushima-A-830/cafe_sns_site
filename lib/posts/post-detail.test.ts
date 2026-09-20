@@ -20,6 +20,7 @@ function row(overrides: Record<string, unknown> = {}) {
     created_at: '2026-09-14T00:00:00Z',
     like_count: 0,
     comment_count: 0,
+    bookmark_count: 0,
     author: {
       id: 'user-1',
       username: 'kaho',
