@@ -23,13 +23,16 @@ import type { Result } from '@/types/result'
  *   supabase/migrations/20260920120000_create_comments.sql
  */
 
-// トリガーの raise exception は SQLSTATE P0001 固定（guard_comments_official_owner /
-// guard_comments_thread_integrity）。posts.ts と同じ理由でメッセージは 'FORBIDDEN' 固定
+// トリガーの raise exception は SQLSTATE P0001 固定。コード自体がメッセージ文字列
+// （FORBIDDEN, COMMENT_NOT_FOUND, COMMENT_HAS_REPLIES）になる
 //   supabase/migrations/20260920120000_create_comments.sql
 const RAISED_BY_TRIGGER = 'P0001'
 // 23503 の出どころを見分けるための FK 名。author_id 側と混ぜない
 const POST_FK_CONSTRAINT = 'comments_post_id_fkey'
-const PARENT_FK_CONSTRAINT = 'comments_parent_id_fkey'
+
+function isRaisedWithMarker(error: { code?: string | null; message: string }, marker: string) {
+  return error.code === RAISED_BY_TRIGGER && error.message.includes(marker)
+}
 
 type CreateCommentError =
   | 'INVALID_INPUT'
@@ -41,7 +44,11 @@ type CreateCommentError =
   | 'POST_BODY_TOO_LONG'
   | 'INTERNAL_ERROR'
 
-type DeleteCommentError = 'INVALID_INPUT' | 'UNAUTHENTICATED' | 'INTERNAL_ERROR'
+type DeleteCommentError =
+  | 'INVALID_INPUT'
+  | 'UNAUTHENTICATED'
+  | 'COMMENT_HAS_REPLIES'
+  | 'INTERNAL_ERROR'
 
 export type CreateCommentResult = { commentId: string; commentCount: number }
 export type CommentCount = { commentCount: number }
@@ -97,17 +104,20 @@ async function insertComment(
 
   if (error) {
     if (error.code === POSTGRES_FOREIGN_KEY_VIOLATION) {
+      // parent_id の FK 違反はここには来ない: 23503 の制約チェックより先に
+      // guard_comments_thread_integrity（BEFORE トリガー）が発火し、存在しない/
+      // 削除済みの parent_id は P0001 の COMMENT_NOT_FOUND として先に弾かれる
       if (error.message.includes(POST_FK_CONSTRAINT)) return { ok: false, error: 'POST_NOT_FOUND' }
-      if (error.message.includes(PARENT_FK_CONSTRAINT)) {
-        return { ok: false, error: 'COMMENT_NOT_FOUND' }
-      }
       return { ok: false, error: 'FORBIDDEN' }
     }
     // is_active_user() が偽（suspended / pending_consent）、または is_official の
     // WITH CHECK（is_post_cafe_owner）に弾かれた
     if (error.code === POSTGRES_INSUFFICIENT_PRIVILEGE) return { ok: false, error: 'FORBIDDEN' }
+    // guard_comments_thread_integrity: 存在しない/削除済みの parent_id
+    if (isRaisedWithMarker(error, 'COMMENT_NOT_FOUND'))
+      return { ok: false, error: 'COMMENT_NOT_FOUND' }
     // guard_comments_official_owner（service_role 経由の is_official なりすまし）
-    // guard_comments_thread_integrity（別投稿への返信・2階層目の返信・存在しない親）
+    // guard_comments_thread_integrity（別投稿への返信・2階層目の返信）
     if (error.code === RAISED_BY_TRIGGER) return { ok: false, error: 'FORBIDDEN' }
 
     console.error('[comments] コメントの投稿に失敗:', error)
@@ -126,7 +136,13 @@ async function insertComment(
  * コメントの論理削除。作者本人 or 投稿主（モデレーション）のどちらでも呼べる
  * （comments_update_moderation）。対象外の行は RLS の using が偽になり 0件更新の
  * まま成功で返る — likes.ts unlikePost と同じ理由で、二重クリックや対象外への
- * 誤操作でもエラーにしない（本人以外には「削除できたか」を区別させない）
+ * 誤操作でもエラーにしない（本人以外には「削除できたか」を区別させない）。
+ *
+ * 返信付きのトップレベルコメントは、投稿主でない作者本人には削除させない
+ * （guard_comments_moderation_columns が COMMENT_HAS_REPLIES を投げる）。
+ * 他人が書いた返信を、コメントの作者というだけの権限で消せてしまうのを防ぐため。
+ * 投稿主が削除する場合は cascade_delete_comment_replies が返信ごと連動して消す
+ *   supabase/migrations/20260920120000_create_comments.sql
  */
 export async function deleteComment(
   input: unknown,
@@ -159,6 +175,9 @@ async function softDeleteComment(
     .is('deleted_at', null)
 
   if (error) {
+    if (isRaisedWithMarker(error, 'COMMENT_HAS_REPLIES')) {
+      return { ok: false, error: 'COMMENT_HAS_REPLIES' }
+    }
     console.error('[comments] コメントの削除に失敗:', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }

@@ -33,6 +33,7 @@ export type ErrorCode =
   | 'POST_BODY_TOO_LONG'
   | 'NG_WORD_DETECTED'
   | 'COMMENT_NOT_FOUND'
+  | 'COMMENT_HAS_REPLIES'
   // インタラクション
   | 'ALREADY_LIKED'
   | 'ALREADY_BOOKMARKED'

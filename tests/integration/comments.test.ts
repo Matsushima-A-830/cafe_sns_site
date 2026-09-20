@@ -296,6 +296,113 @@ describe('モデレーション（投稿主による論理削除・作者によ�
       .eq('id', data?.id)
     expect(error?.code).toBe(RAISED_BY_TRIGGER)
   })
+
+  it('返信の無いコメントなら作者本人が削除できる', async () => {
+    const postId = await insertPost(author.userId)
+    const { data } = await commenter.client
+      .from('comments')
+      .insert({ post_id: postId, author_id: commenter.userId, body: '返信の無いコメント' })
+      .select('id')
+      .single()
+
+    const { error } = await commenter.client
+      .from('comments')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', data?.id)
+    expect(error).toBeNull()
+  })
+
+  it('返信が付いたトップレベルコメントは作者本人だけでは削除できない（COMMENT_HAS_REPLIES）', async () => {
+    const postId = await insertPost(author.userId)
+    const { data: parent } = await commenter.client
+      .from('comments')
+      .insert({ post_id: postId, author_id: commenter.userId, body: '返信が付く親' })
+      .select('id')
+      .single()
+    await other.client.from('comments').insert({
+      post_id: postId,
+      author_id: other.userId,
+      body: '他人の返信',
+      parent_id: parent?.id,
+    })
+
+    const { error } = await commenter.client
+      .from('comments')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', parent?.id)
+    expect(error?.code).toBe(RAISED_BY_TRIGGER)
+    expect(error?.message).toContain('COMMENT_HAS_REPLIES')
+
+    const { data: after } = await service
+      .from('comments')
+      .select('deleted_at')
+      .eq('id', parent?.id)
+      .single()
+    expect(after?.deleted_at).toBeNull()
+  })
+
+  it('返信が既に削除済みなら作者本人でも親を削除できる', async () => {
+    const postId = await insertPost(author.userId)
+    const { data: parent } = await commenter.client
+      .from('comments')
+      .insert({ post_id: postId, author_id: commenter.userId, body: '返信は削除済み' })
+      .select('id')
+      .single()
+    const { data: reply } = await other.client
+      .from('comments')
+      .insert({
+        post_id: postId,
+        author_id: other.userId,
+        body: '先に消える返信',
+        parent_id: parent?.id,
+      })
+      .select('id')
+      .single()
+    await service
+      .from('comments')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', reply?.id)
+
+    const { error } = await commenter.client
+      .from('comments')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', parent?.id)
+    expect(error).toBeNull()
+  })
+
+  it('投稿主は返信付きのトップレベルコメントを削除でき、返信も連動して削除され comment_count も揃って減る', async () => {
+    const postId = await insertPost(author.userId)
+    const { data: parent } = await commenter.client
+      .from('comments')
+      .insert({ post_id: postId, author_id: commenter.userId, body: '投稿主が消す親' })
+      .select('id')
+      .single()
+    const { data: reply } = await other.client
+      .from('comments')
+      .insert({
+        post_id: postId,
+        author_id: other.userId,
+        body: '連動して消える返信',
+        parent_id: parent?.id,
+      })
+      .select('id')
+      .single()
+    expect(await commentCountOf(postId)).toBe(2)
+
+    const { error } = await author.client
+      .from('comments')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', parent?.id)
+    expect(error).toBeNull()
+
+    const { data: replyAfter } = await service
+      .from('comments')
+      .select('deleted_at')
+      .eq('id', reply?.id)
+      .single()
+    expect(replyAfter?.deleted_at).not.toBeNull()
+    expect(await commentCountOf(postId)).toBe(0)
+  })
 })
 
 describe('スレッド整合性（返信は1階層まで）', () => {
@@ -363,6 +470,19 @@ describe('スレッド整合性（返信は1階層まで）', () => {
       .update({ parent_id: data?.id })
       .eq('id', data?.id)
     expect(error).not.toBeNull()
+  })
+
+  it('存在しない親への返信は COMMENT_NOT_FOUND を区別できるメッセージで拒否される', async () => {
+    const postId = await insertPost(author.userId)
+
+    const { error } = await commenter.client.from('comments').insert({
+      post_id: postId,
+      author_id: commenter.userId,
+      body: '存在しない親への返信',
+      parent_id: '00000000-0000-4000-8000-000000000000',
+    })
+    expect(error?.code).toBe(RAISED_BY_TRIGGER)
+    expect(error?.message).toContain('COMMENT_NOT_FOUND')
   })
 })
 

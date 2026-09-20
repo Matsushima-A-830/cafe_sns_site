@@ -137,7 +137,9 @@ export function CommentList({
               <CommentEntry
                 comment={item}
                 canReply={isAuthenticated}
-                canDelete={canDelete(item.author)}
+                // 返信付きのトップレベルコメントは、投稿主でない作者本人には削除させない
+                // （COMMENT_HAS_REPLIES — 他人の返信を道連れにする権限は無い）
+                canDelete={canDelete(item.author) && (canModerate || item.replies.length === 0)}
                 isConfirmingDelete={confirmingDeleteId === item.id}
                 onReply={() =>
                   setReplyTargetId((current) => (current === item.id ? null : item.id))

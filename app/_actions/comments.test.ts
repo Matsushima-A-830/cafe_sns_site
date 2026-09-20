@@ -158,15 +158,11 @@ describe('createComment', () => {
     expect(result).toEqual({ ok: false, error: 'POST_NOT_FOUND' })
   })
 
-  it('parent_id の FK 違反は COMMENT_NOT_FOUND を返す', async () => {
+  it('存在しない/削除済みの parent_id は COMMENT_NOT_FOUND を返す', async () => {
+    // guard_comments_thread_integrity（BEFORE トリガー）が 23503 より先に発火するため、
+    // FK 違反ではなく P0001 + メッセージ 'COMMENT_NOT_FOUND' で返る
     const { stub } = buildSupabaseStub({
-      commentsInsert: {
-        data: null,
-        error: {
-          code: '23503',
-          message: 'violates foreign key constraint "comments_parent_id_fkey"',
-        },
-      },
+      commentsInsert: { data: null, error: { code: 'P0001', message: 'COMMENT_NOT_FOUND' } },
     })
     createClientMock.mockResolvedValue(stub)
 
@@ -266,5 +262,16 @@ describe('deleteComment', () => {
     const result = await deleteComment({ commentId, postId })
 
     expect(result).toEqual({ ok: false, error: 'INTERNAL_ERROR' })
+  })
+
+  it('返信付きトップレベルコメントを作者本人が削除しようとすると COMMENT_HAS_REPLIES を返す', async () => {
+    const { stub } = buildSupabaseStub({
+      commentsUpdate: { error: { code: 'P0001', message: 'COMMENT_HAS_REPLIES' } },
+    })
+    createClientMock.mockResolvedValue(stub)
+
+    const result = await deleteComment({ commentId, postId })
+
+    expect(result).toEqual({ ok: false, error: 'COMMENT_HAS_REPLIES' })
   })
 })

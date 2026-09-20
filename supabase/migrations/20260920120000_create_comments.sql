@@ -133,8 +133,12 @@ begin
   from public.comments
   where id = new.parent_id;
 
+  -- 存在しない（または削除済みで見えなくなった）親への返信。'FORBIDDEN' と区別できる
+  -- メッセージにしないと、app/_actions/comments.ts が「返信先が見つからない」ことを
+  -- ユーザーに伝えられない（23503 で拾おうとしても、FK 制約チェックより先にこの
+  -- BEFORE トリガーが発火するため、そちらの分岐には到達しない）
   if parent_post_id is null then
-    raise exception 'FORBIDDEN';
+    raise exception 'COMMENT_NOT_FOUND';
   end if;
 
   if parent_post_id is distinct from new.post_id then
@@ -154,6 +158,33 @@ create trigger comments_guard_thread_integrity
   for each row execute function public.guard_comments_thread_integrity();
 
 -- ============================================
+-- comment_has_live_replies: 指定コメントに論理削除されていない返信があるか
+--
+-- guard_comments_moderation_columns から使う。invoker のままだと呼び出し元の
+-- comments_select_visible / comments_select_own 越しになり、ブロック関係にある
+-- 返信者の存在を見落として「返信は無い」と誤判定しうる。可視性を経由せず直接数える
+-- ============================================
+
+create or replace function public.comment_has_live_replies(p_comment_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.comments where parent_id = p_comment_id and deleted_at is null
+  );
+$$;
+
+comment on function public.comment_has_live_replies(uuid) is
+  '指定コメントに未削除の返信があるか。guard_comments_moderation_columns が
+   「返信付きトップレベルコメントは作者本人だけでは削除できない」判定に使う';
+
+revoke execute on function public.comment_has_live_replies(uuid) from public;
+grant execute on function public.comment_has_live_replies(uuid) to authenticated;
+
+-- ============================================
 -- guard_comments_moderation_columns: 作者と投稿主で書ける列を分ける
 --
 -- comments_update の RLS は「作者 or 投稿主」の両方を通す（投稿主によるスパム
@@ -163,6 +194,13 @@ create trigger comments_guard_thread_integrity
 --   - body を変更できるのは作者本人のみ
 --   - 投稿主（作者以外）が変更できるのは deleted_at のみ
 -- profiles.guard_privileged_profile_columns と同じ形
+--
+-- 加えて、トップレベルコメントの作者本人（投稿主ではない）による論理削除は、
+-- 返信が付いた時点で拒否する。返信は他人が書いたものなので、作者本人には
+-- 削除する権限が無い。そのまま削除を許すと、comments_cascade_delete_replies が
+-- 返信側の guard で FORBIDDEN になり削除全体が失敗するか、cascade しない設計なら
+-- 返信が親を失ったまま一覧から永久に見えなくなる（comment_count との不整合）。
+-- 投稿主（モデレーション）はこの制限を受けず、cascade で返信ごと削除できる
 -- ============================================
 
 create or replace function public.guard_comments_moderation_columns()
@@ -189,10 +227,19 @@ begin
     raise exception 'FORBIDDEN';
   end if;
 
-  if new.deleted_at is distinct from old.deleted_at
-     and (select auth.uid()) is distinct from old.author_id
-     and not public.is_post_author(old.post_id) then
-    raise exception 'FORBIDDEN';
+  if new.deleted_at is distinct from old.deleted_at then
+    if (select auth.uid()) is distinct from old.author_id
+       and not public.is_post_author(old.post_id) then
+      raise exception 'FORBIDDEN';
+    end if;
+
+    if new.deleted_at is not null
+       and old.parent_id is null
+       and (select auth.uid()) = old.author_id
+       and not public.is_post_author(old.post_id)
+       and public.comment_has_live_replies(old.id) then
+      raise exception 'COMMENT_HAS_REPLIES';
+    end if;
   end if;
 
   return new;
@@ -243,6 +290,50 @@ create trigger comments_sync_comment_count_soft_delete
   for each row
   when (old.deleted_at is null and new.deleted_at is not null)
   execute function public.sync_post_comment_count();
+
+-- ============================================
+-- cascade_delete_comment_replies: トップレベルコメントの削除を返信へ連動させる
+--
+-- guard_comments_moderation_columns が「作者本人は返信付きのトップレベルコメントを
+-- 削除できない」を強制しているため、ここに到達する時点で削除者は投稿主
+-- （is_post_author が真）か、返信の無いコメントの作者本人のいずれか。
+-- 後続の UPDATE は同じ guard を通るが、投稿主なら is_post_author の分岐で必ず通る。
+--
+-- 連動先の UPDATE も comments_sync_comment_count_soft_delete を行単位で発火させるため、
+-- comment_count は返信の分もまとめて正しく減算される。返信は1階層までなので再帰は不要
+-- （cascade 後の行は parent_id が非null になり、この関数自身の if で早期リターンする）
+-- ============================================
+
+create or replace function public.cascade_delete_comment_replies()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.parent_id is not null then
+    return new;
+  end if;
+
+  update public.comments
+  set deleted_at = new.deleted_at
+  where parent_id = new.id and deleted_at is null;
+
+  return new;
+end;
+$$;
+
+comment on function public.cascade_delete_comment_replies() is
+  'トップレベルコメントの論理削除を、まだ削除されていない返信に連動させる。
+   guard_comments_moderation_columns の COMMENT_HAS_REPLIES 判定と対になっており、
+   ここに到達する削除は必ず投稿主によるものか返信が無いものなので、cascade先の
+   guard は is_post_author の分岐で常に通る';
+
+create trigger comments_cascade_delete_replies
+  after update of deleted_at on public.comments
+  for each row
+  when (old.deleted_at is null and new.deleted_at is not null)
+  execute function public.cascade_delete_comment_replies();
 
 -- ============================================
 -- RLS

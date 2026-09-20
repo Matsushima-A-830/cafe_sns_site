@@ -148,6 +148,49 @@ describe('CommentList', () => {
     expect(screen.queryByRole('button', { name: '削除' })).toBeNull()
   })
 
+  it('返信付きの自分のコメントは canModerate=false だと削除ボタンを出さない（COMMENT_HAS_REPLIES を避ける）', () => {
+    const item = makeComment({
+      replies: [
+        {
+          id: 'r1',
+          body: '他人の返信',
+          isOfficial: false,
+          createdAt: '2026-09-14T02:00:00Z',
+          updatedAt: '2026-09-14T02:00:00Z',
+          author: author2,
+        },
+      ],
+    })
+    setup({ initialItems: [item], initialCount: 2 })
+
+    // 親（自分のコメント、返信あり）も返信（他人のコメント）もどちらも削除ボタンは出ない
+    expect(screen.queryAllByRole('button', { name: '削除' })).toHaveLength(0)
+  })
+
+  it('返信付きのコメントでも投稿主（canModerate）には削除ボタンが出る', async () => {
+    deleteComment.mockResolvedValue({ ok: true, data: { commentCount: 0 } })
+    const item = makeComment({
+      replies: [
+        {
+          id: 'r1',
+          body: '他人の返信',
+          isOfficial: false,
+          createdAt: '2026-09-14T02:00:00Z',
+          updatedAt: '2026-09-14T02:00:00Z',
+          author: author2,
+        },
+      ],
+    })
+    setup({ initialItems: [item], initialCount: 2, canModerate: true })
+
+    const [parentDeleteButton] = screen.getAllByRole('button', { name: '削除' })
+    expect(parentDeleteButton).toBeDefined()
+    await userEvent.click(parentDeleteButton as HTMLElement)
+    await userEvent.click(screen.getByRole('button', { name: '削除する' }))
+
+    await waitFor(() => expect(deleteComment).toHaveBeenCalledWith({ commentId: 'c1', postId }))
+  })
+
   it('投稿主（canModerate）は他人のコメントも削除できる', async () => {
     deleteComment.mockResolvedValue({ ok: true, data: { commentCount: 0 } })
     setup({ initialItems: [makeComment({ author: author2 })], initialCount: 1, canModerate: true })

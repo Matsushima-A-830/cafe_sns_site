@@ -842,6 +842,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      comment_has_live_replies: {
+        Args: { p_comment_id: string }
+        Returns: boolean
+      }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       finalize_post: {
         Args: {
