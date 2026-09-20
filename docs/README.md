@@ -14,7 +14,7 @@ docs/
 ├── product/                        戦略・スコープ・TODO
 ├── architecture/                   データモデル・ルーティング・エラー
 ├── design/                         デザインシステム・画面遷移・ワイヤーフレーム
-├── operations/                     Git・デプロイ
+├── operations/                     開発サイクル・Git・デプロイ
 └── seed/                           バッジ・タグ・エリアの初期投入データ
 ```
 
@@ -45,10 +45,11 @@ docs/
 | [screen-flow.md](./design/screen-flow.md) | Mermaid フロー6種 |
 | [wireframes/README.md](./design/wireframes/README.md) | 37画面のモバイル/PCレイアウト（ASCII） |
 
-### ⚙️ Operations（Git・デプロイ）
+### ⚙️ Operations（開発サイクル・Git・デプロイ）
 
 | ドキュメント | 内容 |
 |---|---|
+| **[development-cycle.md](./operations/development-cycle.md)** ⭐️ | スキルを使った1周（着手判断→実装→レビュー→実機確認→出荷→引き継ぎ）の順序と理由 |
 | **[git-workflow.md](./operations/git-workflow.md)** ⭐️ | ブランチ・コミット・PR規約 |
 | **[deployment.md](./operations/deployment.md)** ⭐️ | 環境構成・CI/CD・監視・ドメイン・AWS移行 |
 
@@ -79,6 +80,8 @@ docs/
 6. [routing.md](./architecture/routing.md) — URL・middleware
 7. [error-catalog.md](./architecture/error-catalog.md) — 新規エラーコード追加が必要か
 8. [git-workflow.md](./operations/git-workflow.md) — ブランチ切り方・コミットメッセージ
+
+進め方そのもの（どのスキルをどの順で走らせるか）は [development-cycle.md](./operations/development-cycle.md) 参照。
 
 ## メンテナンス方針
 
