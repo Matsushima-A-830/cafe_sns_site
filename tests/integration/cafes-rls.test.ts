@@ -261,6 +261,61 @@ describe('cafes の UPDATE', () => {
     expect(data).toEqual([])
   })
 
+  it('登録者本人は verified_owner_id 未設定の自分のカフェを更新できる（B8）', async () => {
+    const id = await insertCafe({ created_by: alice.userId, verified_owner_id: null })
+
+    const { data, error } = await alice.client
+      .from('cafes')
+      .update({ description: '登録者本人による修正' })
+      .eq('id', id)
+      .select('description')
+
+    expect(error).toBeNull()
+    expect(data).toEqual([{ description: '登録者本人による修正' }])
+  })
+
+  it('status=suspended の登録者は自分のカフェでも更新できない（対象0件）', async () => {
+    const id = await insertCafe({
+      created_by: suspendedUser.userId,
+      verified_owner_id: null,
+    })
+
+    const { data, error } = await suspendedUser.client
+      .from('cafes')
+      .update({ description: '停止中登録者の更新' })
+      .eq('id', id)
+      .select()
+
+    expect(error).toBeNull()
+    expect(data).toEqual([])
+  })
+
+  it('オーナー認証済み（verified_owner_id 設定済み）になると登録者本人は更新できなくなる', async () => {
+    const id = await insertCafe({ created_by: alice.userId, verified_owner_id: bob.userId })
+
+    const { data, error } = await alice.client
+      .from('cafes')
+      .update({ description: 'オーナー確定後の登録者による更新' })
+      .eq('id', id)
+      .select()
+
+    expect(error).toBeNull()
+    expect(data).toEqual([])
+  })
+
+  it('登録者本人ではないユーザーは、未認証カフェでも更新できない（対象0件）', async () => {
+    const id = await insertCafe({ created_by: alice.userId, verified_owner_id: null })
+
+    const { data, error } = await bob.client
+      .from('cafes')
+      .update({ description: '他人による乗っ取り' })
+      .eq('id', id)
+      .select()
+
+    expect(error).toBeNull()
+    expect(data).toEqual([])
+  })
+
   it('updated_at はトリガーで自動更新される', async () => {
     const id = await insertCafe({ verified_owner_id: bob.userId })
     const before = await service.from('cafes').select('updated_at').eq('id', id).single()

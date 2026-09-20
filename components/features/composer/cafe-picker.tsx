@@ -96,6 +96,18 @@ export function CafePicker({
             ? '一致するカフェが見つかりませんでした'
             : ''}
       </p>
+
+      {/* 新しいタブで開く: composer の入力（下書き）を失わずに登録できる。
+          戻ってきたら検索し直して選択してもらう */}
+      <a
+        href="/cafes/new"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-sm text-primary underline underline-offset-2"
+      >
+        見つからない場合はカフェを新規登録
+        <span className="sr-only">（新しいタブで開きます）</span>
+      </a>
     </div>
   )
 }
