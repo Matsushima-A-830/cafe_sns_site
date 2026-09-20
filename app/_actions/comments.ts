@@ -4,7 +4,7 @@ import {
   POSTGRES_FOREIGN_KEY_VIOLATION,
   POSTGRES_INSUFFICIENT_PRIVILEGE,
 } from '@/lib/constants/postgres-error-codes'
-import { getPostCommentCount } from '@/lib/posts/comments'
+import { type CommentListPage, getPostCommentCount, getPostComments } from '@/lib/posts/comments'
 import { publishedPostExists } from '@/lib/posts/post-detail'
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -13,6 +13,7 @@ import {
   createCommentSchema,
   type DeleteCommentInput,
   deleteCommentSchema,
+  loadMoreCommentsSchema,
 } from '@/lib/validators/comments'
 import type { Result } from '@/types/result'
 
@@ -163,4 +164,26 @@ async function softDeleteComment(
   }
 
   return { ok: true, data: { commentCount: await getPostCommentCount(supabase, input.postId) } }
+}
+
+type LoadMoreCommentsError = 'INVALID_INPUT' | 'INTERNAL_ERROR'
+
+/**
+ * 「もっと見る」の次ページ取得。読み取りだが、Route Handler を足さずに済むので
+ * Server Action にする（app/_actions/feed.ts loadMoreFeed と同じ判断）
+ */
+export async function loadMoreComments(
+  input: unknown,
+): Promise<Result<CommentListPage, LoadMoreCommentsError>> {
+  const parsed = loadMoreCommentsSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, error: 'INVALID_INPUT', details: parsed.error.flatten() }
+
+  const supabase = await createClient()
+  try {
+    const page = await getPostComments(supabase, parsed.data.postId, { cursor: parsed.data.cursor })
+    return { ok: true, data: page }
+  } catch (cause) {
+    console.error('[comments] 次ページの取得に失敗:', cause)
+    return { ok: false, error: 'INTERNAL_ERROR' }
+  }
 }

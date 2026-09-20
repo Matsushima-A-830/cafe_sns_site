@@ -4,10 +4,16 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
+import { CommentList } from '@/components/features/posts/comment-list'
 import { LikeButton } from '@/components/features/posts/like-button'
 import { PostAuthor } from '@/components/features/posts/post-author'
 import { PostBody } from '@/components/features/posts/post-body'
 import { PostGallery } from '@/components/features/posts/post-gallery'
+import {
+  type CommentListPage,
+  getCommentAuthorIdentity,
+  getPostComments,
+} from '@/lib/posts/comments'
 import {
   getPostDetail,
   type PostDetail,
@@ -54,6 +60,20 @@ const loadPost = cache(async (id: string): Promise<PostDetail | null> => {
   const supabase = await createClient()
   // いいね済みかを同じクエリで取る。1リクエスト中は閲覧者が変わらないので cache(id) のままでよい
   return getPostDetail(supabase, id, await loadViewerId())
+})
+
+/** コメント一覧の初回ぶん。「もっと見る」以降は loadMoreComments（Server Action）が担う */
+const loadComments = cache(async (postId: string): Promise<CommentListPage> => {
+  const supabase = await createClient()
+  return getPostComments(supabase, postId)
+})
+
+/** コメントフォームが送信直後にその場で表示するための、閲覧者自身の表示情報 */
+const loadViewerIdentity = cache(async () => {
+  const viewerId = await loadViewerId()
+  if (!viewerId) return null
+  const supabase = await createClient()
+  return getCommentAuthorIdentity(supabase, viewerId)
 })
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -117,14 +137,22 @@ function PostContent({ post, isAuthenticated }: { post: PostDetail; isAuthentica
 
       <PostBody doc={post.bodyJson} />
 
-      <LikeButton
-        postId={post.id}
-        initialLiked={post.likedByViewer}
-        initialCount={post.likeCount}
-        isAuthenticated={isAuthenticated}
-        returnTo={`/posts/${post.id}`}
-        showLoginHint
-      />
+      <div className="flex flex-wrap items-center gap-4">
+        <LikeButton
+          postId={post.id}
+          initialLiked={post.likedByViewer}
+          initialCount={post.likeCount}
+          isAuthenticated={isAuthenticated}
+          returnTo={`/posts/${post.id}`}
+          showLoginHint
+        />
+        <a
+          href="#comments"
+          className="text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
+        >
+          コメント {post.commentCount}件
+        </a>
+      </div>
     </div>
   )
 }
@@ -133,10 +161,16 @@ export default async function PostDetailPage({ params }: PageProps) {
   const { id } = await params
   const post = await loadPost(id)
   if (!post) notFound()
-  const isAuthenticated = (await loadViewerId()) !== null
+  const viewerId = await loadViewerId()
+  const isAuthenticated = viewerId !== null
+  const comments = await loadComments(post.id)
+  const viewerIdentity = await loadViewerIdentity()
+  // 投稿主本人はスパムコメントを論理削除できる（comments_update_moderation）
+  const canModerateComments = viewerId !== null && viewerId === post.author.id
+  const returnTo = `/posts/${post.id}`
 
-  // アクション行はいいねだけ。コメント・保存・通報は comments / post_bookmarks /
-  // reports が未作成なので、枠やプレースホルダを先に出さない（投稿カードと同じ判断）
+  // アクション行はいいね・コメント。保存・通報は post_bookmarks / reports が
+  // 未作成なので、枠やプレースホルダを先に出さない（投稿カードと同じ判断）
   //   docs/design/wireframes/browsing.md #S_POST_DETAIL
   if (post.postType === 'blog') {
     return (
@@ -145,6 +179,16 @@ export default async function PostDetailPage({ params }: PageProps) {
         <PostAuthor author={post.author} publishedAt={post.publishedAt} />
         <PostGallery images={post.images} />
         <PostContent post={post} isAuthenticated={isAuthenticated} />
+        <CommentList
+          postId={post.id}
+          initialItems={comments.items}
+          initialCursor={comments.nextCursor}
+          initialCount={post.commentCount}
+          isAuthenticated={isAuthenticated}
+          canModerate={canModerateComments}
+          viewer={viewerIdentity}
+          returnTo={returnTo}
+        />
       </article>
     )
   }
@@ -157,20 +201,33 @@ export default async function PostDetailPage({ params }: PageProps) {
     <article
       className={cn(
         'mx-auto flex w-full flex-col gap-6 px-4 py-8',
-        hasImages ? 'max-w-6xl lg:flex-row lg:items-start' : 'max-w-[720px]',
+        hasImages ? 'max-w-6xl' : 'max-w-[720px]',
       )}
     >
-      {hasImages && (
-        <div className="w-full lg:flex-1">
-          <PostGallery images={post.images} />
+      <div className={cn('flex w-full flex-col gap-6', hasImages && 'lg:flex-row lg:items-start')}>
+        {hasImages && (
+          <div className="w-full lg:flex-1">
+            <PostGallery images={post.images} />
+          </div>
+        )}
+        <div className={cn('flex w-full flex-col gap-4', hasImages && 'lg:w-96 lg:shrink-0')}>
+          {/* 短文投稿にタイトルは無い。見出しの階層を崩さないよう h1 は作者行が兼ねる */}
+          <h1 className="sr-only">{displayTitle(post)}</h1>
+          <PostAuthor author={post.author} publishedAt={post.publishedAt} />
+          <PostContent post={post} isAuthenticated={isAuthenticated} />
         </div>
-      )}
-      <div className={cn('flex w-full flex-col gap-4', hasImages && 'lg:w-96 lg:shrink-0')}>
-        {/* 短文投稿にタイトルは無い。見出しの階層を崩さないよう h1 は作者行が兼ねる */}
-        <h1 className="sr-only">{displayTitle(post)}</h1>
-        <PostAuthor author={post.author} publishedAt={post.publishedAt} />
-        <PostContent post={post} isAuthenticated={isAuthenticated} />
       </div>
+
+      <CommentList
+        postId={post.id}
+        initialItems={comments.items}
+        initialCursor={comments.nextCursor}
+        initialCount={post.commentCount}
+        isAuthenticated={isAuthenticated}
+        canModerate={canModerateComments}
+        viewer={viewerIdentity}
+        returnTo={returnTo}
+      />
     </article>
   )
 }

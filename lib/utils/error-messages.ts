@@ -24,6 +24,7 @@ const messages: Partial<Record<ErrorCode, string>> = {
   POST_NOT_FOUND: '投稿が見つかりませんでした',
   POST_BODY_EMPTY: '本文か写真のどちらかを入力してください',
   POST_BODY_TOO_LONG: '本文が長すぎます。分割して投稿してください',
+  COMMENT_NOT_FOUND: '返信先のコメントが見つかりませんでした',
   POST_TAGS_LIMIT_EXCEEDED: 'タグは5個までです',
   POST_IMAGES_LIMIT_EXCEEDED: '写真は10枚までです',
   CAFE_NOT_FOUND: '選択したカフェが見つかりませんでした。選び直してください',

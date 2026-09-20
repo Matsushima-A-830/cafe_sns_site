@@ -25,3 +25,19 @@ export const deleteCommentSchema = z.object({
 })
 
 export type DeleteCommentInput = z.infer<typeof deleteCommentSchema>
+
+// keyset カーソル。created_at は PostgREST が返した timestamptz をそのまま往復させる
+// （マイクロ秒を落とすと未表示のコメントがページ送りから消える — lib/posts/post-list.ts と同じ理由）
+export const commentListCursorSchema = z.object({
+  createdAt: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/),
+  id: z.string().uuid(),
+})
+
+export const loadMoreCommentsSchema = z.object({
+  postId: z.string().uuid('投稿IDの形式が正しくありません'),
+  cursor: commentListCursorSchema,
+})
+
+export type LoadMoreCommentsInput = z.infer<typeof loadMoreCommentsSchema>

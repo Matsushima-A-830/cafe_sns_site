@@ -159,6 +159,33 @@ export async function getPostComments(
 }
 
 /**
+ * コメント投稿フォームが「送信直後にその場で表示する」ための、閲覧者自身の表示情報。
+ * createComment は commentId と確定件数しか返さないため（本文はクライアントが既に
+ * 持っている）、新規コメントの author 表示はこれで補う。取得できなければ null を返し、
+ * 呼び出し元（comment-form.tsx）でプレースホルダ表示に倒す
+ */
+export async function getCommentAuthorIdentity(
+  supabase: Client,
+  userId: string,
+): Promise<CommentAuthor | null> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, username, display_name, avatar_url')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (error) throw new Error(`ユーザー情報の取得に失敗しました (id=${userId}): ${error.message}`)
+  if (!data) return null
+
+  return {
+    id: data.id,
+    username: data.username,
+    displayName: data.display_name,
+    avatarUrl: data.avatar_url,
+  }
+}
+
+/**
  * コメントの追加・削除の後に、権威ある件数を読み直す。likes の getPostLikeCount と同じ理由
  * — 楽観更新の ±1 を確定値で上書きする
  */
