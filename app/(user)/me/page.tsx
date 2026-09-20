@@ -1,5 +1,6 @@
 // S_MYPAGE: マイページ（自分のプロフィール + 各リストへの入り口）
 // 詳細: docs/design/wireframes/mypage.md#s_mypageマイページ / docs/architecture/routing.md
+import { Bell } from 'lucide-react'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
@@ -22,6 +23,7 @@ import {
 } from '@/lib/cafes/user-cafe-lists'
 import { draftPostTypeLabel, draftPreviewText, draftResumeHref } from '@/lib/composer/draft-summary'
 import { CAFE_LIST_LABELS, CAFE_LIST_PATHS } from '@/lib/constants/cafe-lists'
+import { getUnreadNotificationCount } from '@/lib/notifications/notification-list'
 import {
   BOOKMARK_PREVIEW_LIMIT,
   getUserBookmarkCount,
@@ -69,18 +71,28 @@ export default async function MyPage() {
   if (!profile) notFound()
 
   // 往復を直列にしない（CLAUDE.md パフォーマンス「N+1回避」）
-  const [counts, listCounts, favorites, wantToGo, drafts, page, bookmarkCount, bookmarks] =
-    await Promise.all([
-      getProfileCounts(supabase, profile.id),
-      getUserCafeListCounts(supabase),
-      getUserCafeList(supabase, 'favorite', CAFE_LIST_PREVIEW_LIMIT),
-      getUserCafeList(supabase, 'want_to_go', CAFE_LIST_PREVIEW_LIMIT),
-      // 下書きは件数もここから数える。listDrafts が期限切れ除外と50件上限を担保している
-      listDrafts(),
-      getPostList(supabase, { authorId: profile.id, viewerId: user.id }),
-      getUserBookmarkCount(supabase),
-      getUserBookmarkedPosts(supabase, user.id, BOOKMARK_PREVIEW_LIMIT),
-    ])
+  const [
+    counts,
+    listCounts,
+    favorites,
+    wantToGo,
+    drafts,
+    page,
+    bookmarkCount,
+    bookmarks,
+    unreadCount,
+  ] = await Promise.all([
+    getProfileCounts(supabase, profile.id),
+    getUserCafeListCounts(supabase),
+    getUserCafeList(supabase, 'favorite', CAFE_LIST_PREVIEW_LIMIT),
+    getUserCafeList(supabase, 'want_to_go', CAFE_LIST_PREVIEW_LIMIT),
+    // 下書きは件数もここから数える。listDrafts が期限切れ除外と50件上限を担保している
+    listDrafts(),
+    getPostList(supabase, { authorId: profile.id, viewerId: user.id }),
+    getUserBookmarkCount(supabase),
+    getUserBookmarkedPosts(supabase, user.id, BOOKMARK_PREVIEW_LIMIT),
+    getUnreadNotificationCount(supabase, user.id),
+  ])
 
   // 下書きだけは取得に失敗してもページ全体を落とさない（マイページの主役ではない）。
   // ただし握って0件にすると「下書きが消えた」ようにしか見えないので理由をログに残す
@@ -189,10 +201,29 @@ export default async function MyPage() {
           <ProfileCountList counts={counts} />
         </div>
 
-        {/* 他人から見た自分の見え方を確認する導線（プロフィール編集は未実装） */}
-        <Button asChild variant="outline" size="lg">
-          <Link href={`/users/${profile.username}`}>公開プロフィールを見る</Link>
-        </Button>
+        <div className="flex flex-col items-center gap-3 md:items-end">
+          {/* 未読件数バッジはヘッダー（AuthNav）には出さない。配下ページを
+              SSG/ISR に保つ設計（pending-items D23）を崩さないため、導線はここだけに閉じる */}
+          <Button asChild variant="outline" size="lg">
+            <Link
+              href="/notifications"
+              aria-label={unreadCount > 0 ? `通知 未読${unreadCount}件` : '通知'}
+            >
+              <Bell aria-hidden="true" className="size-4" />
+              通知
+              {unreadCount > 0 && (
+                <span className="rounded-full bg-primary px-2 py-1 text-xs font-bold text-primary-foreground">
+                  {unreadCount}
+                </span>
+              )}
+            </Link>
+          </Button>
+
+          {/* 他人から見た自分の見え方を確認する導線（プロフィール編集は未実装） */}
+          <Button asChild variant="outline" size="lg">
+            <Link href={`/users/${profile.username}`}>公開プロフィールを見る</Link>
+          </Button>
+        </div>
       </header>
 
       <ListShortcuts shortcuts={shortcuts} />

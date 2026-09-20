@@ -910,22 +910,16 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   変わらず高い** — 実機でしか確認できない項目がそこに集中している
 - 参照: PR #42 で実機確認をE2Eに残す仕組みを入れた際に、過去分が未処理であることが判明（2026-09-19）
 
-### D35. いいねの返報性通知が作れない（`notifications` 未作成）
+### D35. ～~いいねの返報性通知が作れない（`notifications` 未作成）~~（解消）
 
-- **課題:** [tables.md #likes](../architecture/data-model/tables.md) は「返報性通知のトリガーも
-  ここで発火（notifications INSERT）」としているが、**`notifications` テーブルが存在しない**。
-  先に在るのは `user_settings.notify_like`（`20260905130100_create_user_settings.sql`、
-  DEFAULT true）だけで、参照先が無い設定値が宙に浮いている
-- **今回の判断（2026-09-19）:** `likes` の実装では**通知を作らない**。通知は
-  S_NOTIFICATIONS 画面・`user_settings` 連携・未読カウント・既読管理まで含めて
-  初めて意味を持つので、テーブルだけ先に足しても使い道が無い。`tables.md #likes` の
-  該当行にも注記を入れた
-- **影響:** 行動経済学上の「返報性」（いいねされたら返したくなる）が MVP では働かない。
-  [positioning.md](positioning.md) の幹A・幹Cには直接効かないが、初期の滞在時間には効く
-- **対応判断:** 通知機能をまとめて1スコープとして着手するときに戻る。
-  `comments` / `follows` / `post_bookmarks` も同じ通知先を必要とするため、
-  それらが揃ってからのほうが設計しやすい
-- 参照: `likes` 実装時にスコープ外と判断（2026-09-19）
+- **解消（2026-09-20）:** `notifications` テーブルと like/comment/follow の3トリガーを実装した
+  （`20260920150000_create_notifications.sql` / `20260920160000_notify_on_comment_payload_post_id.sql`）。
+  S_NOTIFICATIONS 画面（一覧・フィルタタブ・既読化・フォローバック）も実装済み。
+  `user_settings.notify_like/comment/follow` は既に参照先を持つ
+- **残課題:** `badge` / `owner_verified` / `regular_awarded` / `official_post` / `report_resolved` の
+  5種は CHECK 制約に型だけ確保し、発火元（バッジ付与・オーナー認証・常連認定・公式投稿・通報解決）
+  が未実装のためトリガーは無い。それぞれの機能実装時に発火元トリガーを追加する
+- 参照: 通知機能実装時にlikes/comments/followsとまとめて着手（2026-09-20）
 
 ### D36. `follows` の SELECT がブロックを反映していない（likes と判断が揃っていない）
 
@@ -1033,6 +1027,32 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   （D13の「凍結中でも自衛手段は残す」とは理由が異なる — あちらは他者に対する防御操作、
   こちらは単に無害だから、という個別の判断）
 - 参照: S_SETTINGS 実装時の決定（2026-09-20）
+
+### D43. 通知の個別既読化が fire-and-forget でロールバックが無い
+
+- **課題:** `NotificationList.handleMarkRead`（`components/features/notifications/notification-list.tsx`）は
+  `void markNotificationAsRead(...)` として結果を見ず、失敗してもローカルの `readAt` を戻さない。
+  `BookmarkButton` / `LikeButton` は同じ楽観更新パターンで必ず失敗時ロールバック + エラー表示を
+  しており、ここだけ一貫していない（`void` で結果を捨てる Server Action 呼び出しの前例は
+  `use-composer.ts` の `useEffect` 内1箇所のみで、書き込み系では無い）
+- **実害:** 小さい。対象行の UPDATE は RLS に守られておりほぼ失敗しないが、ネットワーク瞬断時に
+  「未読チップは消えたのに DB は未読のまま」という食い違いがリロードまで残りうる
+- **対応案（未検討）:** 失敗時だけ該当 item の `readAt` を `null` に戻す、または控えめな
+  `role="alert"` 表示を追加する
+- 参照: S_NOTIFICATIONS 実装後の `/self-review`（2026-09-20）
+
+### D44. 通知一覧の相対時刻表示がハイドレーションミスマッチのリスクを持つ
+
+- **課題:** `NotificationItem`（`components/features/notifications/notification-item.tsx`）は
+  `'use client'` だが SSR される。`formatRelativeTime(item.createdAt)` は引数無しで `new Date()` を
+  使うため、サーバー描画時とクライアント hydrate 時で計算結果が変わりうる。特に作成直後・
+  1分未満の通知は秒単位で表示が変わるため、通知を作成直後にそのまま見るケース（本来の主用途）で
+  踏みやすい
+- **実機確認時の状況:** 手元の確認ではタイムラグが大きく再現しなかったが、理論上のリスクは残る
+- **対応案（未検討）:** `useEffect` でマウント後にのみ相対時刻を計算する（初期表示は
+  `formatPostDate` 等の安定表示、またはプレースホルダ）。もしくは `<time>` に
+  `suppressHydrationWarning` を付ける
+- 参照: S_NOTIFICATIONS 実装後の `/self-review`（2026-09-20）
 
 ## 削除・アーカイブ判断待ち
 
