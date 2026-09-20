@@ -651,7 +651,7 @@ body_search tsvector GENERATED ALWAYS AS (
 | id | uuid | PK, DEFAULT gen_random_uuid() |
 | post_id | uuid | NOT NULL, FK → posts(id) ON DELETE CASCADE |
 | author_id | uuid | NOT NULL, FK → profiles(id) |
-| parent_id | uuid | FK → comments(id) | 返信スレッド |
+| parent_id | uuid | FK → comments(id) | 返信スレッド。**1階層まで**（返信への返信は不可、トリガーで強制） |
 | body | text | NOT NULL |
 | is_official | boolean | NOT NULL, DEFAULT false | オーナー公式返信フラグ（幹C） — UIで区別表示 |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
@@ -660,11 +660,18 @@ body_search tsvector GENERATED ALWAYS AS (
 
 **インデックス:** `(post_id, created_at)`
 
+**本文サイズ上限:** 500 文字以内（アプリ層 Zod で検証。posts の50,000字は投稿本文向けで、コメントには長すぎるため別途定める）。
+
+**返信の整合性:** `parent_id` は自己参照 FK のみでは「別の投稿のコメントへの返信」「返信への返信（2階層目）」を防げない。`before insert or update` トリガーで、`new.parent_id` が指す行の `post_id` が `new.post_id` と一致すること、かつその行自身が `parent_id is null`（＝トップレベルのコメントであること）を検証する。自己参照（`parent_id = id`）は CHECK 制約で弾く。
+
 **RLS:**
-- SELECT: `deleted_at IS NULL` かつブロック相手を除外
-- INSERT: 認証済み。`is_official = true` は該当カフェの `verified_owner_id = auth.uid()` の場合のみ許可（posts と同様、CHECK 制約ではなく RLS の `WITH CHECK` で表現する）
-- UPDATE: `auth.uid() = author_id`
-- DELETE: 作者 or 投稿主（論理削除）
+- SELECT: 2本の permissive policy の OR。
+  1. `comments_select_visible`: `deleted_at IS NULL` かつ **投稿が見える場合のみ**（`exists (select 1 from posts p where p.id = comments.post_id) or is_post_author(post_id)` — サブクエリに呼び出し元ロールの `posts` RLS がそのまま適用されるため、hidden・論理削除済み・非公開投稿・作者ブロック済みのコメントは第三者から読めない。[post_images](#post_images) / [post_tags](#post_tags) と同じパターン）かつブロック相手（`author_id`）を除外
+  2. `comments_select_own`: `author_id = auth.uid() or is_post_author(post_id)`（`deleted_at` を見ない）。[posts_select_own](#posts) と同じ理由 — PostgreSQL の RLS は UPDATE 対象行の選択だけでなく「更新後の新しい行が何らかの SELECT ポリシーを満たすか」も検証するため、`deleted_at` を立てる論理削除の UPDATE は当人であっても`comments_select_visible`単独では常に RLS 違反になる。この permissive policy が無いと投稿主も作者も自分のコメントを一切削除できない。
+  **注意:** 2番目のポリシーにより「削除済みコメントは誰にも見えない」という保証は RLS だけでは成立しない（作者・投稿主には見え続ける）。一覧取得は必ずアプリ層で `deleted_at is null` を明示すること（`posts_select_own` と同じ運用）
+- INSERT: 認証済み。`is_official = true` は該当カフェの `verified_owner_id = auth.uid()` の場合のみ許可（RLS の `WITH CHECK` に加えて、posts と同様に `security definer` トリガー `guard_comments_official_owner` も併置する。RLS の `WITH CHECK` は `auth.uid()` 前提のため service_role 経由の書き込みでは迂回できてしまうため）
+- UPDATE: `auth.uid() = author_id or is_post_author(post_id)`。ただし `body` を変更できるのはコメント作者本人のみで、投稿主は `deleted_at`（論理削除）以外の列を変更できない — `guard_comments_moderation_columns` トリガーで列単位に強制する（[profiles の `guard_privileged_profile_columns`](#profiles) と同じ形）
+- DELETE: 物理 DELETE は許可しない（`deleted_at` を立てる論理削除のみ。UPDATE ポリシーでカバー）
 
 ---
 
