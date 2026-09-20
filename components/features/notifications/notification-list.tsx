@@ -57,6 +57,8 @@ export function NotificationList({
     const hasUnread = items.some((item) => item.readAt === null)
     if (!hasUnread) return
 
+    // 失敗時に戻すため直前の値を保持する（bookmark-button.tsx と同じ方針）
+    const previousItems = items
     const now = new Date().toISOString()
     setItems((current) =>
       current.map((item) => (item.readAt === null ? { ...item, readAt: now } : item)),
@@ -66,6 +68,7 @@ export function NotificationList({
     startTransition(async () => {
       const result = await markAllNotificationsAsRead()
       if (!result.ok) {
+        setItems(previousItems)
         setError(errorMessage(result.error))
         return
       }

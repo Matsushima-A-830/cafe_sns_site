@@ -168,6 +168,25 @@ describe('NotificationList', () => {
     expect(screen.getByRole('button', { name: 'すべて既読' })).toBeDisabled()
   })
 
+  it('「すべて既読」が失敗したら未読チップとボタンの押下可能状態を元に戻す', async () => {
+    markAllNotificationsAsRead.mockResolvedValue({ ok: false, error: 'INTERNAL_ERROR' })
+    render(
+      <NotificationList
+        initialPage={makePage()}
+        filter="all"
+        viewerId={viewerId}
+        followingBackIds={new Set()}
+        emptyMessage=""
+      />,
+    )
+
+    await userEvent.click(screen.getByRole('button', { name: 'すべて既読' }))
+
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+    expect(screen.getByText('未読')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'すべて既読' })).not.toBeDisabled()
+  })
+
   it('個別クリックで既読化 Server Action が呼ばれる', async () => {
     render(
       <NotificationList
