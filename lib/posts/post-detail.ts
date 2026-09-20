@@ -31,6 +31,7 @@ export type PostDetail = {
   likeCount: number
   /** 閲覧者自身がいいね済みか。未ログインでは常に false */
   likedByViewer: boolean
+  commentCount: number
 }
 
 /**
@@ -41,7 +42,7 @@ export type PostDetail = {
  */
 function buildPostDetailSelect(viewerId: string | null): string {
   const parts = [
-    'id, post_type, title, body_json, visibility, published_at, created_at, like_count',
+    'id, post_type, title, body_json, visibility, published_at, created_at, like_count, comment_count',
     'author:profiles!posts_author_id_fkey (id, username, display_name, avatar_url)',
     'cafe:cafes!posts_cafe_id_fkey (id, name, area_code, areas!cafes_area_code_fkey (label))',
     'post_images (storage_path, alt_text, display_order)',
@@ -60,6 +61,7 @@ type PostDetailRow = {
   published_at: string | null
   created_at: string
   like_count: number
+  comment_count: number
   /** viewerId を渡したときだけ付く。空配列＝まだいいねしていない */
   my_like?: { user_id: string }[]
   author: {
@@ -142,6 +144,7 @@ export function toPostDetail(
       .filter((tag): tag is PostDetailTag => tag !== null),
     likeCount: row.like_count,
     likedByViewer: (row.my_like ?? []).length > 0,
+    commentCount: row.comment_count,
   }
 }
 

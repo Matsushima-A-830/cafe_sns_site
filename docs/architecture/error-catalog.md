@@ -55,10 +55,11 @@
 | `POST_ALREADY_DELETED` | 削除済み投稿 | posts系 |
 | `POST_TAGS_LIMIT_EXCEEDED` | タグ数上限（5個） | createPost |
 | `POST_IMAGES_LIMIT_EXCEEDED` | 画像枚数上限（10枚） | createPost |
-| `POST_BODY_EMPTY` | 本文空（短文投稿は画像1枚以上あれば空文可） | createPost |
-| `POST_BODY_TOO_LONG` | 本文が上限超過（平文50,000文字 or Tiptap JSON 512KB。[tables.md #posts](./data-model/tables.md#posts) 本文サイズ上限） | createPost |
+| `POST_BODY_EMPTY` | 本文空（短文投稿は画像1枚以上あれば空文可） | createPost / createComment（コメントは trim 後0文字） |
+| `POST_BODY_TOO_LONG` | 本文が上限超過（投稿: 平文50,000文字 or Tiptap JSON 512KB。コメント: 500文字。[tables.md #posts](./data-model/tables.md#posts) / [#comments](./data-model/tables.md#comments)） | createPost / createComment |
 | `NG_WORD_DETECTED` | NGワード検出（`severity=block`） | createPost / createComment |
-| `COMMENT_NOT_FOUND` | コメント不在 | comments系 |
+| `COMMENT_NOT_FOUND` | コメント不在（`createComment` では存在しない/削除済みの `parentId` を指定した場合） | comments系 |
+| `COMMENT_HAS_REPLIES` | 返信が付いたトップレベルコメントを、投稿主ではない作者本人が削除しようとした（投稿主なら返信ごと連動して削除できる。`guard_comments_moderation_columns` / `cascade_delete_comment_replies`） | deleteComment |
 
 **`reservePost`（composer 表示開始時の hidden 予約行作成、[pending-items D17](../product/pending-items.md#d17-createpost-の-imagepaths-は画像アップロード時点で投稿行が既に存在することを前提にしている解消済み)）** は上記の投稿固有コードは返さず、共通エラーコード（`INVALID_INPUT` / `UNAUTHENTICATED` / `FORBIDDEN` / `INTERNAL_ERROR`）のみを使う。
 
@@ -121,7 +122,7 @@ export type ErrorCode =
   | 'ACCOUNT_SUSPENDED' | 'ACCOUNT_DELETED'
   | 'POST_NOT_FOUND' | 'POST_ALREADY_DELETED' | 'POST_TAGS_LIMIT_EXCEEDED'
   | 'POST_IMAGES_LIMIT_EXCEEDED' | 'POST_BODY_EMPTY' | 'POST_BODY_TOO_LONG' | 'NG_WORD_DETECTED'
-  | 'COMMENT_NOT_FOUND'
+  | 'COMMENT_NOT_FOUND' | 'COMMENT_HAS_REPLIES'
   | 'ALREADY_LIKED' | 'ALREADY_BOOKMARKED' | 'ALREADY_FOLLOWING'
   | 'SELF_FOLLOW_FORBIDDEN' | 'BLOCKED_USER' | 'BLOCK_SELF_FORBIDDEN'
   | 'CAFE_NOT_FOUND' | 'CAFE_ALREADY_CLAIMED' | 'AREA_CODE_UNKNOWN'

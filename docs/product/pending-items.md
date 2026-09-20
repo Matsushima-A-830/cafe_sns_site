@@ -972,6 +972,32 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   リロード前の待機が足りるかは直すときに確認が要る
 - 参照: `likes` 実装後の `/code-review` で指摘され、実機確認でも再現（2026-09-19）
 
+### D38. `likes_select_all` が投稿の可視性を継承していない
+
+- **課題:** `likes` の SELECT ポリシー（`likes_select_all`）は
+  `not is_blocked_either_way(user_id)` のみで、`post_id` が指す投稿が
+  hidden・論理削除済み・非公開（`visibility='followers'` で非フォロワー）・
+  作者がブロック済みのいずれであっても、その投稿への「いいね」の存在（誰が
+  いいねしたか）は `post_id` さえ分かれば誰でも読める
+- **実害は限定的:** 漏れるのは `user_id` の羅列のみで、本文などは含まれない
+- **対応方針:** `comments` 実装（[docs/architecture/data-model/tables.md#comments](../architecture/data-model/tables.md#comments)）で
+  固めた「`exists (select 1 from posts p where p.id = ...) or is_post_author(post_id)` を
+  SELECT ポリシーに足す」パターンを `likes` にも横展開する。`comments` とは
+  別PRで対応する（`comments` の RLS パターンを先に固めてから展開する判断）
+- 参照: `comments` 実装の引き継ぎ調査で発見（2026-09-20）
+
+### D39. コメントUI（comment-list / comment-form）が実機未確認のまま
+
+- **課題:** S_POST_DETAIL に埋め込んだコメントスレッド（`comment-list.tsx` /
+  `comment-form.tsx`）はコンポーネントテスト（22件、モック経由）と DB/BE の統合テストで
+  検証したのみで、ブラウザでの実機確認ができていない。ローカルDBに公開済み投稿が
+  無く、ログイン済みセッションを用意する手間が実装セッション内で見送られた
+- **未確認の観点:** 返信フォームの展開・折りたたみのフォーカス移動、削除確認の
+  インライン表示のレイアウト崩れ、`is_official` バッジの表示、モバイル/タブレット/PC
+  3レイアウトでの崩れ、`もっと見る` の実データでの動作
+- **対応:** D34 と同様、実機確認をまとめて行うタイミングでこのコンポーネントも含める
+- 参照: `comments` FE実装セッション（2026-09-20）
+
 ## 削除・アーカイブ判断待ち
 
 現時点で「削除する」と決めた項目はなし。追加・変更発生時にここに追記。

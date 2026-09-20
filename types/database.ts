@@ -306,6 +306,64 @@ export type Database = {
           },
         ]
       }
+      comments: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          deleted_at: string | null
+          id: string
+          is_official: boolean
+          parent_id: string | null
+          post_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          is_official?: boolean
+          parent_id?: string | null
+          post_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          is_official?: boolean
+          parent_id?: string | null
+          post_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'comments_author_id_fkey'
+            columns: ['author_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'comments_parent_id_fkey'
+            columns: ['parent_id']
+            isOneToOne: false
+            referencedRelation: 'comments'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'comments_post_id_fkey'
+            columns: ['post_id']
+            isOneToOne: false
+            referencedRelation: 'posts'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       drafts: {
         Row: {
           author_id: string
@@ -784,6 +842,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      comment_has_live_replies: {
+        Args: { p_comment_id: string }
+        Returns: boolean
+      }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       finalize_post: {
         Args: {
@@ -811,6 +873,7 @@ export type Database = {
       is_blocked_either_way: { Args: { p_other_id: string }; Returns: boolean }
       is_cafe_owner: { Args: { p_cafe_id: string }; Returns: boolean }
       is_post_author: { Args: { p_post_id: string }; Returns: boolean }
+      is_post_cafe_owner: { Args: { p_post_id: string }; Returns: boolean }
       replace_user_interest_tags: {
         Args: { p_tag_ids: string[] }
         Returns: undefined
