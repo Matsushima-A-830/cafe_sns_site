@@ -1,5 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { BookmarkButton } from '@/components/features/posts/bookmark-button'
 import { LikeButton } from '@/components/features/posts/like-button'
 import { PostAuthor } from '@/components/features/posts/post-author'
 import type { PostListItem } from '@/lib/posts/post-list'
@@ -8,8 +9,8 @@ import { isStoragePublicUrl } from '@/lib/storage/public-url'
 /**
  * フィードの投稿カード（S_HOME / S_EXPLORE）。
  *
- * アクション行はいいねだけ置く。コメント・保存は comments / post_bookmarks が
- * 未作成なので、枠やプレースホルダを先に出さない（投稿詳細と同じ判断）。
+ * アクション行はいいね・保存を置く。コメントは投稿詳細でしか書けない（返信UIをカードに
+ * 持ち込むと一覧が重くなる）ので件数リンクも出さない（投稿詳細と異なる判断）。
  * 本文は PostBody ではなく抜粋にする — 見出しやリスト、埋め込み画像が
  * そのまま出るとカードの高さが揃わない
  *   docs/design/wireframes/browsing.md #S_HOME
@@ -90,13 +91,22 @@ export function PostCard({
           </ul>
         )}
 
-        <LikeButton
-          postId={post.id}
-          initialLiked={post.likedByViewer}
-          initialCount={post.likeCount}
-          isAuthenticated={isAuthenticated}
-          returnTo={href}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <LikeButton
+            postId={post.id}
+            initialLiked={post.likedByViewer}
+            initialCount={post.likeCount}
+            isAuthenticated={isAuthenticated}
+            returnTo={href}
+          />
+          <BookmarkButton
+            postId={post.id}
+            initialBookmarked={post.bookmarkedByViewer}
+            initialCount={post.bookmarkCount}
+            isAuthenticated={isAuthenticated}
+            returnTo={href}
+          />
+        </div>
       </div>
     </article>
   )

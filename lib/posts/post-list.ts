@@ -36,6 +36,9 @@ export type PostListItem = {
   likeCount: number
   /** 閲覧者自身がいいね済みか。未ログインでは常に false */
   likedByViewer: boolean
+  bookmarkCount: number
+  /** 閲覧者自身が保存済みか。未ログインでは常に false */
+  bookmarkedByViewer: boolean
 }
 
 export type PostListPage = { items: PostListItem[]; nextCursor: PostListCursor | null }
@@ -68,8 +71,11 @@ type PostListRow = {
   published_at: string | null
   created_at: string
   like_count: number
+  bookmark_count: number
   /** viewerId を渡したときだけ付く。空配列＝まだいいねしていない */
   my_like?: { user_id: string }[]
+  /** viewerId を渡したときだけ付く。空配列＝まだ保存していない */
+  my_bookmark?: { user_id: string }[]
   author: {
     id: string
     username: string
@@ -102,7 +108,7 @@ export function postExcerpt(bodyText: string | null): string {
  */
 function buildSelect(options: PostListOptions): string {
   const parts = [
-    'id, post_type, title, body_text, published_at, created_at, like_count',
+    'id, post_type, title, body_text, published_at, created_at, like_count, bookmark_count',
     'author:profiles!posts_author_id_fkey (id, username, display_name, avatar_url)',
     `cafe:cafes!posts_cafe_id_fkey${options.areaCode ? '!inner' : ''} (id, name, area_code, areas!cafes_area_code_fkey (label))`,
     'post_images (storage_path, alt_text)',
@@ -120,6 +126,7 @@ function buildSelect(options: PostListOptions): string {
     // ここは `!inner` にしてはいけない。付けると「閲覧者がいいねしていない投稿」が
     // 一覧から丸ごと消える。外側の埋め込みにして、空配列＝未いいね と読む
     parts.push('my_like:likes (user_id)')
+    parts.push('my_bookmark:post_bookmarks (user_id)')
   }
   return parts.join(', ')
 }
@@ -168,6 +175,8 @@ export function toPostListItem(
       .filter((tag): tag is PostListTag => tag !== null),
     likeCount: row.like_count,
     likedByViewer: (row.my_like ?? []).length > 0,
+    bookmarkCount: row.bookmark_count,
+    bookmarkedByViewer: (row.my_bookmark ?? []).length > 0,
   }
 }
 
@@ -222,6 +231,7 @@ export async function getPostList(
   if (options.viewerId) {
     // 埋め込みへのフィルタは「返す子行」に効く。親（投稿）の件数は減らない
     query = query.eq('my_like.user_id', options.viewerId)
+    query = query.eq('my_bookmark.user_id', options.viewerId)
   }
   if (options.cursor) {
     const cursor = assertValidCursor(options.cursor)

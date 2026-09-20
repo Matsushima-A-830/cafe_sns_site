@@ -20,6 +20,8 @@ const base: PostListItem = {
   tags: [],
   likeCount: 0,
   likedByViewer: false,
+  bookmarkCount: 0,
+  bookmarkedByViewer: false,
 }
 
 const storageImage = {
@@ -104,8 +106,25 @@ describe('PostCard', () => {
     expect(screen.getByText('いいね 5件')).toBeInTheDocument()
   })
 
-  it('コメント・保存のアクションは出さない（comments / post_bookmarks 未実装）', () => {
+  it('保存ボタンを件数付きで出す', () => {
+    render(<PostCard post={{ ...base, bookmarkCount: 7 }} isAuthenticated />)
+
+    const button = screen.getByRole('button', { name: /^保存/ })
+    expect(button).toHaveAttribute('aria-pressed', 'false')
+    expect(button).toHaveTextContent('7件')
+  })
+
+  it('保存済みは aria-pressed とラベルの両方で示す（色だけにしない）', () => {
+    render(
+      <PostCard post={{ ...base, bookmarkCount: 2, bookmarkedByViewer: true }} isAuthenticated />,
+    )
+
+    const button = screen.getByRole('button', { name: /保存済み/ })
+    expect(button).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('コメントの導線は出さない（返信UIは投稿詳細のみ）', () => {
     render(<PostCard post={base} isAuthenticated />)
-    expect(screen.queryByRole('button', { name: /コメント|保存/ })).toBeNull()
+    expect(screen.queryByText(/コメント/)).toBeNull()
   })
 })

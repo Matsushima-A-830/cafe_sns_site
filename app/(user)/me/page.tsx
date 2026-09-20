@@ -22,7 +22,12 @@ import {
 } from '@/lib/cafes/user-cafe-lists'
 import { draftPostTypeLabel, draftPreviewText, draftResumeHref } from '@/lib/composer/draft-summary'
 import { CAFE_LIST_LABELS, CAFE_LIST_PATHS } from '@/lib/constants/cafe-lists'
-import { getPostList } from '@/lib/posts/post-list'
+import {
+  BOOKMARK_PREVIEW_LIMIT,
+  getUserBookmarkCount,
+  getUserBookmarkedPosts,
+} from '@/lib/posts/bookmarks'
+import { getPostList, type PostListItem } from '@/lib/posts/post-list'
 import { getProfileById, getProfileCounts } from '@/lib/profiles/public-profile'
 import { createClient } from '@/lib/supabase/server'
 import { formatPostDate } from '@/lib/utils/format-date'
@@ -37,6 +42,15 @@ function previewItems(entries: CafeListEntry[]) {
     href: `/cafes/${entry.cafeId}`,
     primary: entry.name,
     secondary: entry.areaLabel ?? '',
+  }))
+}
+
+function bookmarkPreviewItems(posts: PostListItem[]) {
+  return posts.map((post) => ({
+    key: post.id,
+    href: `/posts/${post.id}`,
+    primary: post.title ?? (post.excerpt || `${post.author.displayName}さんの投稿`),
+    secondary: post.author.displayName,
   }))
 }
 
@@ -55,15 +69,18 @@ export default async function MyPage() {
   if (!profile) notFound()
 
   // 往復を直列にしない（CLAUDE.md パフォーマンス「N+1回避」）
-  const [counts, listCounts, favorites, wantToGo, drafts, page] = await Promise.all([
-    getProfileCounts(supabase, profile.id),
-    getUserCafeListCounts(supabase),
-    getUserCafeList(supabase, 'favorite', CAFE_LIST_PREVIEW_LIMIT),
-    getUserCafeList(supabase, 'want_to_go', CAFE_LIST_PREVIEW_LIMIT),
-    // 下書きは件数もここから数える。listDrafts が期限切れ除外と50件上限を担保している
-    listDrafts(),
-    getPostList(supabase, { authorId: profile.id, viewerId: user.id }),
-  ])
+  const [counts, listCounts, favorites, wantToGo, drafts, page, bookmarkCount, bookmarks] =
+    await Promise.all([
+      getProfileCounts(supabase, profile.id),
+      getUserCafeListCounts(supabase),
+      getUserCafeList(supabase, 'favorite', CAFE_LIST_PREVIEW_LIMIT),
+      getUserCafeList(supabase, 'want_to_go', CAFE_LIST_PREVIEW_LIMIT),
+      // 下書きは件数もここから数える。listDrafts が期限切れ除外と50件上限を担保している
+      listDrafts(),
+      getPostList(supabase, { authorId: profile.id, viewerId: user.id }),
+      getUserBookmarkCount(supabase),
+      getUserBookmarkedPosts(supabase, user.id, BOOKMARK_PREVIEW_LIMIT),
+    ])
 
   // 下書きだけは取得に失敗してもページ全体を落とさない（マイページの主役ではない）。
   // ただし握って0件にすると「下書きが消えた」ようにしか見えないので理由をログに残す
@@ -91,6 +108,13 @@ export default async function MyPage() {
       label: '下書き',
       count: draftList.length,
       Icon: SHORTCUT_ICONS.FileText,
+    },
+    {
+      key: 'bookmarks',
+      href: '/me/bookmarks',
+      label: '保存',
+      count: bookmarkCount,
+      Icon: SHORTCUT_ICONS.Bookmark,
     },
   ]
 
@@ -126,11 +150,17 @@ export default async function MyPage() {
       })),
       emptyMessage: '下書きはありません。書きかけの投稿は自動保存され、ここに並びます。',
     },
+    {
+      key: 'bookmarks',
+      label: '保存',
+      href: '/me/bookmarks',
+      items: bookmarkPreviewItems(bookmarks),
+      emptyMessage: '保存した投稿はまだありません。投稿の「保存」ボタンから追加できます。',
+    },
   ]
 
-  // バッジ（user_badges）・「私の行きつけ」（regular_customers）・「保存投稿」（post_bookmarks）・
-  // 制覇マップ（area_visits）・プロフィール編集（/me/edit）は元テーブル・ルートが
-  // 未整備のため出していない — pending-items D32
+  // バッジ（user_badges）・「私の行きつけ」（regular_customers）・制覇マップ（area_visits）・
+  // プロフィール編集（/me/edit）は元テーブル・ルートが未整備のため出していない — pending-items D32
   const query: FeedQuery = {
     scope: 'new',
     tagSlug: null,

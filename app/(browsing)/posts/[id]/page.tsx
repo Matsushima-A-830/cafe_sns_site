@@ -4,6 +4,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
+import { BookmarkButton } from '@/components/features/posts/bookmark-button'
 import { CommentList } from '@/components/features/posts/comment-list'
 import { LikeButton } from '@/components/features/posts/like-button'
 import { PostAuthor } from '@/components/features/posts/post-author'
@@ -152,6 +153,14 @@ function PostContent({ post, isAuthenticated }: { post: PostDetail; isAuthentica
         >
           コメント {post.commentCount}件
         </a>
+        <BookmarkButton
+          postId={post.id}
+          initialBookmarked={post.bookmarkedByViewer}
+          initialCount={post.bookmarkCount}
+          isAuthenticated={isAuthenticated}
+          returnTo={`/posts/${post.id}`}
+          showLoginHint
+        />
       </div>
     </div>
   )
@@ -169,8 +178,8 @@ export default async function PostDetailPage({ params }: PageProps) {
   const canModerateComments = viewerId !== null && viewerId === post.author.id
   const returnTo = `/posts/${post.id}`
 
-  // アクション行はいいね・コメント。保存・通報は post_bookmarks / reports が
-  // 未作成なので、枠やプレースホルダを先に出さない（投稿カードと同じ判断）
+  // アクション行はいいね・コメント・保存。通報は reports が未作成なので、
+  // 枠やプレースホルダを先に出さない（投稿カードと同じ判断）
   //   docs/design/wireframes/browsing.md #S_POST_DETAIL
   if (post.postType === 'blog') {
     return (

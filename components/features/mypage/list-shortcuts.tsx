@@ -1,10 +1,9 @@
-import { ChevronRight, FileText, Heart, MapPin } from 'lucide-react'
+import { Bookmark, ChevronRight, FileText, Heart, MapPin } from 'lucide-react'
 import Link from 'next/link'
 
 /**
  * マイページ上部のショートカットカード。件数バッジ付きで各一覧への入り口になる
- * （ワイヤーの4カード。「保存投稿」は post_bookmarks が未作成のため出していない
- *  — pending-items D32）
+ * （ワイヤーの4カード）
  *   docs/design/wireframes/mypage.md #S_MYPAGE
  */
 
@@ -16,7 +15,7 @@ export type ListShortcut = {
   Icon: typeof Heart
 }
 
-export const SHORTCUT_ICONS = { Heart, MapPin, FileText } as const
+export const SHORTCUT_ICONS = { Heart, MapPin, FileText, Bookmark } as const
 
 export function ListShortcuts({ shortcuts }: { shortcuts: ListShortcut[] }) {
   return (

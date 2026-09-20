@@ -32,6 +32,9 @@ export type PostDetail = {
   /** 閲覧者自身がいいね済みか。未ログインでは常に false */
   likedByViewer: boolean
   commentCount: number
+  bookmarkCount: number
+  /** 閲覧者自身が保存済みか。未ログインでは常に false */
+  bookmarkedByViewer: boolean
 }
 
 /**
@@ -42,13 +45,16 @@ export type PostDetail = {
  */
 function buildPostDetailSelect(viewerId: string | null): string {
   const parts = [
-    'id, post_type, title, body_json, visibility, published_at, created_at, like_count, comment_count',
+    'id, post_type, title, body_json, visibility, published_at, created_at, like_count, comment_count, bookmark_count',
     'author:profiles!posts_author_id_fkey (id, username, display_name, avatar_url)',
     'cafe:cafes!posts_cafe_id_fkey (id, name, area_code, areas!cafes_area_code_fkey (label))',
     'post_images (storage_path, alt_text, display_order)',
     'post_tags (tags (id, slug, label))',
   ]
-  if (viewerId) parts.push('my_like:likes (user_id)')
+  if (viewerId) {
+    parts.push('my_like:likes (user_id)')
+    parts.push('my_bookmark:post_bookmarks (user_id)')
+  }
   return parts.join(', ')
 }
 
@@ -62,8 +68,11 @@ type PostDetailRow = {
   created_at: string
   like_count: number
   comment_count: number
+  bookmark_count: number
   /** viewerId を渡したときだけ付く。空配列＝まだいいねしていない */
   my_like?: { user_id: string }[]
+  /** viewerId を渡したときだけ付く。空配列＝まだ保存していない */
+  my_bookmark?: { user_id: string }[]
   author: {
     id: string
     username: string
@@ -145,6 +154,8 @@ export function toPostDetail(
     likeCount: row.like_count,
     likedByViewer: (row.my_like ?? []).length > 0,
     commentCount: row.comment_count,
+    bookmarkCount: row.bookmark_count,
+    bookmarkedByViewer: (row.my_bookmark ?? []).length > 0,
   }
 }
 
@@ -174,7 +185,10 @@ export async function getPostDetail(
 
   // 埋め込みへのフィルタは「返す子行」に効く。投稿そのものは消えない。
   // null を渡すと壊れるので、未ログインでは条件ごと付けない
-  if (viewerId) query = query.eq('my_like.user_id', viewerId)
+  if (viewerId) {
+    query = query.eq('my_like.user_id', viewerId)
+    query = query.eq('my_bookmark.user_id', viewerId)
+  }
 
   const { data, error } = await query.maybeSingle()
 
@@ -208,6 +222,22 @@ export async function getPostLikeCount(supabase: Client, postId: string): Promis
 
   if (error) throw new Error(`いいね数の取得に失敗しました (id=${postId}): ${error.message}`)
   return data?.like_count ?? 0
+}
+
+/**
+ * 保存の付け外しの後に、権威ある件数を読み直す。getPostLikeCount と同じ理由・同じ形
+ */
+export async function getPostBookmarkCount(supabase: Client, postId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from('posts')
+    .select('bookmark_count')
+    .eq('id', postId)
+    .eq('status', 'published')
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (error) throw new Error(`保存数の取得に失敗しました (id=${postId}): ${error.message}`)
+  return data?.bookmark_count ?? 0
 }
 
 /**
