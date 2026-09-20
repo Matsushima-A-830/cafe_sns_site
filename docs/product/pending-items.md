@@ -1028,6 +1028,32 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   こちらは単に無害だから、という個別の判断）
 - 参照: S_SETTINGS 実装時の決定（2026-09-20）
 
+### D43. 通知の個別既読化が fire-and-forget でロールバックが無い
+
+- **課題:** `NotificationList.handleMarkRead`（`components/features/notifications/notification-list.tsx`）は
+  `void markNotificationAsRead(...)` として結果を見ず、失敗してもローカルの `readAt` を戻さない。
+  `BookmarkButton` / `LikeButton` は同じ楽観更新パターンで必ず失敗時ロールバック + エラー表示を
+  しており、ここだけ一貫していない（`void` で結果を捨てる Server Action 呼び出しの前例は
+  `use-composer.ts` の `useEffect` 内1箇所のみで、書き込み系では無い）
+- **実害:** 小さい。対象行の UPDATE は RLS に守られておりほぼ失敗しないが、ネットワーク瞬断時に
+  「未読チップは消えたのに DB は未読のまま」という食い違いがリロードまで残りうる
+- **対応案（未検討）:** 失敗時だけ該当 item の `readAt` を `null` に戻す、または控えめな
+  `role="alert"` 表示を追加する
+- 参照: S_NOTIFICATIONS 実装後の `/self-review`（2026-09-20）
+
+### D44. 通知一覧の相対時刻表示がハイドレーションミスマッチのリスクを持つ
+
+- **課題:** `NotificationItem`（`components/features/notifications/notification-item.tsx`）は
+  `'use client'` だが SSR される。`formatRelativeTime(item.createdAt)` は引数無しで `new Date()` を
+  使うため、サーバー描画時とクライアント hydrate 時で計算結果が変わりうる。特に作成直後・
+  1分未満の通知は秒単位で表示が変わるため、通知を作成直後にそのまま見るケース（本来の主用途）で
+  踏みやすい
+- **実機確認時の状況:** 手元の確認ではタイムラグが大きく再現しなかったが、理論上のリスクは残る
+- **対応案（未検討）:** `useEffect` でマウント後にのみ相対時刻を計算する（初期表示は
+  `formatPostDate` 等の安定表示、またはプレースホルダ）。もしくは `<time>` に
+  `suppressHydrationWarning` を付ける
+- 参照: S_NOTIFICATIONS 実装後の `/self-review`（2026-09-20）
+
 ## 削除・アーカイブ判断待ち
 
 現時点で「削除する」と決めた項目はなし。追加・変更発生時にここに追記。
