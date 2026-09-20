@@ -336,16 +336,16 @@
     "eyebrow": "CAFE SNS / IMPLEMENTATION BOARD",
     "headline": "気分で見つかる、<br>行きつけと繋がる",
     "sub": "いま立っているもの と これから立てるもの",
-    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローして、その店に行けるか確かめて、自分の店リストに貯める」までの一本。ここに<strong>いいね・コメント（返信1階層、オーナー公式返信、投稿主モデレーション）・保存（post_bookmarks）</strong>が加わり、投稿への反応が一通り揃った。マイページは4カードに戻り、S_BOOKMARKS も開通した。地図、オーナー側UIは、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
+    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローして、その店に行けるか確かめて、自分の店リストに貯める」までの一本。ここに<strong>いいね・コメント（返信1階層、オーナー公式返信、投稿主モデレーション）・保存（post_bookmarks）</strong>が加わり、投稿への反応が一通り揃った。さらに <strong>S_CAFE_NEW（カフェ新規登録）</strong>が開通し、composer の中だけだった「見つからないカフェを登録する」が専用画面になった。マイページは4カードに戻り、S_BOOKMARKS も開通した。地図、オーナー側UIは、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
     "updatedAt": "2026-09-20",
-    "ref": "branch: feature/post-bookmarks"
+    "ref": "branch: feature/cafe-new"
   },
 
   "metrics": [
-    { "k": "SCREENS", "v": "22", "unit": "/ 37", "note": "ワイヤー37画面のうち、画面IDコメント付きの page.tsx があるもの", "ratio": 59 },
+    { "k": "SCREENS", "v": "22", "unit": "/ 37", "note": "ワイヤー37画面のうち、画面IDコメント付きの page.tsx があるもの。S_CAFE_NEW はワイヤー自体が無いためこの分母に入らない", "ratio": 59 },
     { "k": "TABLES", "v": "19", "unit": "/ 27", "note": "tables.md の27テーブル中、マイグレーション済み", "ratio": 70 },
-    { "k": "MIGRATIONS", "v": "34", "unit": "", "note": "RLSポリシー込み。forward-only 運用", "ratio": null },
-    { "k": "TESTS", "v": "72", "unit": " files", "note": "unit / RLS統合25本 / E2E 4本。統合・E2EともCIで実行", "ratio": null }
+    { "k": "MIGRATIONS", "v": "35", "unit": "", "note": "RLSポリシー込み。forward-only 運用", "ratio": null },
+    { "k": "TESTS", "v": "74", "unit": " files", "note": "unit / RLS統合25本 / E2E 4本。統合・E2EともCIで実行", "ratio": null }
   ],
 
   "sections": [
@@ -424,6 +424,9 @@
           "why": "NGワード検出は辞書未整備で見送り（B4）" },
         { "status": "done", "tag": "post_bookmarks", "title": "保存",
           "body": "likes と同型（追加/解除を分ける・security definer トリガーで bookmark_count 維持）。投稿カード・投稿詳細のBookmarkButton、マイページ4枚目のカードと S_BOOKMARKS 一覧まで開通。" },
+        { "status": "partial", "tag": "S_CAFE_NEW", "title": "カフェ新規登録",
+          "body": "カフェ名・カナ・都道府県/市区町村・エリア・住所・電話・Web・説明を入力して登録。composer の CafePicker から新しいタブで開く導線あり。登録者本人は verified_owner_id が付くまで自分の登録内容を編集できる（B8）。",
+          "why": "重複防止はアプリ層の警告のみでブロックしない（B9）／location・main_image_path は未収集・未整備のため受け付けない（A3・D31）／登録直後から全ユーザーに公開される（D40）" },
         { "status": "done", "tag": "_actions", "title": "Server Actions 12本",
           "body": "auth / onboarding / posts / drafts / feed / follows / cafes / congestion / cafe-lists / likes / comments / bookmarks。入力は全て Zod、返りは Result 型。" }
       ]
@@ -432,7 +435,7 @@
     {
       "kind": "frame", "id": "f-base", "row": 1, "x": 1740, "w": 1180,
       "title": "② 足場（DB・認可・ツーリング）",
-      "tally": "MIGRATIONS 34",
+      "tally": "MIGRATIONS 35",
       "lede": "認可はアプリ層に書かず RLS に寄せてある。ここが厚いぶん、画面は後から速く積める。",
       "notes": [
         { "status": "done", "tag": "19 tables", "title": "実装済みテーブル",
@@ -453,7 +456,7 @@
           "body": "厳選タグ30 / 東京45エリア / バッジ20の定義。バッジは<strong>マスタのみ</strong>で付与側は無い。" },
         { "status": "done", "tag": "CI", "title": "Biome + tsc + design-system 検査",
           "body": "#000禁止・インラインstyle禁止・非8倍数余白の検出を pre-commit と CI の両方で走らせる。" },
-        { "status": "done", "tag": "tests", "title": "テスト72ファイル",
+        { "status": "done", "tag": "tests", "title": "テスト74ファイル",
           "body": "RLS統合テスト25本は Supabase local 前提。PRごとに CI の Supabase Integration ジョブで回る。E2Eは4本。" }
       ]
     },
@@ -461,11 +464,9 @@
     {
       "kind": "frame", "id": "f-todo", "row": 1, "x": 2980, "w": 1340,
       "title": "③ まだ存在しない画面",
-      "tally": "SCREENS 15 / TABLES 8",
+      "tally": "SCREENS 14 / TABLES 8",
       "lede": "未実装の大半は「テーブルが無いから画面も無い」。逆に言えば、テーブルを1つ足すたびに複数画面が開く。",
       "notes": [
-        { "status": "todo", "tag": "S_CAFE_NEW", "title": "カフェ登録画面",
-          "body": "店を見る面（S_CAFE_DETAIL）は開いたが、カフェを新規登録できるのは composer の中だけ。専用画面とオーナーによる情報編集（B8）が無い。" },
         { "status": "todo", "tag": "S_MAP / S_SEARCH / S_FILTER_*", "title": "探す面",
           "body": "地図は areas.center_location の座標45件が未収集（A3）。タグ検索も未着手。" },
         { "status": "todo", "tag": "S_PROFILE_EDIT ほか mypage 5画面", "title": "自分の面の残り",
@@ -552,7 +553,9 @@
         { "status": "risk", "tag": "D26", "title": "ページ送りが「もっと見る」",
           "body": "クエリは keyset カーソルなのでUIだけ差し替えれば無限スクロールに移行できる。" },
         { "status": "risk", "tag": "D38", "title": "likes の SELECT が投稿の可視性を継承していない",
-          "body": "comments 実装時に発見。likes_select_all はブロック関係しか見ておらず、hidden・論理削除済み・非公開投稿への「いいね」の存在（user_id の羅列）が post_id さえ分かれば読める。comments で固めた exists(posts) パターンを横展開すれば直るが、意図的に別PRに切り出した（放置期間あり）。" }
+          "body": "comments 実装時に発見。likes_select_all はブロック関係しか見ておらず、hidden・論理削除済み・非公開投稿への「いいね」の存在（user_id の羅列）が post_id さえ分かれば読める。comments で固めた exists(posts) パターンを横展開すれば直るが、意図的に別PRに切り出した（放置期間あり）。" },
+        { "status": "risk", "tag": "D40", "title": "登録直後のカフェが即全公開",
+          "body": "status='active' 即時公開で中間状態が無い。reports が未作成のため、通報機能とセットで対処する前提であえて許容した（S_CAFE_NEW 実装時の決定）。" }
       ]
     },
 
@@ -582,8 +585,8 @@
           "notes": [
             { "status": "future", "tag": "1st", "title": "反応を実装する（完了）",
               "body": "likes・comments・post_bookmarks が出揃い、投稿へのいいね・コメント・保存が一通り動く。おすすめの人気度スコア（D24）はまだ書けるようになっただけで未着手。" },
-            { "status": "future", "tag": "2nd", "title": "店の面を開く",
-              "body": "S_CAFE_NEW と店舗情報の編集（B8）。カフェ詳細と user_cafe_lists は実装済み。" },
+            { "status": "future", "tag": "2nd", "title": "店の面を開く（完了）",
+              "body": "S_CAFE_NEW（登録）・登録者本人による未認証期間中の編集（B8）・カフェ詳細・user_cafe_lists まで実装済み。残るのは地図（6th）とオーナー側の情報編集（幹C側、5th）。" },
             { "status": "future", "tag": "3rd", "title": "自分の面を開く",
               "body": "設定 / 通知 / プロフィール編集。マイページと4つのリスト（お気に入り・行きたい・下書き・保存）は実装済み。" },
             { "status": "future", "tag": "4th", "title": "安全ラインを引く",
