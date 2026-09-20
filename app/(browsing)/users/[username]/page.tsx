@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { PostFeed } from '@/components/features/posts/post-feed'
+import { BlockButton } from '@/components/features/profiles/block-button'
 import { FollowButton } from '@/components/features/profiles/follow-button'
 import { ProfileAvatar } from '@/components/features/profiles/profile-avatar'
 import { ProfileCountList } from '@/components/features/profiles/profile-count-list'
@@ -114,13 +115,16 @@ export default async function UserProfilePage({ params }: PageProps) {
 
         {!isSelf &&
           (user ? (
-            <FollowButton
-              // initialFollowing は useState の初期値にしかならない。別タブでの
-              // フォロー解除などでサーバー側の値がずれたら state ごと作り直す
-              key={`${profile.id}:${following}`}
-              followeeId={profile.id}
-              initialFollowing={following}
-            />
+            <div className="flex flex-col items-center gap-2 md:items-start">
+              <FollowButton
+                // initialFollowing は useState の初期値にしかならない。別タブでの
+                // フォロー解除などでサーバー側の値がずれたら state ごと作り直す
+                key={`${profile.id}:${following}`}
+                followeeId={profile.id}
+                initialFollowing={following}
+              />
+              <BlockButton targetUserId={profile.id} />
+            </div>
           ) : (
             <Button asChild size="lg">
               <Link href={`/login?next=${encodeURIComponent(`/users/${profile.username}`)}`}>

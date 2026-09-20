@@ -32,6 +32,9 @@ const messages: Partial<Record<ErrorCode, string>> = {
   // フォロー
   ALREADY_FOLLOWING: 'すでにフォローしています',
   SELF_FOLLOW_FORBIDDEN: '自分自身はフォローできません',
+  // ブロック
+  BLOCKED_USER: 'この操作は行えません',
+  BLOCK_SELF_FORBIDDEN: '自分自身はブロックできません',
   // アップロード
   FILE_TOO_LARGE: '画像のサイズが大きすぎます',
   UNSUPPORTED_MEDIA_TYPE: 'この形式の画像は使えません',
