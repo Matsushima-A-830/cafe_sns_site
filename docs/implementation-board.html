@@ -336,16 +336,16 @@
     "eyebrow": "CAFE SNS / IMPLEMENTATION BOARD",
     "headline": "気分で見つかる、<br>行きつけと繋がる",
     "sub": "いま立っているもの と これから立てるもの",
-    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローして、その店に行けるか確かめて、自分の店リストに貯める」までの一本。ここに<strong>いいね・コメント（返信1階層、オーナー公式返信、投稿主モデレーション）・保存（post_bookmarks）</strong>が加わり、投稿への反応が一通り揃った。さらに <strong>S_CAFE_NEW（カフェ新規登録）</strong>が開通し、composer の中だけだった「見つからないカフェを登録する」が専用画面になった。マイページは4カードに戻り、S_BOOKMARKS も開通した。地図、オーナー側UIは、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
+    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローして、その店に行けるか確かめて、自分の店リストに貯める」までの一本。ここに<strong>いいね・コメント（返信1階層、オーナー公式返信、投稿主モデレーション）・保存（post_bookmarks）</strong>が加わり、投稿への反応が一通り揃った。さらに <strong>S_CAFE_NEW（カフェ新規登録）</strong>が開通し、composer の中だけだった「見つからないカフェを登録する」が専用画面になった。マイページは4カードに戻り、S_BOOKMARKS も開通した。今回 <strong>S_SETTINGS（設定）と S_BLOCKED_USERS（ブロック管理）</strong>が加わり、「自分の面」の残りが3画面（プロフィール編集・バッジ・通知）まで縮んだ。地図、オーナー側UIは、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
     "updatedAt": "2026-09-20",
-    "ref": "branch: feature/cafe-new"
+    "ref": "branch: feature/settings-blocked-users"
   },
 
   "metrics": [
-    { "k": "SCREENS", "v": "22", "unit": "/ 37", "note": "ワイヤー37画面のうち、画面IDコメント付きの page.tsx があるもの。S_CAFE_NEW はワイヤー自体が無いためこの分母に入らない", "ratio": 59 },
+    { "k": "SCREENS", "v": "24", "unit": "/ 37", "note": "ワイヤー37画面のうち、画面IDコメント付きの page.tsx があるもの。S_CAFE_NEW はワイヤー自体が無いためこの分母に入らない", "ratio": 65 },
     { "k": "TABLES", "v": "19", "unit": "/ 27", "note": "tables.md の27テーブル中、マイグレーション済み", "ratio": 70 },
     { "k": "MIGRATIONS", "v": "35", "unit": "", "note": "RLSポリシー込み。forward-only 運用", "ratio": null },
-    { "k": "TESTS", "v": "74", "unit": " files", "note": "unit / RLS統合25本 / E2E 4本。統合・E2EともCIで実行", "ratio": null }
+    { "k": "TESTS", "v": "79", "unit": " files", "note": "unit / RLS統合25本 / E2E 5本。統合・E2EともCIで実行", "ratio": null }
   ],
 
   "sections": [
@@ -427,8 +427,14 @@
         { "status": "partial", "tag": "S_CAFE_NEW", "title": "カフェ新規登録",
           "body": "カフェ名・カナ・都道府県/市区町村・エリア・住所・電話・Web・説明を入力して登録。composer の CafePicker から新しいタブで開く導線あり。登録者本人は verified_owner_id が付くまで自分の登録内容を編集できる（B8）。",
           "why": "重複防止はアプリ層の警告のみでブロックしない（B9）／location・main_image_path は未収集・未整備のため受け付けない（A3・D31）／登録直後から全ユーザーに公開される（D40）" },
-        { "status": "done", "tag": "_actions", "title": "Server Actions 12本",
-          "body": "auth / onboarding / posts / drafts / feed / follows / cafes / congestion / cafe-lists / likes / comments / bookmarks。入力は全て Zod、返りは Result 型。" }
+        { "status": "partial", "tag": "S_SETTINGS", "title": "設定",
+          "body": "プライバシー（位置情報・おすすめ活用）・通知3種・文字サイズ。項目ごとに押した瞬間に保存する楽観更新。",
+          "why": "アカウント区分（メール/パスワード変更・退会）とその他区分（規約等）は未実装（D41 と別スコープ）／font_scale は保存のみで表示への反映は未着手（D41）" },
+        { "status": "partial", "tag": "S_BLOCKED_USERS", "title": "ブロック管理",
+          "body": "一覧・確認ダイアログつき解除。公開プロフィールに最小限のブロックボタンを追加し、作成の入口も開通した。",
+          "why": "通報を含む「⋯」メニュー全体はスコープ外（reports 未整備）" },
+        { "status": "done", "tag": "_actions", "title": "Server Actions 14本",
+          "body": "auth / onboarding / posts / drafts / feed / follows / cafes / congestion / cafe-lists / likes / comments / bookmarks / blocks / settings。入力は全て Zod、返りは Result 型。" }
       ]
     },
 
@@ -456,21 +462,21 @@
           "body": "厳選タグ30 / 東京45エリア / バッジ20の定義。バッジは<strong>マスタのみ</strong>で付与側は無い。" },
         { "status": "done", "tag": "CI", "title": "Biome + tsc + design-system 検査",
           "body": "#000禁止・インラインstyle禁止・非8倍数余白の検出を pre-commit と CI の両方で走らせる。" },
-        { "status": "done", "tag": "tests", "title": "テスト74ファイル",
-          "body": "RLS統合テスト25本は Supabase local 前提。PRごとに CI の Supabase Integration ジョブで回る。E2Eは4本。" }
+        { "status": "done", "tag": "tests", "title": "テスト79ファイル",
+          "body": "RLS統合テスト25本は Supabase local 前提。PRごとに CI の Supabase Integration ジョブで回る。E2Eは5本。" }
       ]
     },
 
     {
       "kind": "frame", "id": "f-todo", "row": 1, "x": 2980, "w": 1340,
       "title": "③ まだ存在しない画面",
-      "tally": "SCREENS 14 / TABLES 8",
+      "tally": "SCREENS 13 / TABLES 8",
       "lede": "未実装の大半は「テーブルが無いから画面も無い」。逆に言えば、テーブルを1つ足すたびに複数画面が開く。",
       "notes": [
         { "status": "todo", "tag": "S_MAP / S_SEARCH / S_FILTER_*", "title": "探す面",
           "body": "地図は areas.center_location の座標45件が未収集（A3）。タグ検索も未着手。" },
-        { "status": "todo", "tag": "S_PROFILE_EDIT ほか mypage 5画面", "title": "自分の面の残り",
-          "body": "プロフィール編集 / バッジ / 通知 / 設定 / ブロック管理。マイページ本体とお気に入り・行きたい・下書き・保存は実装済み。" },
+        { "status": "todo", "tag": "S_PROFILE_EDIT ほか mypage 3画面", "title": "自分の面の残り",
+          "body": "プロフィール編集 / バッジ / 通知。設定・ブロック管理は開通した。マイページ本体とお気に入り・行きたい・下書き・保存も実装済み。" },
         { "status": "todo", "tag": "reports / ng_words", "title": "通報・モデレーション",
           "body": "S_REPORT_FORM と admin 側の審査キュー。若年層向けサービスの前提条件。" },
         { "status": "todo", "tag": "owner 6画面 + S_POST_OFFICIAL", "title": "オーナーの面",

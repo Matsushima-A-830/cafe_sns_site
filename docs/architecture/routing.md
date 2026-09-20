@@ -105,14 +105,11 @@ app/
 │   │   └── badges/page.tsx          # /me/badges (S_BADGES) ※未実装: user_badges / area_visits が無い
 │   ├── notifications/
 │   │   └── page.tsx                 # /notifications (S_NOTIFICATIONS)
-│   ├── settings/
-│   │   ├── page.tsx                 # /settings (S_SETTINGS 索引)
-│   │   ├── account/
-│   │   │   ├── page.tsx             # /settings/account
-│   │   │   └── delete/page.tsx      # /settings/account/delete (S_ACCOUNT_DELETE)
-│   │   ├── privacy/page.tsx         # /settings/privacy
-│   │   ├── notifications/page.tsx   # /settings/notifications
-│   │   ├── display/page.tsx         # /settings/display
+│   ├── settings/                    # プライバシー・通知・表示のみを1枚にまとめる（S_SETTINGS）。
+│   │   │                             # account/ privacy/ notifications/ display/ へのサブルート分割は
+│   │   │                             # 行わなかった（3項目のトグル+セレクトのみで分割不要）。
+│   │   │                             # account/ 配下（メール・パスワード変更・退会）は別スコープで未着手
+│   │   ├── page.tsx                 # /settings (S_SETTINGS)
 │   │   └── blocked/page.tsx         # /settings/blocked (S_BLOCKED_USERS)
 │   ├── new/
 │   │   ├── page.tsx                 # /new (形式選択シート)
