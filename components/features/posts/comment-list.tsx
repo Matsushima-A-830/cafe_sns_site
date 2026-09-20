@@ -71,6 +71,11 @@ export function CommentList({
   }
 
   function handleDelete(commentId: string, parentId: string | null) {
+    // 削除中は次の削除・もっと見るを弾く。同時に2件を削除しようとすると、
+    // 片方の失敗ロールバックがもう片方の成功後の状態を巻き戻して復活させてしまう
+    // （items/count のスナップショットが古くなるため）。LikeButton と同じ理由
+    if (isPending) return
+
     const previousItems = items
     const previousCount = count
     setItems((current) =>
@@ -99,7 +104,7 @@ export function CommentList({
   }
 
   function handleLoadMore() {
-    if (!cursor) return
+    if (isPending || !cursor) return
     setError(null)
     startTransition(async () => {
       const result = await loadMoreComments({ postId, cursor })
@@ -107,7 +112,13 @@ export function CommentList({
         setError(errorMessage(result.error))
         return
       }
-      setItems((current) => [...current, ...result.data.items])
+      // 未読み込みのページが残っている間に新規投稿すると、その投稿の created_at は
+      // カーソルより新しいため「もっと見る」の再取得結果に混ざって戻ってくる。
+      // 既に画面にある id は取り込まず、重複表示を防ぐ
+      setItems((current) => {
+        const existingIds = new Set(current.map((item) => item.id))
+        return [...current, ...result.data.items.filter((item) => !existingIds.has(item.id))]
+      })
       setCursor(result.data.nextCursor)
     })
   }

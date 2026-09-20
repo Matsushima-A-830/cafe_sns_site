@@ -213,6 +213,54 @@ describe('CommentList', () => {
     expect(screen.getByText('コメント 1件')).toBeInTheDocument()
   })
 
+  it('削除中は別のコメントの削除も弾く（ロールバックが他方を巻き戻す競合を防ぐ）', async () => {
+    let resolveFirstDelete: (value: { ok: true; data: { commentCount: number } }) => void = () => {}
+    deleteComment.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFirstDelete = resolve
+        }),
+    )
+    setup({
+      initialItems: [makeComment(), makeComment({ id: 'c2', body: '2件目' })],
+      initialCount: 2,
+    })
+
+    const [firstDeleteButton, secondDeleteButton] = screen.getAllByRole('button', { name: '削除' })
+    await userEvent.click(firstDeleteButton as HTMLElement)
+    await userEvent.click(screen.getByRole('button', { name: '削除する' }))
+
+    // 1件目が確定するまでは、2件目のボタンを押しても deleteComment は呼ばれない
+    await userEvent.click(secondDeleteButton as HTMLElement)
+    expect(deleteComment).toHaveBeenCalledTimes(1)
+
+    resolveFirstDelete({ ok: true, data: { commentCount: 1 } })
+    await waitFor(() => expect(screen.queryByText('最初のコメント')).toBeNull())
+    expect(screen.getByText('2件目')).toBeInTheDocument()
+  })
+
+  it('もっと見るの取得結果に既に表示中のコメントが含まれていても重複表示しない', async () => {
+    // 20件超のページングが残っている間に新規投稿すると、その投稿の created_at が
+    // カーソルより新しいため、次ページの取得結果に混ざって返ってくることがある
+    loadMoreComments.mockResolvedValue({
+      ok: true,
+      data: {
+        items: [makeComment({ id: 'new-1', body: '新規投稿したコメント' })],
+        nextCursor: null,
+      },
+    })
+    setup({
+      initialItems: [makeComment(), makeComment({ id: 'new-1', body: '新規投稿したコメント' })],
+      initialCount: 2,
+      initialCursor: { createdAt: '2026-09-14T01:00:00Z', id: 'c1' },
+    })
+
+    await userEvent.click(screen.getByRole('button', { name: 'もっと見る' }))
+
+    await waitFor(() => expect(loadMoreComments).toHaveBeenCalled())
+    expect(screen.getAllByText('新規投稿したコメント')).toHaveLength(1)
+  })
+
   it('もっと見るで次ページを追記し、次のカーソルが無ければボタンが消える', async () => {
     loadMoreComments.mockResolvedValue({
       ok: true,
