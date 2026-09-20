@@ -206,22 +206,21 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **再検討:** PWA 化（[C2](#c2-アプリ化の技術選定)）と合わせて判断するのが自然
 - **決定期限:** PWA 化の検討時
 
-### B8. 登録者本人がカフェ情報を編集できない（未認証オーナー期間中）
+### B8. 登録者本人がカフェ情報を編集できない（未認証オーナー期間中） ✅ 解消済（2026-09-20）
 
 - **課題:** `cafes` の UPDATE は `verified_owner_id = auth.uid()` か admin のみ（[tables.md #cafes](../architecture/data-model/tables.md#cafes) 通りの実装）。誰でもカフェを新規登録できる一方、登録者自身は `verified_owner_id` が付くまで自分の登録内容を一切編集できない
-- **想定される影響:** MVP初期はユーザー登録カフェが大半になるはずで、店名の打ち間違い等の軽微な修正依頼が admin に集中する可能性がある
-- **選択肢:**
-  - a) 現状維持（admin が都度修正する）
-  - b) `created_by = auth.uid() and verified_owner_id is null` の間だけ本人にも UPDATE を許可する RLS ポリシーを追加
-- **決定期限:** カフェ登録・編集画面（`/cafes/new` 相当）の実装前
-- 参照: `/code-review` によるセルフレビュー（2026-09-06、cafes テーブル実装時）
+- **決定: b) を採用。** `created_by = auth.uid() and verified_owner_id is null and is_active_user()` の間だけ本人にも UPDATE を許可する RLS ポリシーを追加した（[`20260920140000_allow_cafe_creator_update.sql`](../../supabase/migrations/20260920140000_allow_cafe_creator_update.sql)）。`verified_owner_id` が付与された後（オーナー認証完了後）はこの経路が閉じ、従来どおり `verified_owner_id` 一致者のみ編集可能
+- **理由:** MVP初期はユーザー登録カフェが大半になり、店名の打ち間違い等の軽微な修正のたびに admin 対応するのは運用コストが見合わない
+- **検証:** `tests/integration/cafes-rls.test.ts` に本人（未認証・認証済み・suspended）・他人それぞれの UPDATE 可否を確認するケースを追加
+- 参照: `/code-review` によるセルフレビュー（2026-09-06、cafes テーブル実装時） / S_CAFE_NEW 実装時の決定（2026-09-20）
 
-### B9. カフェの重複登録を防ぐ一意制約がない
+### B9. カフェの重複登録を防ぐ一意制約がない ✅ 部分解消（2026-09-20）
 
 - **課題:** `cafes.name` にも `external_ids` にも一意制約がなく、同じ店が何度でも登録できる。`posts` 等の後続テーブルが `cafe_id` を FK で持つ設計のため、重複が発生してからのマージは高コストになる
-- **対応案:** `external_ids->>'google_place_id'` に部分一意インデックスを張る（`external_ids ? 'google_place_id'` の行のみ対象）
-- **決定期限:** カフェ登録画面の実装前。仕様変更になるため [tables.md #cafes](../architecture/data-model/tables.md#cafes) の更新が先
-- 参照: `/code-review` によるセルフレビュー（2026-09-06、cafes テーブル実装時）
+- **決定（v1）: DB側の一意制約は張らない。** S_CAFE_NEW のカフェ名入力にアプリ層の警告のみ実装した（`findSimilarCafes` server action、`app/(browsing)/cafes/new/cafe-new-form.tsx`）。名前の ilike 部分一致で似た既存カフェを表示するが、送信自体はブロックしない
+- **理由:** `external_ids->>'google_place_id'` ベースの一意インデックスという対応案は、Google Maps/Places のクライアント側統合が未実装（このプロジェクトに1行も存在しない）のため今は効かせられない。本格的な重複防止は Google Maps 統合スコープに持ち越す
+- **残作業:** Google Maps 統合時に、対応案（`external_ids->>'google_place_id'` への部分一意インデックス）を再評価する
+- 参照: `/code-review` によるセルフレビュー（2026-09-06、cafes テーブル実装時） / S_CAFE_NEW 実装時の決定（2026-09-20）
 
 ### B10. `cafes.name` に部分一致検索用インデックスがない
 
@@ -1000,6 +999,17 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   3レイアウトでの崩れ、`もっと見る` の実データでの動作
 - **対応:** D34 と同様、実機確認をまとめて行うタイミングでこのコンポーネントも含める
 - 参照: `comments` FE実装セッション（2026-09-20）
+
+### D40. 新規登録したカフェが登録直後から全ユーザーに公開される
+
+- **課題:** `cafes_select_active_anon` / `_authenticated` は `status='active'` のみを見ており、
+  「レビュー待ち」のような中間状態が無い。S_CAFE_NEW で登録したカフェは保存した瞬間から
+  誰にでも見える。誤登録・いたずら登録への対処手段が無い
+- **決定（v1）:** 許容する。`reports`（通報）テーブル自体がまだ存在しない状態で、カフェだけの
+  モデレーション導線を先に作るのは本末転倒なため、通報機能実装時にまとめて対処する
+- **対応案（未検討）:** a) `status` に `pending_review` 等の中間状態を追加し admin 承認を要求する
+  b) 通報機能実装時に、閾値超えで `hidden` へ自動遷移させる c) 現状維持
+- 参照: S_CAFE_NEW 実装時の決定（2026-09-20）
 
 ## 削除・アーカイブ判断待ち
 

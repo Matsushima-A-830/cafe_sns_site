@@ -216,7 +216,7 @@ RLS の `WITH CHECK` は OLD 行を参照できず「どの列が変わったか
 **RLS:**
 - SELECT: `status = 'active'` を全ユーザー、その他は admin
 - INSERT: 認証済みユーザー（`status='active'` 必須）
-- UPDATE: `verified_owner_id = auth.uid()`（`status='active'` 必須）or admin
+- UPDATE: `verified_owner_id = auth.uid()`（`status='active'` 必須）or `created_by = auth.uid() and verified_owner_id is null`（`status='active'` 必須、未認証オーナー期間中の本人編集。[pending-items B8](../../product/pending-items.md#b8-登録者本人がカフェ情報を編集できない未認証オーナー期間中--解消済2026-09-20)） or admin
 - DELETE: admin のみ
 
 ---
