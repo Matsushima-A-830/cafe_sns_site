@@ -32,6 +32,11 @@ test('位置情報の使用トグルを切るとリロード後も反映され�
   await toggle.click()
   await expect(toggle).toHaveAttribute('aria-checked', 'false')
 
+  // 見た目は楽観更新で即座に切り替わるが、updateSettings はまだ飛んでいる途中のことがある。
+  // 保存中は全トグルを disabled にしているので、それが解けるのを待ってからリロードする
+  // （でないと DB へ届く前にリロードしてしまい、元の値に戻って見える）
+  await expect(toggle).toBeEnabled()
+
   await page.reload()
   await expect(page.getByRole('switch', { name: '位置情報の使用' })).toHaveAttribute(
     'aria-checked',
