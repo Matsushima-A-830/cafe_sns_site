@@ -806,13 +806,19 @@ SELECT を原則公開にするのは `user_cafe_lists`（本人のみ）とは�
 
 | カラム | 型 | 制約 |
 |---|---|---|
-| user_id | uuid | PK, FK → profiles(id) |
+| user_id | uuid | PK, FK → profiles(id) ON DELETE CASCADE |
 | post_id | uuid | PK, FK → posts(id) ON DELETE CASCADE |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 
-**運用:** トリガーで `posts.bookmark_count` を維持
+**インデックス:** `(user_id, created_at desc)` — `/me/bookmarks`（S_BOOKMARKS）の
+「本人の保存を新しい順」に対応する
 
-**RLS:** 本人のみ
+**運用:** `sync_post_bookmark_count()` トリガーで `posts.bookmark_count` を維持する
+（`likes` の `sync_post_like_count()` と同型・`security definer` 必須）。物理 DELETE のみで
+論理削除は無い（`likes` と同じ）
+
+**RLS: 本人のみ。** `likes` と異なり SELECT も本人限定にする（`likes_select_all` のような
+公開ポリシーは無い）。「保存した投稿一覧」は他人に見せる画面が存在しないため
 
 ---
 

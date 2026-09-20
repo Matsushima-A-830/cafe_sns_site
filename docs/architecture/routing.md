@@ -100,7 +100,7 @@ app/
 │   │   ├── edit/page.tsx            # /me/edit (S_PROFILE_EDIT) ※未実装: アバター差し替えの Storage 導線とセットで実装する
 │   │   ├── favorites/page.tsx       # /me/favorites (S_FAVORITES)
 │   │   ├── want-to-go/page.tsx      # /me/want-to-go (S_WANT_TO_GO)
-│   │   ├── bookmarks/page.tsx       # /me/bookmarks (S_BOOKMARKS) ※未実装: post_bookmarks が無い
+│   │   ├── bookmarks/page.tsx       # /me/bookmarks (S_BOOKMARKS)
 │   │   ├── drafts/page.tsx          # /me/drafts (S_DRAFTS)
 │   │   └── badges/page.tsx          # /me/badges (S_BADGES) ※未実装: user_badges / area_visits が無い
 │   ├── notifications/
@@ -373,10 +373,10 @@ end $$;
 app/_actions/
 ├── posts.ts          # reservePost, createPost, updatePost, deletePost, publishDraft
 ├── comments.ts       # createComment, deleteComment
-├── likes.ts          # toggleLike
-├── bookmarks.ts      # toggleBookmark
-├── cafeLists.ts      # addToList, removeFromList (favorite / want_to_go)
-├── follows.ts        # toggleFollow
+├── likes.ts          # likePost, unlikePost
+├── bookmarks.ts      # bookmarkPost, unbookmarkPost
+├── cafe-lists.ts     # addCafeToList, removeCafeFromList (favorite / want_to_go)
+├── follows.ts        # followUser, unfollowUser
 ├── reports.ts        # createReport
 ├── blocks.ts         # toggleBlock
 ├── profiles.ts       # updateProfile, updateAvatar

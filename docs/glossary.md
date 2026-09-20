@@ -76,7 +76,7 @@
 | 下書き保存 | `save draft` | drafts | `saveDraft()` |
 | 削除する | `delete` (soft) | posts / comments | `deletePost()` |
 | いいねする / いいね解除 | `like` / `unlike` | posts | `likePost()` / `unlikePost()` |
-| 保存 / 保存解除 | `toggle bookmark` | posts | `toggleBookmark()` |
+| 保存 / 保存解除 | `bookmark` / `unbookmark` | posts | `bookmarkPost()` / `unbookmarkPost()` |
 | お気に入り登録 / 解除 | `toggle favorite` | cafes | `toggleFavorite()` |
 | 行きたい追加 / 解除 | `toggle wantToGo` | cafes | `toggleWantToGo()` |
 | フォロー / フォロー解除 | `toggle follow` | users | `toggleFollow()` |
