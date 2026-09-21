@@ -336,16 +336,16 @@
     "eyebrow": "CAFE SNS / IMPLEMENTATION BOARD",
     "headline": "気分で見つかる、<br>行きつけと繋がる",
     "sub": "いま立っているもの と これから立てるもの",
-    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローして、その店に行けるか確かめて、自分の店リストに貯める」までの一本。ここに<strong>いいね・コメント（返信1階層、オーナー公式返信、投稿主モデレーション）・保存（post_bookmarks）</strong>が加わり、投稿への反応が一通り揃った。さらに <strong>S_CAFE_NEW（カフェ新規登録）</strong>が開通し、composer の中だけだった「見つからないカフェを登録する」が専用画面になった。マイページは4カードに戻り、S_BOOKMARKS も開通した。<strong>S_SETTINGS（設定）と S_BLOCKED_USERS（ブロック管理）</strong>・<strong>S_NOTIFICATIONS（通知）</strong>・<strong>S_PROFILE_EDIT（プロフィール編集）</strong>に続き、今回 <strong>S_REPORT_FORM（通報フォーム）</strong>が加わり、投稿・コメント・ユーザー・カフェを通報できるようになった（投稿詳細・カフェ詳細・公開プロフィールに単独リンクで導線）。「自分の面」の残りは S_BADGES のみ。「安全ライン」の残りは admin 側の審査キューと ng_words。地図、オーナー側UIは、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
+    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローして、その店に行けるか確かめて、自分の店リストに貯める」までの一本。ここに<strong>いいね・コメント（返信1階層、オーナー公式返信、投稿主モデレーション）・保存（post_bookmarks）</strong>が加わり、投稿への反応が一通り揃った。さらに <strong>S_CAFE_NEW（カフェ新規登録）</strong>が開通し、composer の中だけだった「見つからないカフェを登録する」が専用画面になった。マイページは4カードに戻り、S_BOOKMARKS も開通した。<strong>S_SETTINGS（設定）と S_BLOCKED_USERS（ブロック管理）</strong>・<strong>S_NOTIFICATIONS（通知）</strong>・<strong>S_PROFILE_EDIT（プロフィール編集）</strong>・<strong>S_REPORT_FORM（通報フォーム）</strong>に続き、今回 <strong>S_ADMIN_REPORTS / S_ADMIN_REVIEW（通報審査キュー）</strong>が加わり、通報の受付から判定（非表示化・削除・停止・却下）・監査記録・通報者通知までが一気通貫で動くようになった。「自分の面」の残りは S_BADGES のみ。「安全ライン」の残りは ng_words（自動検出）のみ。地図、オーナー側UIは、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
     "updatedAt": "2026-09-21",
-    "ref": "branch: feature/report-form"
+    "ref": "branch: feature/admin-reports"
   },
 
   "metrics": [
-    { "k": "SCREENS", "v": "27", "unit": "/ 37", "note": "ワイヤー37画面のうち、画面IDコメント付きの page.tsx があるもの。S_CAFE_NEW はワイヤー自体が無いためこの分母に入らない", "ratio": 75 },
-    { "k": "TABLES", "v": "21", "unit": "/ 27", "note": "tables.md の27テーブル中、マイグレーション済み", "ratio": 75 },
-    { "k": "MIGRATIONS", "v": "38", "unit": "", "note": "RLSポリシー込み。forward-only 運用", "ratio": null },
-    { "k": "TESTS", "v": "88", "unit": " files", "note": "unit / RLS統合28本 / E2E 6本。統合・E2EともCIで実行", "ratio": null }
+    { "k": "SCREENS", "v": "27", "unit": "/ 37", "note": "ワイヤー37画面のうち、画面IDコメント付きの page.tsx があるもの。S_CAFE_NEW / S_ADMIN_* はワイヤー自体が無いためこの分母に入らない", "ratio": 75 },
+    { "k": "TABLES", "v": "22", "unit": "/ 27", "note": "tables.md の27テーブル中、マイグレーション済み（audit_logs 追加）", "ratio": 80 },
+    { "k": "MIGRATIONS", "v": "41", "unit": "", "note": "RLSポリシー込み。forward-only 運用", "ratio": null },
+    { "k": "TESTS", "v": "90", "unit": " files", "note": "unit / RLS統合29本 / E2E 6本。統合・E2EともCIで実行", "ratio": null }
   ],
 
   "sections": [
@@ -439,26 +439,29 @@
           "body": "フィルタタブ（すべて/フォロー/コメント/いいね）、もっと見る方式の一覧、個別・一括の既読化、フォロー通知への「フォローバック」ボタン。/me から導線を追加（AuthNavには未読バッジを出さない設計判断）。likes/comments/follows の3トリガーが自己通知・ブロック相手・通知設定offを弾いてから INSERT する。" },
         { "status": "partial", "tag": "S_REPORT_FORM", "title": "通報フォーム",
           "body": "投稿/コメント/ユーザー/カフェを通報。理由選択・補足説明・完了画面（該当ユーザーのブロック提案）。投稿詳細・カフェ詳細・公開プロフィールに単独「通報する」リンクで導線。",
-          "why": "自己通報の CHECK 制約は user のみ（post/comment/cafe は見送り）／統合「⋯」メニューと admin 審査キューは別スコープ（D47）" },
-        { "status": "done", "tag": "_actions", "title": "Server Actions 17本",
-          "body": "auth / onboarding / posts / drafts / feed / follows / cafes / congestion / cafe-lists / likes / comments / bookmarks / blocks / settings / notifications / profiles / reports。入力は全て Zod、返りは Result 型。" }
+          "why": "自己通報の CHECK 制約は user のみ（post/comment/cafe は見送り）（D47）" },
+        { "status": "partial", "tag": "S_ADMIN_REPORTS / S_ADMIN_REVIEW", "title": "通報審査キュー",
+          "body": "ステータス別タブの一覧、個別レビュー（通報内容・対象の内容・reason）、判定（投稿非表示/コメント削除/ユーザー停止/却下）→ audit_logs 記録 → 通報者への report_resolved 通知まで一気通貫で動く。posts/comments に admin 専用の SELECT/UPDATE バイパスポリシーを追加し、hidden・削除済みの対象も審査できる。",
+          "why": "ワイヤーフレーム自体が無く画面要素は実装時に判断／cafe 対象は却下のみで具体的な対応が未設計／通知は通報者のみで被通報者には送らない／audit_logs・notifications の INSERT 失敗はエラーを握りつぶす（D48）" },
+        { "status": "done", "tag": "_actions", "title": "Server Actions 18本",
+          "body": "auth / onboarding / posts / drafts / feed / follows / cafes / congestion / cafe-lists / likes / comments / bookmarks / blocks / settings / notifications / profiles / reports / admin-reports。入力は全て Zod、返りは Result 型。" }
       ]
     },
 
     {
       "kind": "frame", "id": "f-base", "row": 1, "x": 1740, "w": 1180,
       "title": "② 足場（DB・認可・ツーリング）",
-      "tally": "MIGRATIONS 38",
+      "tally": "MIGRATIONS 41",
       "lede": "認可はアプリ層に書かず RLS に寄せてある。ここが厚いぶん、画面は後から速く積める。",
       "notes": [
-        { "status": "done", "tag": "21 tables", "title": "実装済みテーブル",
-          "body": "areas / tags / badges / profiles / user_settings / user_interest_tags / follows / blocks / cafes / cafe_business_hours / cafe_congestion_reports / posts / post_images / post_tags / drafts / user_cafe_lists / likes / comments / post_bookmarks / notifications / reports" },
+        { "status": "done", "tag": "22 tables", "title": "実装済みテーブル",
+          "body": "areas / tags / badges / profiles / user_settings / user_interest_tags / follows / blocks / cafes / cafe_business_hours / cafe_congestion_reports / posts / post_images / post_tags / drafts / user_cafe_lists / likes / comments / post_bookmarks / notifications / reports / audit_logs" },
         { "status": "done", "tag": "trigger", "title": "カウント維持トリガーの原型",
           "body": "posts.like_count / comment_count / bookmark_count を増減で維持する。posts_update_own が作者しか許さないため <code>security definer</code> が必須。カウント更新では updated_at を動かさない。3列とも likes・comments・post_bookmarks の3トリガーが同じ形で維持する。" },
         { "status": "done", "tag": "RLS pitfall", "title": "論理削除UPDATEがRLSで永久に弾かれる罠",
           "body": "PostgreSQLのRLSはUPDATE後の新しい行が何らかのSELECTポリシーを満たすかも検証する。<code>deleted_at IS NULL</code>必須のSELECTポリシーだけだと、本人であっても論理削除のUPDATEが常に42501で弾かれる。<code>posts_select_own</code>（D19以前に発見）と同型の穴を comments でも踏み、<code>comments_select_own</code>（author_id / is_post_author、deleted_at を見ない）で解消。post_bookmarks は物理DELETEのみ（likesと同型）でUPDATEが無く、この穴自体を踏まなかった。" },
         { "status": "done", "tag": "RLS", "title": "認可は全部ポリシー側",
-          "body": "is_active_user / is_blocked_either_way / is_admin を共通関数化。JWTカスタムクレイムに role と status を載せる。" },
+          "body": "is_active_user / is_blocked_either_way / is_admin を共通関数化。JWTカスタムクレイムに role と status を載せる。posts/comments には is_admin() バイパスの permissive policy を追加し、admin の審査キューが hidden・削除済みの行も読み書きできるようにした。" },
         { "status": "done", "tag": "RPC", "title": "reservePost → upload → finalize_post",
           "body": "「投稿行が無いと画像を置けない／画像が無いと投稿できない」の循環依存を、hidden で予約してから確定する形で解消。" },
         { "status": "done", "tag": "storage", "title": "post-images バケット",
@@ -469,8 +472,8 @@
           "body": "厳選タグ30 / 東京45エリア / バッジ20の定義。バッジは<strong>マスタのみ</strong>で付与側は無い。" },
         { "status": "done", "tag": "CI", "title": "Biome + tsc + design-system 検査",
           "body": "#000禁止・インラインstyle禁止・非8倍数余白の検出を pre-commit と CI の両方で走らせる。" },
-        { "status": "done", "tag": "tests", "title": "テスト88ファイル",
-          "body": "RLS統合テスト28本は Supabase local 前提。PRごとに CI の Supabase Integration ジョブで回る。E2Eは6本。" }
+        { "status": "done", "tag": "tests", "title": "テスト90ファイル",
+          "body": "RLS統合テスト29本は Supabase local 前提。PRごとに CI の Supabase Integration ジョブで回る。E2Eは6本。" }
       ]
     },
 
@@ -484,8 +487,8 @@
           "body": "地図は areas.center_location の座標45件が未収集（A3）。タグ検索も未着手。" },
         { "status": "todo", "tag": "S_BADGES", "title": "自分の面の残り",
           "body": "バッジのみ。設定・ブロック管理・通知・プロフィール編集は開通した。マイページ本体とお気に入り・行きたい・下書き・保存も実装済み。" },
-        { "status": "todo", "tag": "S_ADMIN_REPORTS / S_ADMIN_REVIEW", "title": "admin 審査キュー",
-          "body": "reports は S_REPORT_FORM で開通済み。運営側の一覧・個別レビュー画面と ng_words（NGワード辞書）が残っている。若年層向けサービスの前提条件。" },
+        { "status": "todo", "tag": "ng_words", "title": "NGワード辞書と自動検出",
+          "body": "admin 審査キュー（S_ADMIN_REPORTS/REVIEW）は開通したが、投稿/コメントの自動フラグ元になる ng_words テーブルと辞書がまだ無く、通報は人手の通報頼み。" },
         { "status": "todo", "tag": "owner 6画面 + S_POST_OFFICIAL", "title": "オーナーの面",
           "body": "認証申請 / 審査中 / ダッシュボード / 店舗編集 / 投稿分析 / 常連認定。幹Cはここが入口。" },
         { "status": "todo", "tag": "user_badges / area_visits", "title": "ゲーミフィケーション",
@@ -570,11 +573,13 @@
         { "status": "risk", "tag": "D38", "title": "likes の SELECT が投稿の可視性を継承していない",
           "body": "comments 実装時に発見。likes_select_all はブロック関係しか見ておらず、hidden・論理削除済み・非公開投稿への「いいね」の存在（user_id の羅列）が post_id さえ分かれば読める。comments で固めた exists(posts) パターンを横展開すれば直るが、意図的に別PRに切り出した（放置期間あり）。" },
         { "status": "risk", "tag": "D40", "title": "登録直後のカフェが即全公開",
-          "body": "status='active' 即時公開で中間状態が無い。reports テーブルと通報フォームは開通したが、admin 審査キューがまだ無く通報を受けても人手の対処に頼る状態（S_CAFE_NEW 実装時の決定）。" },
+          "body": "status='active' 即時公開で中間状態が無い。admin 審査キューは通報経由の対応に限られ、カフェ自体を通報しても却下以外の対応が無い（S_CAFE_NEW 実装時の決定 / D48）。" },
         { "status": "risk", "tag": "D43", "title": "通知の個別既読化にロールバックが無い",
           "body": "NotificationList.handleMarkRead は楽観更新後の Server Action 呼び出しを結果を見ずに投げっぱなしにしており、失敗しても readAt を戻さない。すべて既読ボタン側は /code-review で見つかった同種のバグを修正済みだが、個別クリックの方は未対応のまま。" },
         { "status": "risk", "tag": "D44", "title": "通知一覧の相対時刻がハイドレーションミスマッチのリスク",
-          "body": "NotificationItem は 'use client' のままSSRされ、formatRelativeTime が new Date() を引数無しで呼ぶため、作成直後（1分未満）の通知でサーバーとクライアントの表示が食い違いうる。" }
+          "body": "NotificationItem は 'use client' のままSSRされ、formatRelativeTime が new Date() を引数無しで呼ぶため、作成直後（1分未満）の通知でサーバーとクライアントの表示が食い違いうる。" },
+        { "status": "risk", "tag": "D48", "title": "admin 審査キューで見送ったもの",
+          "body": "resolveReport は posts/comments/profiles/reports/audit_logs/notifications を1つの Server Action 呼び出しで順に更新するがトランザクションではない。audit_logs/notifications の INSERT 失敗は console.error に留めて Server Action 自体は成功扱いにするため、監査ログの欠落を検知する仕組みが無い。通知は通報者のみで被通報者には送らない。" }
       ]
     },
 
@@ -586,7 +591,7 @@
       "chains": [
         { "src": "cafe_owner_verifications", "outs": ["オーナー認証バッジ", "owner 6画面", "幹C の起点"] },
         { "src": "regular_customers", "outs": ["常連認定", "「私の行きつけ」タブ", "常連分析"] },
-        { "src": "ng_words", "outs": ["投稿/コメントのNGワード検出", "admin 審査キューの自動フラグ"] },
+        { "src": "ng_words", "outs": ["投稿/コメントのNGワード検出", "admin 審査キューへの自動フラグ投入"] },
         { "src": "user_badges / area_visits", "outs": ["バッジ獲得", "エリア制覇マップ", "シーン開拓バッジ＝幹A-4", "notifications.type='badge' の発火元"] },
         { "src": "areas.center_location（データ）", "outs": ["S_MAP", "近くのカフェ", "エリア自動判定"] }
       ]
@@ -607,8 +612,8 @@
               "body": "S_CAFE_NEW（登録）・登録者本人による未認証期間中の編集（B8）・カフェ詳細・user_cafe_lists まで実装済み。残るのは地図（6th）とオーナー側の情報編集（幹C側、5th）。" },
             { "status": "future", "tag": "3rd", "title": "自分の面を開く（ほぼ完了）",
               "body": "設定・ブロック管理・通知・プロフィール編集は実装済み。マイページと4つのリスト（お気に入り・行きたい・下書き・保存）も実装済み。残るのはバッジのみ。" },
-            { "status": "future", "tag": "4th", "title": "安全ラインを引く（進行中）",
-              "body": "ブロック解除導線・S_REPORT_FORM（通報フォーム）は実装済み。残るのは ng_words と admin 審査キュー。若年層向けサービスとして公開の前提条件。" },
+            { "status": "future", "tag": "4th", "title": "安全ラインを引く（ほぼ完了）",
+              "body": "ブロック解除導線・S_REPORT_FORM（通報フォーム）・S_ADMIN_REPORTS/REVIEW（審査キュー）は実装済み。残るのは ng_words（自動検出）のみ。若年層向けサービスとして公開の前提条件。" },
             { "status": "future", "tag": "5th", "title": "幹Cを起こす",
               "body": "オーナー認証 → ダッシュボード → オーナー限定投稿 → 常連認定。差別化の半分がここから始まる。" },
             { "status": "future", "tag": "6th", "title": "地図",
