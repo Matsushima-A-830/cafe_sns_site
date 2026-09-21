@@ -256,6 +256,70 @@ export type Database = {
           },
         ]
       }
+      cafe_owner_verifications: {
+        Row: {
+          applicant_note: string | null
+          cafe_id: string
+          contact_email: string
+          created_at: string
+          document_urls: Json
+          id: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          applicant_note?: string | null
+          cafe_id: string
+          contact_email: string
+          created_at?: string
+          document_urls?: Json
+          id?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          applicant_note?: string | null
+          cafe_id?: string
+          contact_email?: string
+          created_at?: string
+          document_urls?: Json
+          id?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'cafe_owner_verifications_cafe_id_fkey'
+            columns: ['cafe_id']
+            isOneToOne: false
+            referencedRelation: 'cafes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cafe_owner_verifications_reviewed_by_fkey'
+            columns: ['reviewed_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'cafe_owner_verifications_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       cafes: {
         Row: {
           address: string | null
@@ -1081,6 +1145,14 @@ export type Database = {
           level_avg: number
           sample_count: number
           source: string
+        }[]
+      }
+      get_owner_verification_cafe: {
+        Args: { p_cafe_id: string }
+        Returns: {
+          area_label: string
+          id: string
+          name: string
         }[]
       }
       is_active_user: { Args: never; Returns: boolean }

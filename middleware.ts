@@ -40,7 +40,9 @@ export async function middleware(request: NextRequest) {
     path.startsWith('/report') ||
     path.startsWith('/cafes/new') ||
     path.startsWith('/onboarding') ||
-    path.startsWith('/account')
+    path.startsWith('/account') ||
+    path.startsWith('/owner/claim') ||
+    path === '/owner/pending'
 
   if (requiresAuth) {
     if (!isAuthed) return redirect(`/login?next=${encodeURIComponent(path)}`)

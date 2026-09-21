@@ -207,17 +207,33 @@ export default async function CafeDetailPage({ params }: PageProps) {
           isAuthenticated={user !== null}
         />
 
-        {/* 統合「⋯」メニューは別スコープ。block-button.tsx と同じ判断で単独リンクだけ出す */}
-        <Link
-          href={
-            user !== null
-              ? `/report/cafe/${cafe.id}`
-              : `/login?next=${encodeURIComponent(`/report/cafe/${cafe.id}`)}`
-          }
-          className="self-start text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
-        >
-          通報する
-        </Link>
+        <div className="flex flex-wrap items-center gap-4">
+          {/* 統合「⋯」メニューは別スコープ。block-button.tsx と同じ判断で単独リンクだけ出す */}
+          <Link
+            href={
+              user !== null
+                ? `/report/cafe/${cafe.id}`
+                : `/login?next=${encodeURIComponent(`/report/cafe/${cafe.id}`)}`
+            }
+            className="text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
+          >
+            通報する
+          </Link>
+
+          {/* 認証済みカフェには出さない（既にオーナーが確定しているため） */}
+          {!cafe.isVerified && (
+            <Link
+              href={
+                user !== null
+                  ? `/owner/claim/${cafe.id}`
+                  : `/login?next=${encodeURIComponent(`/owner/claim/${cafe.id}`)}`
+              }
+              className="text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
+            >
+              このカフェのオーナーですか？
+            </Link>
+          )}
+        </div>
       </header>
 
       <div className="flex flex-col gap-8 lg:grid lg:grid-cols-3 lg:items-start">

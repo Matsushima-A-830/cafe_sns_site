@@ -88,7 +88,7 @@
 |---|---|---|
 | `DOCUMENTS_INSUFFICIENT` | 提出書類2点未満 | claimCafe |
 | `VERIFICATION_ALREADY_PENDING` | 既存申請あり | claimCafe |
-| `VERIFICATION_REJECTED` | 却下履歴あり（再申請待機中） | claimCafe |
+| `VERIFICATION_REJECTED` | 却下履歴あり（待機期間なしで即再申請可、S_OWNER_CLAIM で理由を表示するための情報値） | claimCafe |
 | `NOT_OWNER` | オーナー権限なし | owner系 |
 
 ### アップロード / ストレージ

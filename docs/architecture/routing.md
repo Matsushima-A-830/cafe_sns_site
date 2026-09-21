@@ -156,7 +156,9 @@ app/
     ├── auth/
     │   └── callback/route.ts        # Supabase Auth コールバック
     ├── uploads/
-    │   └── sign/route.ts            # Storage 署名付きアップロードURL発行
+    │   ├── sign/route.ts             # Storage 署名付きアップロードURL発行（post-images）
+    │   └── owner-document/
+    │       └── sign/route.ts        # Storage 署名付きアップロードURL発行（owner-documents）
     ├── webhooks/
     │   ├── consent/route.ts         # 保護者同意リンク処理
     │   └── stripe/route.ts          # 将来: 決済Webhook
