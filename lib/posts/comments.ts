@@ -185,6 +185,31 @@ export async function getCommentAuthorIdentity(
   }
 }
 
+export type CommentTarget = { id: string; body: string; authorId: string; postId: string }
+
+/**
+ * 通報フォーム（S_REPORT_FORM）の対象コメント取得。comments_select_visible
+ * （supabase/migrations/20260920120000_create_comments.sql）に乗るセッション付き
+ * クライアントで呼ぶこと。ブロック関係にある相手のコメントは自然に0件になり、
+ * それがそのまま「対象なし＝404」の根拠になる（service role で読んではいけない）
+ */
+export async function getCommentById(
+  supabase: Client,
+  commentId: string,
+): Promise<CommentTarget | null> {
+  const { data, error } = await supabase
+    .from('comments')
+    .select('id, body, author_id, post_id')
+    .eq('id', commentId)
+    .is('deleted_at', null)
+    .maybeSingle()
+
+  if (error) throw new Error(`コメントの取得に失敗しました (id=${commentId}): ${error.message}`)
+  if (!data) return null
+
+  return { id: data.id, body: data.body, authorId: data.author_id, postId: data.post_id }
+}
+
 /**
  * コメントの追加・削除の後に、権威ある件数を読み直す。likes の getPostLikeCount と同じ理由
  * — 楽観更新の ±1 を確定値で上書きする

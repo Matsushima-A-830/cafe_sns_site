@@ -75,7 +75,7 @@ export default async function UserProfilePage({ params }: PageProps) {
     getPostList(supabase, { authorId: profile.id, viewerId: user?.id ?? null }),
   ])
 
-  // バッジ（user_badges）・「行きつけ」タブ（regular_customers）・⋯メニューの通報（reports）は
+  // バッジ（user_badges）・「行きつけ」タブ（regular_customers）は
   // 元テーブルが未作成のため出していない（pending-items D28）
   const query: FeedQuery = {
     scope: 'new',
@@ -124,6 +124,13 @@ export default async function UserProfilePage({ params }: PageProps) {
                 initialFollowing={following}
               />
               <BlockButton targetUserId={profile.id} />
+              {/* 統合「⋯」メニューは別スコープ。BlockButton と同じ判断で単独リンクだけ出す */}
+              <Link
+                href={`/report/user/${profile.id}`}
+                className="text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
+              >
+                通報する
+              </Link>
             </div>
           ) : (
             <Button asChild size="lg">
