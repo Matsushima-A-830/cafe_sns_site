@@ -1,13 +1,14 @@
 /**
- * S_ADMIN_REPORTS / S_ADMIN_REVIEW の選択肢と UI ラベルの対応
+ * S_ADMIN_REPORTS / S_ADMIN_REVIEW の選択肢と UI ラベルの対応。
+ * status のラベルは docs/glossary.md #通報状態 のユビキタス言語と一致させる
  *   docs/design/screen-flow.md #5-通報ブロックフロー
  *   docs/architecture/data-model/tables.md #reports
  */
 export const REPORT_STATUS_LABELS = {
   pending: '未対応',
   reviewing: '対応中',
-  resolved: '対応済み',
-  rejected: '却下',
+  resolved: '対応済',
+  rejected: '対応不要',
 } as const
 
 export const REPORT_TARGET_TYPE_LABELS = {
