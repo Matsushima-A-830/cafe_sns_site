@@ -39,3 +39,8 @@ export const OFFICIAL_FORMAT_LABELS: Record<OfficialFormat, string> = {
   closure: '臨時休業・営業時間変更',
   new_menu: '新メニュー',
 }
+
+/** 新メニュー（new_menu）の写真枚数。ワイヤーの「写真（1〜3枚）」に合わせる
+ *   docs/design/wireframes/composer.md #新メニューnew_menu */
+export const NEW_MENU_IMAGE_MIN_COUNT = 1
+export const NEW_MENU_IMAGE_MAX_COUNT = 3

@@ -1,5 +1,9 @@
 import { z } from 'zod'
-import { OFFICIAL_FORMATS } from '@/lib/constants/posts'
+import {
+  NEW_MENU_IMAGE_MAX_COUNT,
+  NEW_MENU_IMAGE_MIN_COUNT,
+  OFFICIAL_FORMATS,
+} from '@/lib/constants/posts'
 
 // Tiptap JSON の中身そのものは検証しない（エディタが生成する構造を信頼する）。
 // 空文言・サイズ上限チェックは extractPlainText 経由でアプリ層（createPost）が行う
@@ -155,6 +159,17 @@ const officialImagePathsSchema = z
   .transform((paths) => Array.from(new Set(paths)))
   .pipe(z.array(z.string()).max(10, '画像は10枚までです'))
 
+// 新メニューはワイヤーの「写真（1〜3枚）」通り必須・上限3枚にする（他フォーマットより厳しい）
+const newMenuImagePathsSchema = z
+  .array(imagePathSchema)
+  .transform((paths) => Array.from(new Set(paths)))
+  .pipe(
+    z
+      .array(z.string())
+      .min(NEW_MENU_IMAGE_MIN_COUNT, '写真は1枚以上選んでください')
+      .max(NEW_MENU_IMAGE_MAX_COUNT, `写真は${NEW_MENU_IMAGE_MAX_COUNT}枚までです`),
+  )
+
 // menu_name/price_yen/valid_until/available_from/starts_on/ends_on/reason は
 // tables.md #metadataのスキーマ公式投稿 に定義された固定キー。一言コメント・説明といった
 // 自由文は metadata ではなく posts.body_json（Tiptap doc）に持たせる — 一般投稿と同じ
@@ -210,7 +225,7 @@ export const createOfficialPostSchema = z.discriminatedUnion('officialFormat', [
     officialFormat: z.literal('new_menu'),
     postId: z.string().uuid('投稿IDの形式が正しくありません'),
     bodyJson: tiptapDocSchema,
-    imagePaths: officialImagePathsSchema,
+    imagePaths: newMenuImagePathsSchema,
     metadata: newMenuMetadataSchema,
   }),
   z.object({

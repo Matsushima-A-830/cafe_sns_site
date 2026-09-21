@@ -15,6 +15,7 @@
 
 create or replace function public.finalize_official_post(
   p_post_id uuid,
+  p_official_format text,
   p_title text,
   p_body_json jsonb,
   p_metadata jsonb,
@@ -30,11 +31,16 @@ declare
   v_path text;
   v_display_order smallint := 0;
 begin
-  -- finalize_post と同じロック方式（同じ postId への同時呼び出しを直列化する）。
-  -- is_official = true も対象条件に含め、一般投稿の予約行を誤って確定させない
+  -- finalize_post が post_type を対象条件に含めるのと同じ理由（同じ考え方）。
+  -- official_format も対象条件に含めないと、closure として予約した postId に
+  -- tip 用のペイロード（title/bodyJson等）を送って finalize できてしまい、
+  -- official_format='closure' なのに tip 形式の本文が入るような不整合が起こる
   select id into v_locked_id
   from public.posts
-  where id = p_post_id and status = 'hidden' and is_official = true
+  where id = p_post_id
+    and status = 'hidden'
+    and is_official = true
+    and official_format = p_official_format
   for update;
 
   if v_locked_id is null then
@@ -57,13 +63,15 @@ begin
 end;
 $$;
 
-comment on function public.finalize_official_post(uuid, text, jsonb, jsonb, text[]) is
+comment on function public.finalize_official_post(uuid, text, text, jsonb, jsonb, text[]) is
   'reserveOfficialPost が作った hidden 予約行（is_official=true）を、タイトル/本文/
    metadata/画像込みで公開確定させる。finalize_post と同じ FOR UPDATE ロック方式。
+   p_official_format は予約時の official_format と一致しないと対象0件になる
+   （closure で予約した postId に tip のペイロードを送るような不整合を防ぐ）。
    docs/design/wireframes/composer.md #S_POST_OFFICIAL';
 
-revoke execute on function public.finalize_official_post(uuid, text, jsonb, jsonb, text[]) from public;
-grant execute on function public.finalize_official_post(uuid, text, jsonb, jsonb, text[]) to authenticated;
+revoke execute on function public.finalize_official_post(uuid, text, text, jsonb, jsonb, text[]) from public;
+grant execute on function public.finalize_official_post(uuid, text, text, jsonb, jsonb, text[]) to authenticated;
 
 -- ============================================
 -- notify_on_official_post: 公式投稿の公開 → 「お気に入り」「行きたい」ユーザーへの通知

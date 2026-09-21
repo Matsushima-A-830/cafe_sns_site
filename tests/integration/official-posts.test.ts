@@ -99,6 +99,7 @@ describe('finalize_official_post', () => {
 
     const { error } = await owner.client.rpc('finalize_official_post', {
       p_post_id: postId,
+      p_official_format: 'closure',
       p_title: null,
       p_body_json: {
         type: 'doc',
@@ -128,6 +129,7 @@ describe('finalize_official_post', () => {
     const postId = await reserveOfficial('tip')
     await owner.client.rpc('finalize_official_post', {
       p_post_id: postId,
+      p_official_format: 'tip',
       p_title: 'タイトル',
       p_body_json: { type: 'doc', content: [] },
       p_metadata: { v: 1 },
@@ -136,12 +138,32 @@ describe('finalize_official_post', () => {
 
     const { error } = await owner.client.rpc('finalize_official_post', {
       p_post_id: postId,
+      p_official_format: 'tip',
       p_title: 'タイトル2',
       p_body_json: { type: 'doc', content: [] },
       p_metadata: { v: 1 },
       p_image_paths: [],
     })
     expect(error?.message).toContain('FORBIDDEN')
+  })
+
+  it('予約時と異なる official_format を送ると FORBIDDEN になる（closureで予約したpostIdにtipを送る不整合を防ぐ）', async () => {
+    const postId = await reserveOfficial('closure')
+
+    const { error } = await owner.client.rpc('finalize_official_post', {
+      p_post_id: postId,
+      p_official_format: 'tip',
+      p_title: 'なりすましタイトル',
+      p_body_json: { type: 'doc', content: [] },
+      p_metadata: { v: 1 },
+      p_image_paths: [],
+    })
+    expect(error?.message).toContain('FORBIDDEN')
+
+    // 対象0件で何も変更されず、予約時のまま hidden に留まる
+    const { data } = await service.from('posts').select('status, title').eq('id', postId).single()
+    expect(data?.status).toBe('hidden')
+    expect(data?.title).toBeNull()
   })
 })
 
@@ -150,6 +172,7 @@ describe('notify_on_official_post', () => {
     const postId = await reserveOfficial('today_special')
     const { error } = await owner.client.rpc('finalize_official_post', {
       p_post_id: postId,
+      p_official_format: 'today_special',
       p_title: null,
       p_body_json: { type: 'doc', content: [] },
       p_metadata: { v: 1, menu_name: 'マロンタルト', price_yen: 580, valid_until: null },
@@ -172,6 +195,7 @@ describe('notify_on_official_post', () => {
     const postId = await reserveOfficial('new_menu')
     await owner.client.rpc('finalize_official_post', {
       p_post_id: postId,
+      p_official_format: 'new_menu',
       p_title: null,
       p_body_json: { type: 'doc', content: [] },
       p_metadata: { v: 1, menu_name: '秋ブレンド', price_yen: 620, available_from: '2026-09-22' },

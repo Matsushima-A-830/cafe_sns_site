@@ -11,9 +11,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { textToTiptapDoc } from '@/lib/composer/tiptap'
+import { NEW_MENU_IMAGE_MAX_COUNT, NEW_MENU_IMAGE_MIN_COUNT } from '@/lib/constants/posts'
 import type { ComposerImage } from '@/types/composer'
 
-/** S_POST_OFFICIAL 新メニュー（new_menu）。写真1〜3枚推奨 */
+/** S_POST_OFFICIAL 新メニュー（new_menu）。写真1〜3枚必須（ワイヤー準拠） */
 export function NewMenuForm() {
   const composer = useOfficialComposer('new_menu')
   const [images, setImages] = useState<ComposerImage[]>([])
@@ -38,7 +39,10 @@ export function NewMenuForm() {
   }
 
   const postId = composer.postId
-  const canSubmit = menuName.trim().length > 0 && availableFrom.length > 0
+  const canSubmit =
+    menuName.trim().length > 0 &&
+    availableFrom.length > 0 &&
+    images.length >= NEW_MENU_IMAGE_MIN_COUNT
   const priceYen = price.trim() === '' ? null : Number(price)
 
   async function handleSubmit() {
@@ -75,6 +79,7 @@ export function NewMenuForm() {
           <ImagePicker
             postId={postId}
             images={images}
+            maxImages={NEW_MENU_IMAGE_MAX_COUNT}
             onChange={(update) => setImages((prev) => update(prev))}
           />
         </div>

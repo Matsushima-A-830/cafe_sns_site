@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import { reserveOfficialPost } from '@/app/_actions/posts-official'
 import type { OfficialFormat } from '@/lib/constants/posts'
 import { errorMessage } from '@/lib/utils/error-messages'
+import type { ErrorCode } from '@/types/errors'
 
 /**
  * S_POST_OFFICIAL の4フォーム共通の予約フック。ImagePicker / TiptapEditor は
@@ -47,7 +48,7 @@ export function useOfficialComposer(officialFormat: OfficialFormat) {
   }, [officialFormat])
 
   /** 送信結果が ok なら /new/success へ遷移する。呼び出し側は結果の分岐だけ書けばよい */
-  async function submit<T>(
+  async function submit<T extends ErrorCode>(
     action: () => Promise<{ ok: true; data: { postId: string } } | { ok: false; error: T }>,
   ) {
     setIsSubmitting(true)
@@ -55,7 +56,7 @@ export function useOfficialComposer(officialFormat: OfficialFormat) {
     const result = await action()
     setIsSubmitting(false)
     if (!result.ok) {
-      setFormError(errorMessage(result.error as Parameters<typeof errorMessage>[0]))
+      setFormError(errorMessage(result.error))
       return false
     }
     router.replace(`/new/success?postId=${result.data.postId}`)

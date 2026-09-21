@@ -19,12 +19,15 @@ export function ImagePicker({
   images,
   onChange,
   disabled,
+  maxImages = POST_IMAGE_MAX_COUNT,
 }: {
   postId: string
   images: ComposerImage[]
   /** アップロード完了は await を跨ぐため、props の images ではなく直前の値から更新する */
   onChange: (update: (prev: ComposerImage[]) => ComposerImage[]) => void
   disabled?: boolean
+  /** 投稿全体の上限（POST_IMAGE_MAX_COUNT）より狭い枚数制限が要る画面向け（例: 新メニューの1〜3枚） */
+  maxImages?: number
 }) {
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -32,7 +35,7 @@ export function ImagePicker({
   const [uploadingIds, setUploadingIds] = useState<string[]>([])
   const [error, setError] = useState<string>()
 
-  const remaining = POST_IMAGE_MAX_COUNT - images.length - uploadingIds.length
+  const remaining = maxImages - images.length - uploadingIds.length
 
   // このコンポーネントが作った object URL。投稿確定・画面離脱まで解放されないと
   // 変換後 Blob（数MB×最大10枚）がそのままメモリに残る
@@ -49,7 +52,7 @@ export function ImagePicker({
     setError(undefined)
     const files = Array.from(fileList).slice(0, Math.max(0, remaining))
     if (files.length < fileList.length) {
-      setError(`写真は${POST_IMAGE_MAX_COUNT}枚までです`)
+      setError(`写真は${maxImages}枚までです`)
     }
     // 同じファイルを選び直せるよう、読み取り後すぐ input を空に戻す
     if (inputRef.current) inputRef.current.value = ''
@@ -141,7 +144,7 @@ export function ImagePicker({
       />
 
       <p className="text-sm text-muted-foreground">
-        ※ 位置情報（EXIF）は自動で削除されます・最大{POST_IMAGE_MAX_COUNT}枚
+        ※ 位置情報（EXIF）は自動で削除されます・最大{maxImages}枚
       </p>
       <FieldError>{error}</FieldError>
     </div>

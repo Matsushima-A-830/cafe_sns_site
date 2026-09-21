@@ -149,6 +149,9 @@ export async function createOfficialPost(
 
   const { error } = await supabase.rpc('finalize_official_post', {
     p_post_id: data.postId,
+    // 予約時の official_format と一致しない postId には対象0件（FORBIDDEN）になる。
+    // 例えば closure で予約した postId に tip のペイロードを送るような不整合を防ぐ
+    p_official_format: data.officialFormat,
     // 生成された型は Postgres 関数引数の NULL 許容を表現できず string 固定になるが、
     // plpgsql 関数はどの引数にも NULL を渡せる（createPost と同じキャスト）
     p_title: title as string,

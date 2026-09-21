@@ -1,5 +1,5 @@
 import { OFFICIAL_FORMAT_LABELS } from '@/lib/constants/posts'
-import type { OfficialMetadata } from '@/lib/posts/official-metadata'
+import { OFFICIAL_BADGE_LABEL, type OfficialMetadata } from '@/lib/posts/official-metadata'
 import { formatPostDate } from '@/lib/utils/format-date'
 
 /**
@@ -10,7 +10,7 @@ import { formatPostDate } from '@/lib/utils/format-date'
 export function OfficialBadge() {
   return (
     <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary px-2 py-1 text-xs font-bold text-primary-foreground">
-      ✓公式
+      {OFFICIAL_BADGE_LABEL}
     </span>
   )
 }

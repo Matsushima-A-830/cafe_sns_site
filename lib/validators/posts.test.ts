@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { createPostSchema, extractPlainText, getBodyJsonByteSize } from './posts'
+import {
+  createOfficialPostSchema,
+  createPostSchema,
+  extractPlainText,
+  getBodyJsonByteSize,
+  reserveOfficialPostSchema,
+} from './posts'
 
 const validPostId = '00000000-0000-4000-8000-000000000000'
 const validCafeId = '11111111-1111-4111-8111-111111111111'
@@ -278,5 +284,146 @@ describe('getBodyJsonByteSize', () => {
 
     expect(() => getBodyJsonByteSize(circular)).not.toThrow()
     expect(getBodyJsonByteSize(circular)).toBeNull()
+  })
+})
+
+describe('reserveOfficialPostSchema', () => {
+  it('4フォーマットいずれも通す', () => {
+    for (const officialFormat of ['today_special', 'tip', 'closure', 'new_menu']) {
+      expect(reserveOfficialPostSchema.safeParse({ officialFormat }).success).toBe(true)
+    }
+  })
+
+  it('未知のフォーマットは弾く', () => {
+    expect(reserveOfficialPostSchema.safeParse({ officialFormat: 'coupon' }).success).toBe(false)
+  })
+})
+
+describe('createOfficialPostSchema', () => {
+  it('today_special: 最小入力（画像なし）を通す', () => {
+    const result = createOfficialPostSchema.safeParse({
+      officialFormat: 'today_special',
+      postId: validPostId,
+      bodyJson: textDoc,
+      imagePaths: [],
+      metadata: { v: 1, menu_name: 'マロンタルト', price_yen: 580, valid_until: null },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('today_special: menu_name が空文字だと弾く', () => {
+    const result = createOfficialPostSchema.safeParse({
+      officialFormat: 'today_special',
+      postId: validPostId,
+      bodyJson: textDoc,
+      imagePaths: [],
+      metadata: { v: 1, menu_name: '', price_yen: null, valid_until: null },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('new_menu: 写真が0枚だと弾く（ワイヤーの「写真1〜3枚」を必須にする）', () => {
+    const result = createOfficialPostSchema.safeParse({
+      officialFormat: 'new_menu',
+      postId: validPostId,
+      bodyJson: textDoc,
+      imagePaths: [],
+      metadata: { v: 1, menu_name: '秋ブレンド', price_yen: 620, available_from: '2026-09-22' },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('new_menu: 写真が4枚だと弾く（上限3枚）', () => {
+    const result = createOfficialPostSchema.safeParse({
+      officialFormat: 'new_menu',
+      postId: validPostId,
+      bodyJson: textDoc,
+      imagePaths: [
+        'author-uuid/post-uuid/image-1.webp',
+        'author-uuid/post-uuid/image-2.webp',
+        'author-uuid/post-uuid/image-3.webp',
+        'author-uuid/post-uuid/image-4.webp',
+      ],
+      metadata: { v: 1, menu_name: '秋ブレンド', price_yen: 620, available_from: '2026-09-22' },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('new_menu: 写真1〜3枚なら通す', () => {
+    const result = createOfficialPostSchema.safeParse({
+      officialFormat: 'new_menu',
+      postId: validPostId,
+      bodyJson: textDoc,
+      imagePaths: [validImagePath],
+      metadata: { v: 1, menu_name: '秋ブレンド', price_yen: 620, available_from: '2026-09-22' },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('closure: 終了日が開始日より前だと弾く', () => {
+    const result = createOfficialPostSchema.safeParse({
+      officialFormat: 'closure',
+      postId: validPostId,
+      metadata: {
+        v: 1,
+        closure_type: 'closed',
+        starts_on: '2026-09-26',
+        ends_on: '2026-09-25',
+        reason: '',
+      },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('closure: 開始日=終了日なら通す（1日だけの休業）', () => {
+    const result = createOfficialPostSchema.safeParse({
+      officialFormat: 'closure',
+      postId: validPostId,
+      metadata: {
+        v: 1,
+        closure_type: 'closed',
+        starts_on: '2026-09-25',
+        ends_on: '2026-09-25',
+        reason: '私用のため',
+      },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('closure: imagePaths や bodyJson を渡しても無視される（フィールド自体を持たない）', () => {
+    const result = createOfficialPostSchema.safeParse({
+      officialFormat: 'closure',
+      postId: validPostId,
+      metadata: {
+        v: 1,
+        closure_type: 'closed',
+        starts_on: '2026-09-25',
+        ends_on: '2026-09-25',
+        reason: '',
+      },
+    })
+    expect(result.success).toBe(true)
+    if (result.success) expect('imagePaths' in result.data).toBe(false)
+  })
+
+  it('tip: title が空文字だと弾く', () => {
+    const result = createOfficialPostSchema.safeParse({
+      officialFormat: 'tip',
+      postId: validPostId,
+      title: '',
+      bodyJson: textDoc,
+      imagePaths: [],
+      metadata: { v: 1 },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('未知の officialFormat は弾く', () => {
+    const result = createOfficialPostSchema.safeParse({
+      officialFormat: 'coupon',
+      postId: validPostId,
+      metadata: {},
+    })
+    expect(result.success).toBe(false)
   })
 })
