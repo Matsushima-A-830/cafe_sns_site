@@ -5,13 +5,10 @@ import type { Database } from '@/types/database'
 
 /**
  * S_OWNER_DASHBOARD の読み取り。
- *
- * cafes の SELECT RLS（cafes_select_active_authenticated）は status='active' なら
- * verified_owner_id を問わず全員に見せる設計（S_CAFE_DETAIL を誰でも見られるようにするため）。
- * そのため「このカフェの経営情報」を返してよいかは RLS に委ねられず、ここで
- * verified_owner_id === 呼び出し元本人 を明示的に検証する。検証を省くと role='owner' を
- * 持つ誰でも他人のカフェのダッシュボードを閲覧できてしまう
- *   docs/architecture/data-model/tables.md #cafes
+ * - cafes の SELECT RLS は status='active' なら誰でも見せる設計なので、
+ *   verified_owner_id === 呼び出し元本人 をここで明示的に検証する
+ * - 省くと role='owner' を持つ誰でも他人のカフェの経営情報を閲覧できてしまう
+ *   （closed/hidden カフェをオーナー本人が読めない既知の別ギャップは pending-items D55）
  */
 
 type Client = SupabaseClient<Database>
@@ -60,18 +57,32 @@ export function formatChangePct(pct: number | null): string {
   return pct > 0 ? `+${pct}%` : `${pct}%`
 }
 
-type WeeklyPostRow = { published_at: string | null; like_count: number; bookmark_count: number }
+type WeeklyPostRow = { like_count: number; bookmark_count: number }
 
-function aggregateWeek(rows: WeeklyPostRow[], weekStart: Date) {
-  const totals = { count: 0, likes: 0, bookmarks: 0 }
-  for (const row of rows) {
-    if (!row.published_at) continue
-    if (new Date(row.published_at).getTime() < weekStart.getTime()) continue
-    totals.count += 1
-    totals.likes += row.like_count
-    totals.bookmarks += row.bookmark_count
+function sumWeek(rows: WeeklyPostRow[]) {
+  return {
+    count: rows.length,
+    likes: rows.reduce((sum, row) => sum + row.like_count, 0),
+    bookmarks: rows.reduce((sum, row) => sum + row.bookmark_count, 0),
   }
-  return totals
+}
+
+/**
+ * [from, to) の1週間ぶんの投稿を取る。`to` を渡さない今週分だけ open-ended。
+ * 週ごとに問い合わせを分けているのは、2週間分を1クエリで取って引き算する実装だと
+ * PostgREST の `max_rows`（supabase/config.toml）に達したときに片方の週だけ
+ * 静かに欠けた集計になり、原因の切り分けが付かなくなるため
+ */
+function weeklyPostsQuery(supabase: Client, cafeId: string, from: Date, to?: Date) {
+  let query = supabase
+    .from('posts')
+    .select('like_count, bookmark_count')
+    .eq('cafe_id', cafeId)
+    .eq('status', 'published')
+    .is('deleted_at', null)
+    .gte('published_at', from.toISOString())
+  if (to) query = query.lt('published_at', to.toISOString())
+  return query
 }
 
 export type OwnedCafeSummary = { id: string; name: string }
@@ -116,40 +127,32 @@ export async function getOwnerDashboard(
   const weekStart = startOfJstWeek(now)
   const lastWeekStart = new Date(weekStart.getTime() - WEEK_MS)
 
-  const [postsResult, verificationResult, congestion, latest] = await Promise.all([
-    supabase
-      .from('posts')
-      .select('published_at, like_count, bookmark_count')
-      .eq('cafe_id', cafeId)
-      .eq('status', 'published')
-      .is('deleted_at', null)
-      .gte('published_at', lastWeekStart.toISOString()),
-    supabase
-      .from('cafe_owner_verifications')
-      .select('reviewed_at')
-      .eq('cafe_id', cafeId)
-      .eq('user_id', user.id)
-      .eq('status', 'approved')
-      .order('reviewed_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    getCafeCongestion(supabase, cafeId),
-    getPostList(supabase, { cafeId, viewerId: user.id, limit: LATEST_POSTS_LIMIT }),
-  ])
+  const [thisWeekResult, lastWeekResult, verificationResult, congestion, latest] =
+    await Promise.all([
+      weeklyPostsQuery(supabase, cafeId, weekStart),
+      weeklyPostsQuery(supabase, cafeId, lastWeekStart, weekStart),
+      supabase
+        .from('cafe_owner_verifications')
+        .select('reviewed_at')
+        .eq('cafe_id', cafeId)
+        .eq('user_id', user.id)
+        .eq('status', 'approved')
+        .order('reviewed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      getCafeCongestion(supabase, cafeId),
+      getPostList(supabase, { cafeId, viewerId: user.id, limit: LATEST_POSTS_LIMIT }),
+    ])
 
-  if (postsResult.error)
-    throw new Error(`今週の投稿集計の取得に失敗しました: ${postsResult.error.message}`)
+  if (thisWeekResult.error)
+    throw new Error(`今週の投稿集計の取得に失敗しました: ${thisWeekResult.error.message}`)
+  if (lastWeekResult.error)
+    throw new Error(`先週の投稿集計の取得に失敗しました: ${lastWeekResult.error.message}`)
   if (verificationResult.error)
     throw new Error(`オーナー認証情報の取得に失敗しました: ${verificationResult.error.message}`)
 
-  const rows = postsResult.data ?? []
-  const thisWeek = aggregateWeek(rows, weekStart)
-  // 先週ぶんは「lastWeekStart以上 weekStart未満」＝全体から今週を除いた残り
-  const lastWeek = {
-    count: rows.length - thisWeek.count,
-    likes: rows.reduce((sum, row) => sum + row.like_count, 0) - thisWeek.likes,
-    bookmarks: rows.reduce((sum, row) => sum + row.bookmark_count, 0) - thisWeek.bookmarks,
-  }
+  const thisWeek = sumWeek(thisWeekResult.data ?? [])
+  const lastWeek = sumWeek(lastWeekResult.data ?? [])
 
   return {
     cafe: {

@@ -84,21 +84,24 @@ export default async function OwnerDashboardPage({ params }: PageProps) {
       </header>
 
       {/* モバイルは「サマリー→メニュー→最新の投稿」（ワイヤー準拠）を order で組む。
-          PC は左2カラムにサマリー+最新の投稿、右1カラムにメニューを通し縦で置く（ワイヤーPC版） */}
+          PC は行・列を明示指定する — auto-placement に order だけで任せると、サマリーの
+          col-span-2 が右端1列を残したまま次の行へ折り返し、メニューがそこを埋められず
+          1行分下にずれる（sparse packing は隙間を後から埋めない） */}
       <div className="flex flex-col gap-8 lg:grid lg:grid-cols-3 lg:items-start">
-        <section className="order-1 flex flex-col gap-4 lg:col-span-2">
+        <section className="order-1 flex flex-col gap-4 lg:col-span-2 lg:col-start-1 lg:row-start-1">
           <h2 className="text-lg font-bold text-foreground">今週のサマリー</h2>
           <dl className="grid grid-cols-3 gap-2 lg:grid-cols-4">
             <StatCard label="投稿数" stat={dashboard.posts} />
             <StatCard label="いいね" stat={dashboard.likes} />
             <StatCard label="保存" stat={dashboard.bookmarks} />
-            <div className="col-span-3 lg:col-span-1">
+            {/* 混雑度はPCワイヤーの4枚目カードのみ。モバイルワイヤーは3枚構成なので隠す */}
+            <div className="hidden lg:col-span-1 lg:block">
               <CongestionCard levelAvg={dashboard.congestion.levelAvg} />
             </div>
           </dl>
         </section>
 
-        <aside className="order-2 flex flex-col gap-4 lg:order-3 lg:col-span-1 lg:row-span-2">
+        <aside className="order-2 flex flex-col gap-4 lg:col-span-1 lg:col-start-3 lg:row-start-1 lg:row-span-2">
           <h2 className="text-lg font-bold text-foreground">メニュー</h2>
           <ul className="flex flex-col gap-2">
             {MENU_ITEMS.map((label) => (
@@ -113,7 +116,7 @@ export default async function OwnerDashboardPage({ params }: PageProps) {
           </ul>
         </aside>
 
-        <section className="order-3 flex flex-col gap-4 lg:order-2 lg:col-span-2">
+        <section className="order-3 flex flex-col gap-4 lg:col-span-2 lg:col-start-1 lg:row-start-2">
           <h2 className="text-lg font-bold text-foreground">最新の投稿</h2>
           {dashboard.latestPosts.length === 0 ? (
             <p className="text-sm text-muted-foreground">まだ投稿がありません。</p>

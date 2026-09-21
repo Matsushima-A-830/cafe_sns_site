@@ -1163,6 +1163,69 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   が必要になったら着手。MVPの申請数では静観して問題ない規模と判断
 - 参照: オーナー認証申請（S_OWNER_CLAIM/S_OWNER_PENDING）実装時に記録（2026-09-21）
 
+### D51. `(owner)` ルートグループに `not-found.tsx` が無く、404が英語既定のまま
+
+- **課題:** `S_OWNER_DASHBOARD`（`app/(owner)/owner/[cafeId]/page.tsx`）は他人のカフェへのアクセスを
+  `notFound()` で弾くが、`(owner)` ルートグループには `S_CAFE_DETAIL` が持つような専用の
+  `not-found.tsx`（`app/(browsing)/cafes/[id]/not-found.tsx` 参照）が無い。
+  Next.js既定の英語404（"This page could not be found."）にフォールバックする。
+  `owner/claim/[cafeId]` と `owner/pending` も同じ `notFound()` を使っており、この状態は
+  ダッシュボード実装前から存在していた
+- **現状の動作:** ステータスコードは正しく404になる（実害なし）。表示だけが他画面と不揃い
+- **対応方針:** `app/(owner)/not-found.tsx` を1つ用意し、3画面（claim/pending/dashboard）で共有する
+- 参照: カフェ経営者ダッシュボード（S_OWNER_DASHBOARD）実装時に記録（2026-09-21）
+
+### D52. S_OWNER_DASHBOARD のメニュー5項目のうち遷移先があるものが無い
+
+- **課題:** ワイヤー（[wireframes/owner.md #S_OWNER_DASHBOARD](../design/wireframes/owner.md#s_owner_dashboard経営者ダッシュボード)）
+  のメニューは「店舗情報を編集・投稿分析を見る・ユーザー投稿一覧・公式投稿を作成・認証情報」の
+  5項目だが、`routing.md` に定義があるのは `edit` / `analytics` / `regulars` のみで、
+  「ユーザー投稿一覧」「認証情報」に対応するルートは未定義。現状はすべて「準備中」表示で
+  リンクを張っていない（404を作る側にならないための暫定対応）
+- **現状の動作:** ダッシュボードから店舗編集・分析・公式投稿・投稿一覧・認証情報のどれにも遷移できない。
+  「認証情報」（認証日）と「ユーザー投稿一覧」相当のデータ自体はダッシュボード本体
+  （✓公式認証済みバッジ・最新の投稿セクション）に出ている
+- **対応方針:** `S_OWNER_CAFE_EDIT` / `S_OWNER_ANALYTICS` / `S_POST_OFFICIAL` の実装時にリンクを開放する。
+  「ユーザー投稿一覧」「認証情報」は専用画面を作るか、ダッシュボード本体の表示で代替を続けるか未検討
+- 参照: カフェ経営者ダッシュボード（S_OWNER_DASHBOARD）実装時に記録（2026-09-21）
+
+### D53. 複数カフェオーナーの一覧UI未対応
+
+- **課題:** `cafes.verified_owner_id` は1ユーザーが複数カフェに持つことを制約上禁止していないが、
+  マイページの「自分の店舗」導線（`getOwnedCafe`、`lib/owner/dashboard.ts`）は
+  `verified_owner_id = userId` の先頭1件だけを案内する「1申請=1カフェ」前提の実装
+- **現状の動作:** 2店舗目以降を経営するオーナーは、マイページから2店舗目のダッシュボードへ
+  遷移する手段が無い（URLを直接知っていれば `/owner/{cafeId}` で開ける）
+- **対応方針:** 複数店舗オーナーが実際に出てきたら、一覧UI（店舗切り替えドロップダウン等）を追加する
+- 参照: カフェ経営者ダッシュボード（S_OWNER_DASHBOARD）実装時に記録（2026-09-21）
+
+### D54. S_OWNER_DASHBOARD の「週別推移グラフ」（PC）が未実装
+
+- **課題:** ワイヤー（[wireframes/owner.md #S_OWNER_DASHBOARD](../design/wireframes/owner.md#s_owner_dashboard経営者ダッシュボード)）
+  のPC版は「今週のサマリー」と「最新の投稿」の間に折れ線グラフのセクションを置いているが、
+  今回の実装では対応するセクション・プレースホルダーのどちらも用意していない
+- **現状の動作:** PC版でも「今週のサマリー」の直下が「最新の投稿」になる（グラフ無し）
+- **対応方針:** `S_OWNER_ANALYTICS`（投稿分析、別画面）の実装と合わせてグラフ描画ライブラリの選定を行い、
+  必要なら簡易版をダッシュボードにも載せる。MVPの最小スコープでは省略も許容範囲と判断
+- 参照: カフェ経営者ダッシュボード（S_OWNER_DASHBOARD）実装時に記録（2026-09-21・`/code-review` 指摘）
+
+### D55. 認証済みオーナーが自分のカフェを closed/hidden にすると自分でも閲覧できなくなる
+
+- **課題:** `cafes` の SELECT RLS（`cafes_select_active_authenticated`）は
+  `status = 'active' or is_admin()` のみで `verified_owner_id` を見ない。`cafe_business_hours` は
+  `is_cafe_owner()`（security definer）で本人の書き込みだけは status を問わず通す設計になっているが
+  （[`20260906140000_create_cafe_business_hours.sql`](../../supabase/migrations/20260906140000_create_cafe_business_hours.sql)
+  のコメント参照）、`cafes` 本体の SELECT には同種の抜け道が無い。
+  `getOwnerDashboard` / `getOwnedCafe`（`lib/owner/dashboard.ts`）・`getCafeDetail`（S_CAFE_DETAIL）は
+  いずれも素朴な RLS 越しの select のため、この影響を等しく受ける
+- **現状の動作:** カフェを closed/hidden にした瞬間、本人のダッシュボードも S_CAFE_DETAIL も
+  404 になり、再度 active に戻す手段も本人には無い（admin 頼みになる）。ダッシュボード実装で
+  新たに踏んだわけではなく、既存の全画面に及ぶ既知の未対応ギャップ
+- **対応方針:** `is_cafe_owner()` 相当の security definer 関数を `cafes` の SELECT にも使うか、
+  ポリシーに `or verified_owner_id = auth.uid()` を足すかは要検討（「closed/hiddenを誰が・何のために
+  付けるのか」がまだ未設計 — 現状 admin 専用の delete/update経路くらいしか status を変える手段が無い）
+- 参照: カフェ経営者ダッシュボード（S_OWNER_DASHBOARD）実装時に記録（2026-09-21・`/code-review` 指摘）
+
 ## 削除・アーカイブ判断待ち
 
 現時点で「削除する」と決めた項目はなし。追加・変更発生時にここに追記。
