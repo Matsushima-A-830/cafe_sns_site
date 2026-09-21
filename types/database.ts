@@ -503,6 +503,41 @@ export type Database = {
           },
         ]
       }
+      ng_words: {
+        Row: {
+          category: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          severity: string
+          word: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          severity?: string
+          word: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          severity?: string
+          word?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'ng_words_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       notifications: {
         Row: {
           actor_id: string | null
@@ -1021,6 +1056,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_ng_words: { Args: { p_text: string }; Returns: string }
       comment_has_live_replies: {
         Args: { p_comment_id: string }
         Returns: boolean

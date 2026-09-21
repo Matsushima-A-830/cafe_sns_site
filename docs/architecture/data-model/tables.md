@@ -880,9 +880,14 @@ SELECT を原則公開にするのは `user_cafe_lists`（本人のみ）とは�
 | created_by | uuid | FK → profiles(id) |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 
-**運用:** アプリ層で投稿・コメント作成時に単語一致チェック。`block` は保存拒否、`warn` は運営レビューキューに送る。
+**運用:** `createPost` / `createComment` から `check_ng_words()`（security definer 関数、`ng_words` の
+admin限定RLSをバイパスして参照する）で単語一致チェック。一致は大文字小文字を無視した部分一致。
+`block` は保存拒否（`NG_WORD_DETECTED`）。`warn` は MVP では未実装（保存は妨げない） —
+「運営レビューキューに送る」は `reports` テーブルの設計上すぐには実装できず見送り
+（[pending-items D49](../../product/pending-items.md#d49-ng_words-severitywarn-の運営レビューキュー送りを見送り)）
 
-**RLS:** SELECT admin のみ / INSERT・UPDATE・DELETE admin のみ
+**RLS:** SELECT admin のみ / INSERT・UPDATE・DELETE admin のみ。ただし `check_ng_words()` は
+security definer で RLS をバイパスし、authenticated から実行可能
 
 ---
 

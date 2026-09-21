@@ -29,9 +29,15 @@ function buildSupabaseStub(options: {
   user?: { id: string } | null
   postInsert?: { error?: unknown }
   rpc?: RpcResult
+  checkNgWords?: { data?: string | null; error?: unknown }
 }) {
   const postsInsert = vi.fn().mockResolvedValue(options.postInsert ?? { error: null })
-  const rpc = vi.fn().mockResolvedValue(options.rpc ?? { error: null })
+  const rpc = vi.fn((fnName: string) => {
+    if (fnName === 'check_ng_words') {
+      return Promise.resolve(options.checkNgWords ?? { data: null, error: null })
+    }
+    return Promise.resolve(options.rpc ?? { error: null })
+  })
 
   const tables: Record<string, unknown> = {
     posts: { insert: postsInsert },
@@ -222,6 +228,27 @@ describe('createPost', () => {
 
     expect(result).toEqual({ ok: false, error: 'FORBIDDEN' })
     expect(spies.rpc).not.toHaveBeenCalled()
+  })
+
+  it('block該当のNGワードを検出したら NG_WORD_DETECTED を返し finalize_post を呼ばない', async () => {
+    const { stub, spies } = buildSupabaseStub({ checkNgWords: { data: '死ね', error: null } })
+    createClientMock.mockResolvedValue(stub)
+
+    const result = await createPost({ postType: 'short', postId, bodyJson: textDoc })
+
+    expect(result).toEqual({ ok: false, error: 'NG_WORD_DETECTED' })
+    expect(spies.rpc).not.toHaveBeenCalledWith('finalize_post', expect.anything())
+  })
+
+  it('check_ng_words の想定外エラーは INTERNAL_ERROR を返す', async () => {
+    const { stub } = buildSupabaseStub({
+      checkNgWords: { error: { message: 'boom' } },
+    })
+    createClientMock.mockResolvedValue(stub)
+
+    const result = await createPost({ postType: 'short', postId, bodyJson: textDoc })
+
+    expect(result).toEqual({ ok: false, error: 'INTERNAL_ERROR', details: 'boom' })
   })
 
   it('短文投稿を作成できる（画像・タグ・カフェ無し）。finalize_post を正しい引数で呼ぶ', async () => {

@@ -42,6 +42,7 @@ type CreateCommentError =
   | 'COMMENT_NOT_FOUND'
   | 'POST_BODY_EMPTY'
   | 'POST_BODY_TOO_LONG'
+  | 'NG_WORD_DETECTED'
   | 'INTERNAL_ERROR'
 
 type DeleteCommentError =
@@ -78,11 +79,17 @@ async function insertComment(
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
 
-  // NGワード検出はNGワード辞書が未整備のため今回のスコープでは実装しない
-  // (pending-items.md B4 が未決。posts.ts createPost と同じ判断)
   const body = input.body.trim()
   if (body.length === 0) return { ok: false, error: 'POST_BODY_EMPTY' }
   if (body.length > COMMENT_BODY_MAX_CHARS) return { ok: false, error: 'POST_BODY_TOO_LONG' }
+
+  // check_ng_words は posts.ts createPost と同じ関数。severity=block のみ判定対象
+  //   supabase/migrations/20260921040000_create_ng_words.sql
+  const { data: ngWord, error: ngWordError } = await supabase.rpc('check_ng_words', {
+    p_text: body,
+  })
+  if (ngWordError) throw new Error(`NGワードチェックに失敗しました: ${ngWordError.message}`)
+  if (ngWord) return { ok: false, error: 'NG_WORD_DETECTED' }
 
   // FK は posts.status も deleted_at も見ない。これが無いと作者本人に限って
   // hidden な予約行・論理削除済みの投稿にもコメントが通る（likes.ts と同じ理由）

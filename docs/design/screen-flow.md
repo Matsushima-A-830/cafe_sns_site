@@ -239,7 +239,10 @@ flowchart TD
     Detail --> DetailAction{アクション}
     DetailAction -->|いいね| Like[[likes INSERT<br/>通知: 返報性]]
     DetailAction -->|保存| Bookmark[[post_bookmarks INSERT]]
-    DetailAction -->|コメント| Comment[[comments INSERT]]
+    DetailAction -->|コメント| CommentNgCheck[[NGワードチェック]]
+    CommentNgCheck -->|block一致| CommentNgError[\NGワード検出<br/>本文修正を促す\]
+    CommentNgError --> DetailAction
+    CommentNgCheck -->|OK or warn| Comment[[comments INSERT]]
     DetailAction -->|フォロー| Follow[[follows INSERT]]
 
     classDef start fill:#eef,stroke:#557

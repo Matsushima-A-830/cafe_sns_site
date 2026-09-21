@@ -39,6 +39,7 @@ type CreatePostError =
   | 'CAFE_NOT_FOUND'
   | 'POST_IMAGES_LIMIT_EXCEEDED'
   | 'POST_TAGS_LIMIT_EXCEEDED'
+  | 'NG_WORD_DETECTED'
   | 'INTERNAL_ERROR'
 
 type ReservePostError = 'INVALID_INPUT' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'INTERNAL_ERROR'
@@ -134,8 +135,6 @@ export async function createPost(
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
 
-  // NGワード検出はNGワード辞書が未整備のため今回のスコープでは実装しない
-  // (pending-items.md B4 が未決)
   const plainText = extractPlainText(data.bodyJson)
   // 短文投稿は写真1枚以上あれば本文なしでも投稿できる（S_POST_SHORT の「写真＋短文」導線）
   const allowsEmptyBody = data.postType === 'short' && data.imagePaths.length > 0
@@ -158,6 +157,17 @@ export async function createPost(
   if (data.imagePaths.some((path) => !path.startsWith(`${user.id}/${data.postId}/`))) {
     return { ok: false, error: 'FORBIDDEN' }
   }
+
+  // check_ng_words は ng_words の admin限定RLSを security definer でバイパスして
+  // 参照する（authenticated からのみ実行可能）。severity=block のみ判定対象
+  //   supabase/migrations/20260921040000_create_ng_words.sql
+  const { data: ngWord, error: ngWordError } = await supabase.rpc('check_ng_words', {
+    p_text: plainText,
+  })
+  if (ngWordError) {
+    return { ok: false, error: 'INTERNAL_ERROR', details: ngWordError.message }
+  }
+  if (ngWord) return { ok: false, error: 'NG_WORD_DETECTED' }
 
   const { error } = await supabase.rpc('finalize_post', {
     p_post_id: data.postId,
