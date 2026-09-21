@@ -104,6 +104,12 @@ export function OwnerPendingView({ verification }: Props) {
         </div>
       )}
 
+      {status === 'approved' && (
+        <Button type="button" size="lg" asChild className="mt-4">
+          <Link href={`/owner/${verification.cafe.id}`}>ダッシュボードへ進む</Link>
+        </Button>
+      )}
+
       {status === 'withdrawn' && (
         <Button type="button" variant="outline" size="lg" asChild className="mt-4">
           <Link href={`/cafes/${verification.cafe.id}`}>カフェページに戻る</Link>

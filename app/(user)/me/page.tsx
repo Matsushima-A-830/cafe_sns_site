@@ -24,6 +24,7 @@ import {
 import { draftPostTypeLabel, draftPreviewText, draftResumeHref } from '@/lib/composer/draft-summary'
 import { CAFE_LIST_LABELS, CAFE_LIST_PATHS } from '@/lib/constants/cafe-lists'
 import { getUnreadNotificationCount } from '@/lib/notifications/notification-list'
+import { getOwnedCafe } from '@/lib/owner/dashboard'
 import {
   BOOKMARK_PREVIEW_LIMIT,
   getUserBookmarkCount,
@@ -81,6 +82,7 @@ export default async function MyPage() {
     bookmarkCount,
     bookmarks,
     unreadCount,
+    ownedCafe,
   ] = await Promise.all([
     getProfileCounts(supabase, profile.id),
     getUserCafeListCounts(supabase),
@@ -92,6 +94,11 @@ export default async function MyPage() {
     getUserBookmarkCount(supabase),
     getUserBookmarkedPosts(supabase, user.id, BOOKMARK_PREVIEW_LIMIT),
     getUnreadNotificationCount(supabase, user.id),
+    // role を先に見て絞り込まず毎回問い合わせる。PublicProfile は role を持たず
+    // （lib/profiles/public-profile.ts の PUBLIC_COLUMNS）、他人のプロフィールにまで
+    // role を持たせたくないのでここでは増やさない。verified_owner_id を持つのは
+    // 実質 owner だけなので、大半のユーザーは0件が返るだけで実害は無い
+    getOwnedCafe(supabase, user.id),
   ])
 
   // 下書きだけは取得に失敗してもページ全体を落とさない（マイページの主役ではない）。
@@ -218,6 +225,12 @@ export default async function MyPage() {
               )}
             </Link>
           </Button>
+
+          {ownedCafe && (
+            <Button asChild variant="outline" size="lg">
+              <Link href={`/owner/${ownedCafe.id}`}>{ownedCafe.name}を管理</Link>
+            </Button>
+          )}
 
           <Button asChild variant="outline" size="lg">
             <Link href="/me/edit">プロフィール編集</Link>
