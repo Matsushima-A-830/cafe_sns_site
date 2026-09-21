@@ -205,3 +205,59 @@ describe('notify_on_official_post', () => {
     expect(await notificationsFor(blockedUser.userId, postId)).toHaveLength(0)
   })
 })
+
+// get_owned_cafe（20260921235044）: cafes の SELECT RLS（status='active' のみ）を
+// バイパスして本人のカフェを返せるか。closed/hidden のときこそ「臨時休業」を
+// 告知したい場面のため、ここが素朴な select のままだと S_POST_OFFICIAL が
+// 本末転倒に機能しなくなる（/code-review 指摘、lib/owner/dashboard.ts getOwnedCafe）
+describe('get_owned_cafe', () => {
+  it('status=active のカフェは本人から見える', async () => {
+    const { data, error } = await owner.client.rpc('get_owned_cafe')
+    expect(error).toBeNull()
+    expect(data).toEqual([{ id: cafeId, name: '統合テストカフェ' }])
+  })
+
+  it('status=closed/hidden でも本人からは見える（cafes_select_active_authenticated だけでは0件になる）', async () => {
+    const closedOwner = await createAuthedProfile({ username: 'official_closed_owner' })
+    try {
+      const { data: closedCafe, error: cafeError } = await service
+        .from('cafes')
+        .insert({
+          name: '休業中テストカフェ',
+          prefecture: '東京都',
+          city: '渋谷区',
+          status: 'closed',
+        })
+        .select('id')
+        .single()
+      if (cafeError || !closedCafe)
+        throw new Error(`テスト用カフェの作成に失敗: ${cafeError?.message}`)
+      await service
+        .from('cafes')
+        .update({ verified_owner_id: closedOwner.userId })
+        .eq('id', closedCafe.id)
+
+      // 素朴な select だと status='active' 条件に弾かれて0件になることの確認
+      const plainSelect = await closedOwner.client
+        .from('cafes')
+        .select('id')
+        .eq('verified_owner_id', closedOwner.userId)
+      expect(plainSelect.data ?? []).toHaveLength(0)
+
+      // get_owned_cafe は security definer で同じ状況でも返す
+      const { data, error } = await closedOwner.client.rpc('get_owned_cafe')
+      expect(error).toBeNull()
+      expect(data).toEqual([{ id: closedCafe.id, name: '休業中テストカフェ' }])
+
+      await service.from('cafes').delete().eq('id', closedCafe.id)
+    } finally {
+      await closedOwner.cleanup()
+    }
+  })
+
+  it('カフェを持たないユーザーには0件を返す', async () => {
+    const { data, error } = await unrelatedUser.client.rpc('get_owned_cafe')
+    expect(error).toBeNull()
+    expect(data ?? []).toHaveLength(0)
+  })
+})

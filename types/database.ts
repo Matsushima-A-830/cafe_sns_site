@@ -1158,6 +1158,13 @@ export type Database = {
           source: string
         }[]
       }
+      get_owned_cafe: {
+        Args: never
+        Returns: {
+          id: string
+          name: string
+        }[]
+      }
       get_owner_verification_cafe: {
         Args: { p_cafe_id: string }
         Returns: {

@@ -45,7 +45,7 @@ export default async function NewOfficialPostPage() {
   } = await supabase.auth.getUser()
   if (!user) notFound()
 
-  const cafe = await getOwnedCafe(supabase, user.id)
+  const cafe = await getOwnedCafe(supabase)
   if (!cafe) notFound()
 
   return (

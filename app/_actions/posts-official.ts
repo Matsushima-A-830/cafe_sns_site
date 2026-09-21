@@ -74,7 +74,7 @@ export async function reserveOfficialPost(
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
 
-  const cafe = await getOwnedCafe(supabase, user.id)
+  const cafe = await getOwnedCafe(supabase)
   if (!cafe) return { ok: false, error: 'NOT_OWNER' }
 
   const postId = crypto.randomUUID()

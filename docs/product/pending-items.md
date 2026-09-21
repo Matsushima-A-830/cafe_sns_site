@@ -1219,15 +1219,24 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   `is_cafe_owner()`（security definer）で本人の書き込みだけは status を問わず通す設計になっているが
   （[`20260906140000_create_cafe_business_hours.sql`](../../supabase/migrations/20260906140000_create_cafe_business_hours.sql)
   のコメント参照）、`cafes` 本体の SELECT には同種の抜け道が無い。
-  `getOwnerDashboard` / `getOwnedCafe`（`lib/owner/dashboard.ts`）・`getCafeDetail`（S_CAFE_DETAIL）は
-  いずれも素朴な RLS 越しの select のため、この影響を等しく受ける
-- **現状の動作:** カフェを closed/hidden にした瞬間、本人のダッシュボードも S_CAFE_DETAIL も
-  404 になり、再度 active に戻す手段も本人には無い（admin 頼みになる）。ダッシュボード実装で
-  新たに踏んだわけではなく、既存の全画面に及ぶ既知の未対応ギャップ
-- **対応方針:** `is_cafe_owner()` 相当の security definer 関数を `cafes` の SELECT にも使うか、
-  ポリシーに `or verified_owner_id = auth.uid()` を足すかは要検討（「closed/hiddenを誰が・何のために
-  付けるのか」がまだ未設計 — 現状 admin 専用の delete/update経路くらいしか status を変える手段が無い）
-- 参照: カフェ経営者ダッシュボード（S_OWNER_DASHBOARD）実装時に記録（2026-09-21・`/code-review` 指摘）
+  `getOwnerDashboard`・`getCafeDetail`（S_CAFE_DETAIL）は素朴な RLS 越しの select のため、
+  この影響を受ける
+- **解消済み（2026-09-22）:** **`getOwnedCafe`（`lib/owner/dashboard.ts`）** は
+  `get_owned_cafe()`（security definer、`get_owner_verification_cafe` と同じ考え方）を使うよう
+  修正した。公式投稿（S_POST_OFFICIAL）の「臨時休業」フォーマットは、まさに
+  「カフェが closed/hidden になった状況を告知したい」場面で使われるため、この関数だけは
+  status を問わず本人のカフェを引ける必要がある（`/code-review` 指摘、実装時に発覚）
+- **現状の動作:** `getOwnedCafe` 経由（マイページ「自分の店舗」・S_POST_OFFICIAL）は
+  closed/hidden でも本人から見える。`getOwnerDashboard`・`getCafeDetail` はカフェを
+  closed/hidden にした瞬間、本人のダッシュボードも S_CAFE_DETAIL も404になり、
+  再度 active に戻す手段も本人には無い（admin 頼みになる）。ダッシュボード実装で
+  新たに踏んだわけではなく、既存の画面に及ぶ既知の未対応ギャップ
+- **対応方針:** 残る `getOwnerDashboard` / `getCafeDetail` も `is_cafe_owner()` 相当の
+  security definer 関数に寄せるか、ポリシーに `or verified_owner_id = auth.uid()` を足すかは
+  要検討（「closed/hiddenを誰が・何のために付けるのか」がまだ未設計 — 現状 admin 専用の
+  delete/update経路くらいしか status を変える手段が無い）
+- 参照: カフェ経営者ダッシュボード（S_OWNER_DASHBOARD）実装時に記録（2026-09-21・`/code-review` 指摘）／
+  `getOwnedCafe` 解消（公式投稿 S_POST_OFFICIAL 実装時、2026-09-22・`/code-review` 指摘）
 
 ### D56. S_POST_OFFICIAL の未対応点（「もっと見る」ページング・通知fan-outの上限・下書き）
 
