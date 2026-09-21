@@ -918,7 +918,9 @@ SELECT を原則公開にするのは `user_cafe_lists`（本人のみ）とは�
 
 **ユーザー設定の反映:** `like` / `comment` / `follow` の3種は、発火元トリガーが **INSERT 前に [`user_settings`](#user_settings) の該当フラグを確認し、false なら行を作らない**。作ってから隠す方式にはしない（未読カウントがずれるため）。残りのタイプ（`badge` / `owner_verified` / `regular_awarded` / `official_post` / `report_resolved`）はユーザーが切れない重要通知として常に作る。
 
-**RLS:** SELECT・UPDATE は recipient のみ
+**RLS:** SELECT・UPDATE は recipient のみ / INSERT は admin のみ（`report_resolved` を
+S_ADMIN_REVIEW の Server Action から直接書き込むため。他の type は security definer トリガー経由で
+RLS をバイパスするので INSERT ポリシー自体を必要としない）
 
 ---
 
@@ -989,4 +991,6 @@ SELECT を原則公開にするのは `user_cafe_lists`（本人のみ）とは�
 | metadata | jsonb | NOT NULL, DEFAULT '{}' |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 
-**RLS:** SELECT admin のみ / INSERT はシステム
+**RLS:** SELECT admin のみ / INSERT は admin 本人のみ（`actor_id = auth.uid()` を RLS で強制。
+S_ADMIN_REVIEW の Server Action から security definer 関数を介さず直接書き込む方式を採用したため。
+[pending-items D48](../../product/pending-items.md)）
