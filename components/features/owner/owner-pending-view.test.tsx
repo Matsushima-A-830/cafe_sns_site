@@ -47,6 +47,16 @@ describe('OwnerPendingView', () => {
     )
   })
 
+  it('approved ならダッシュボードへのリンクを出す', () => {
+    render(<OwnerPendingView verification={{ ...base, status: 'approved' }} />)
+
+    expect(screen.getByText('承認されました')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'ダッシュボードへ進む' })).toHaveAttribute(
+      'href',
+      '/owner/c1',
+    )
+  })
+
   it('取り下げは確認ダイアログを経てから実行される', async () => {
     const user = userEvent.setup()
     withdrawClaim.mockResolvedValue({ ok: true, data: null })
