@@ -9,6 +9,7 @@ import { BusinessHoursTable } from '@/components/features/cafes/business-hours-t
 import { CafeListButtons } from '@/components/features/cafes/cafe-list-buttons'
 import { CongestionSection } from '@/components/features/cafes/congestion-section'
 import { OpenStateBadge } from '@/components/features/cafes/open-state-badge'
+import { OwnerPostsSection } from '@/components/features/cafes/owner-posts-section'
 import { PostFeed } from '@/components/features/posts/post-feed'
 import { jstDayOfWeek } from '@/lib/cafes/business-hours'
 import { type CafeDetail, getCafeDetail, getCafePostCount } from '@/lib/cafes/cafe-detail'
@@ -144,7 +145,7 @@ export default async function CafeDetailPage({ params }: PageProps) {
   } = await supabase.auth.getUser()
 
   // 表示に要る残りは往復を直列にしない（CLAUDE.md パフォーマンス「N+1回避」）
-  const [postCount, congestion, page, membership] = await Promise.all([
+  const [postCount, congestion, page, membership, ownerPosts] = await Promise.all([
     getCafePostCount(supabase, cafe.id),
     getCafeCongestion(supabase, cafe.id),
     getPostList(supabase, { cafeId: cafe.id, viewerId: user?.id ?? null }),
@@ -152,14 +153,20 @@ export default async function CafeDetailPage({ params }: PageProps) {
     user
       ? getCafeListMembership(supabase, cafe.id)
       : Promise.resolve({ favorite: false, want_to_go: false }),
+    getPostList(supabase, {
+      cafeId: cafe.id,
+      viewerId: user?.id ?? null,
+      officialOnly: true,
+      limit: 3,
+    }),
   ])
 
   // 営業時間・混雑度の判定はどちらも同じ「今」を基準にする
   const now = new Date()
   const today = jstDayOfWeek(now)
 
-  // 地図・「徒歩3分」（座標未収集）・「オーナーから」（幹C本体）は
-  // 元テーブル・データが未整備のため出していない — pending-items D30
+  // 地図・「徒歩3分」（座標未収集）は元テーブル・データが未整備のため出していない
+  // 「オーナーから」（幹C本体）は OwnerPostsSection で表示する（pending-items D30 解消）
   const query: FeedQuery = {
     scope: 'new',
     tagSlug: null,
@@ -239,6 +246,8 @@ export default async function CafeDetailPage({ params }: PageProps) {
       <div className="flex flex-col gap-8 lg:grid lg:grid-cols-3 lg:items-start">
         {/* PC では投稿を主役にし、営業時間・混雑度・連絡先を右カラムに寄せる（ワイヤー PC 版） */}
         <section className="flex flex-col gap-4 lg:col-span-2">
+          <OwnerPostsSection posts={ownerPosts.items} />
+
           <h2 className="text-lg font-bold text-foreground">投稿</h2>
           <PostFeed
             initialPage={page}

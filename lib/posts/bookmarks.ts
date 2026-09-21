@@ -36,6 +36,7 @@ const BOOKMARK_SELECT = `
   post_id, created_at,
   post:posts!inner (
     id, post_type, title, body_text, published_at, created_at, like_count, bookmark_count,
+    is_official, official_format, metadata,
     author:profiles!posts_author_id_fkey (id, username, display_name, avatar_url),
     cafe:cafes!posts_cafe_id_fkey (id, name, area_code, areas!cafes_area_code_fkey (label)),
     post_images (storage_path, alt_text),
@@ -56,6 +57,9 @@ type BookmarkRow = {
     created_at: string
     like_count: number
     bookmark_count: number
+    is_official: boolean
+    official_format: string | null
+    metadata: unknown
     author: {
       id: string
       username: string

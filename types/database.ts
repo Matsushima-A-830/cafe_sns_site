@@ -1126,6 +1126,16 @@ export type Database = {
         Returns: boolean
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      finalize_official_post: {
+        Args: {
+          p_body_json: Json
+          p_image_paths: string[]
+          p_metadata: Json
+          p_post_id: string
+          p_title: string
+        }
+        Returns: undefined
+      }
       finalize_post: {
         Args: {
           p_body_json: Json

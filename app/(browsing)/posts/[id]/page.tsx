@@ -7,6 +7,7 @@ import { cache } from 'react'
 import { BookmarkButton } from '@/components/features/posts/bookmark-button'
 import { CommentList } from '@/components/features/posts/comment-list'
 import { LikeButton } from '@/components/features/posts/like-button'
+import { OfficialBadge, OfficialSummary } from '@/components/features/posts/official-badge'
 import { PostAuthor } from '@/components/features/posts/post-author'
 import { PostBody } from '@/components/features/posts/post-body'
 import { PostGallery } from '@/components/features/posts/post-gallery'
@@ -121,6 +122,8 @@ function PostContent({ post, isAuthenticated }: { post: PostDetail; isAuthentica
         </div>
       )}
 
+      {post.metadata && <OfficialSummary metadata={post.metadata} />}
+
       {post.tags.length > 0 && (
         <ul className="flex flex-wrap gap-2">
           {post.tags.map((tag) => (
@@ -194,7 +197,10 @@ export default async function PostDetailPage({ params }: PageProps) {
     return (
       <article className="mx-auto flex w-full max-w-[720px] flex-col gap-6 px-4 py-8">
         <h1 className="text-3xl font-bold text-foreground">{displayTitle(post)}</h1>
-        <PostAuthor author={post.author} publishedAt={post.publishedAt} />
+        <div className="flex items-center gap-2">
+          <PostAuthor author={post.author} publishedAt={post.publishedAt} />
+          {post.isOfficial && <OfficialBadge />}
+        </div>
         <PostGallery images={post.images} />
         <PostContent post={post} isAuthenticated={isAuthenticated} />
         <CommentList
@@ -231,7 +237,10 @@ export default async function PostDetailPage({ params }: PageProps) {
         <div className={cn('flex w-full flex-col gap-4', hasImages && 'lg:w-96 lg:shrink-0')}>
           {/* 短文投稿にタイトルは無い。見出しの階層を崩さないよう h1 は作者行が兼ねる */}
           <h1 className="sr-only">{displayTitle(post)}</h1>
-          <PostAuthor author={post.author} publishedAt={post.publishedAt} />
+          <div className="flex items-center gap-2">
+            <PostAuthor author={post.author} publishedAt={post.publishedAt} />
+            {post.isOfficial && <OfficialBadge />}
+          </div>
           <PostContent post={post} isAuthenticated={isAuthenticated} />
         </div>
       </div>

@@ -10,6 +10,9 @@ const row = {
   created_at: '2026-09-01T00:00:00.000Z',
   like_count: 0,
   bookmark_count: 0,
+  is_official: false,
+  official_format: null,
+  metadata: {},
   author: {
     id: '22222222-2222-4222-8222-222222222222',
     username: 'taro',

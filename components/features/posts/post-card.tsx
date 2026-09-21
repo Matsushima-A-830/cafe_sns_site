@@ -2,6 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { BookmarkButton } from '@/components/features/posts/bookmark-button'
 import { LikeButton } from '@/components/features/posts/like-button'
+import { OfficialBadge, OfficialSummary } from '@/components/features/posts/official-badge'
 import { PostAuthor } from '@/components/features/posts/post-author'
 import type { PostListItem } from '@/lib/posts/post-list'
 import { isStoragePublicUrl } from '@/lib/storage/public-url'
@@ -47,7 +48,10 @@ export function PostCard({
       )}
 
       <div className="flex flex-col gap-3 p-4">
-        <PostAuthor author={post.author} publishedAt={post.publishedAt} />
+        <div className="flex items-center gap-2">
+          <PostAuthor author={post.author} publishedAt={post.publishedAt} />
+          {post.isOfficial && <OfficialBadge />}
+        </div>
 
         <Link
           href={href}
@@ -56,6 +60,7 @@ export function PostCard({
           {post.title && (
             <h3 className="text-base font-bold text-foreground line-clamp-2">{post.title}</h3>
           )}
+          {post.metadata && <OfficialSummary metadata={post.metadata} />}
           {post.excerpt ? (
             <p className="text-sm text-muted-foreground line-clamp-3">{post.excerpt}</p>
           ) : (
