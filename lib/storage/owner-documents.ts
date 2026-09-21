@@ -107,6 +107,26 @@ export async function createOwnerDocumentUploadUrl(
   return { ok: true, data: { path: data.path, signedUrl: data.signedUrl, token: data.token } }
 }
 
+/** 書類プレビュー（S_ADMIN_OWNER_REVIEW）用の閲覧期限。admin が複数枚を開き直す余地を見て5分にする */
+export const OWNER_DOCUMENT_VIEW_URL_EXPIRES_IN_SECONDS = 5 * 60
+
+/**
+ * 書類プレビュー用の署名付き閲覧URLを発行する。認可は storage.objects の RLS
+ * （owner_documents_objects_select_own_or_admin: 本人 or admin）のみに任せ、ここでは
+ * 追加の権限チェックをしない
+ */
+export async function createOwnerDocumentViewUrl(
+  supabase: Client,
+  path: string,
+): Promise<Result<string, 'INTERNAL_ERROR'>> {
+  const { data, error } = await supabase.storage
+    .from(OWNER_DOCUMENT_BUCKET)
+    .createSignedUrl(path, OWNER_DOCUMENT_VIEW_URL_EXPIRES_IN_SECONDS)
+
+  if (error || !data) return { ok: false, error: 'INTERNAL_ERROR', details: error?.message }
+  return { ok: true, data: data.signedUrl }
+}
+
 /**
  * アップロード失敗・申請中断時のロールバックで使う。
  * 注意: storage.objects の RLS に該当しないパスは、エラーにならず黙って削除対象から除外される

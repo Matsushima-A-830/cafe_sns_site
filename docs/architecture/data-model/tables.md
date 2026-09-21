@@ -914,7 +914,7 @@ security definer で RLS をバイパスし、authenticated から実行可能
 | read_at | timestamptz | |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 
-**制約:** `CHECK (type IN ('like','comment','follow','mention','badge','owner_verified','regular_awarded','official_post','report_resolved'))`
+**制約:** `CHECK (type IN ('like','comment','follow','mention','badge','owner_verified','owner_verification_rejected','regular_awarded','official_post','report_resolved'))`
 
 | type | 発火元 | 宛先 |
 |---|---|---|
@@ -923,18 +923,20 @@ security definer で RLS をバイパスし、authenticated から実行可能
 | `follow` | `follows` INSERT | フォローされた人 |
 | `mention` | 本文中の @メンション（MVP未実装、[pending-items D2](../../product/pending-items.md)） | 対象ユーザー |
 | `badge` | `checkAndAwardBadges` | 獲得者 |
-| `owner_verified` | オーナー認証の承認 / 却下 | 申請者 |
+| `owner_verified` | オーナー認証の承認 | 申請者 |
+| `owner_verification_rejected` | オーナー認証の却下（`review_notes` に理由） | 申請者 |
 | `regular_awarded` | 常連認定（幹C） | 認定されたユーザー |
 | `official_post` | オーナー限定投稿の公開（幹C） | 当該カフェを「お気に入り」「行きたい」に入れているユーザー |
 | `report_resolved` | 通報の `status` が resolved / rejected に遷移 | 通報者 |
 
 **インデックス:** `(recipient_id, created_at DESC) WHERE read_at IS NULL` — 未読
 
-**ユーザー設定の反映:** `like` / `comment` / `follow` の3種は、発火元トリガーが **INSERT 前に [`user_settings`](#user_settings) の該当フラグを確認し、false なら行を作らない**。作ってから隠す方式にはしない（未読カウントがずれるため）。残りのタイプ（`badge` / `owner_verified` / `regular_awarded` / `official_post` / `report_resolved`）はユーザーが切れない重要通知として常に作る。
+**ユーザー設定の反映:** `like` / `comment` / `follow` の3種は、発火元トリガーが **INSERT 前に [`user_settings`](#user_settings) の該当フラグを確認し、false なら行を作らない**。作ってから隠す方式にはしない（未読カウントがずれるため）。残りのタイプ（`badge` / `owner_verified` / `owner_verification_rejected` / `regular_awarded` / `official_post` / `report_resolved`）はユーザーが切れない重要通知として常に作る。
 
-**RLS:** SELECT・UPDATE は recipient のみ / INSERT は admin のみ（`report_resolved` を
-S_ADMIN_REVIEW の Server Action から直接書き込むため。他の type は security definer トリガー経由で
-RLS をバイパスするので INSERT ポリシー自体を必要としない）
+**RLS:** SELECT・UPDATE は recipient のみ / INSERT は admin のみ、かつ
+`type IN ('report_resolved', 'owner_verified', 'owner_verification_rejected')`（S_ADMIN_REVIEW /
+S_ADMIN_OWNER_REVIEW の Server Action から直接書き込むため。他の type は security definer トリガー
+経由で RLS をバイパスするので INSERT ポリシー自体を必要としない）
 
 ---
 

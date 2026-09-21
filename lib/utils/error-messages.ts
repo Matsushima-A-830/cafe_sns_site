@@ -50,6 +50,7 @@ const messages: Partial<Record<ErrorCode, string>> = {
   DOCUMENTS_INSUFFICIENT: '書類を2点以上選択してください',
   VERIFICATION_ALREADY_PENDING: 'このカフェへの申請は既に審査中です',
   VERIFICATION_REJECTED: '前回の申請は却下されています。内容を確認のうえ再申請してください',
+  VERIFICATION_ALREADY_RESOLVED: 'この申請は既に他の管理者が対応済みです',
   NOT_OWNER: 'オーナー権限がありません',
 }
 

@@ -336,9 +336,9 @@
     "eyebrow": "CAFE SNS / IMPLEMENTATION BOARD",
     "headline": "気分で見つかる、<br>行きつけと繋がる",
     "sub": "いま立っているもの と これから立てるもの",
-    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローして、その店に行けるか確かめて、自分の店リストに貯める」までの一本。ここに<strong>いいね・コメント（返信1階層、オーナー公式返信、投稿主モデレーション）・保存（post_bookmarks）</strong>が加わり、投稿への反応が一通り揃った。さらに <strong>S_CAFE_NEW（カフェ新規登録）</strong>が開通し、composer の中だけだった「見つからないカフェを登録する」が専用画面になった。マイページは4カードに戻り、S_BOOKMARKS も開通した。<strong>S_SETTINGS（設定）と S_BLOCKED_USERS（ブロック管理）</strong>・<strong>S_NOTIFICATIONS（通知）</strong>・<strong>S_PROFILE_EDIT（プロフィール編集）</strong>・<strong>S_REPORT_FORM（通報フォーム）</strong>に続き、S_ADMIN_REPORTS / S_ADMIN_REVIEW（通報審査キュー）に続き、今回 <strong>ng_words（NGワード辞書・自動検出）と S_ADMIN_NG_WORDS（NGワード管理）</strong>が加わり、投稿・コメント作成時に block ワードを自動検出して保存拒否するところまで一気通貫で動くようになった。「安全ラインを引く」はこれで完了。続けて <strong>S_OWNER_CLAIM / S_OWNER_PENDING（オーナー認証申請）</strong>が加わり、幹Cの入口が開通した——書類提出から審査中・却下・取り下げまでは一本通ったが、審査（承認）を行う画面はまだ無いため verified_owner_id は付与されない。「自分の面」の残りは S_BADGES のみ。地図と、オーナーの管理画面（ダッシュボード以降）は、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
+    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローして、その店に行けるか確かめて、自分の店リストに貯める」までの一本。ここに<strong>いいね・コメント（返信1階層、オーナー公式返信、投稿主モデレーション）・保存（post_bookmarks）</strong>が加わり、投稿への反応が一通り揃った。さらに <strong>S_CAFE_NEW（カフェ新規登録）</strong>が開通し、composer の中だけだった「見つからないカフェを登録する」が専用画面になった。マイページは4カードに戻り、S_BOOKMARKS も開通した。<strong>S_SETTINGS（設定）と S_BLOCKED_USERS（ブロック管理）</strong>・<strong>S_NOTIFICATIONS（通知）</strong>・<strong>S_PROFILE_EDIT（プロフィール編集）</strong>・<strong>S_REPORT_FORM（通報フォーム）</strong>に続き、S_ADMIN_REPORTS / S_ADMIN_REVIEW（通報審査キュー）に続き、今回 <strong>ng_words（NGワード辞書・自動検出）と S_ADMIN_NG_WORDS（NGワード管理）</strong>が加わり、投稿・コメント作成時に block ワードを自動検出して保存拒否するところまで一気通貫で動くようになった。「安全ラインを引く」はこれで完了。続けて <strong>S_OWNER_CLAIM / S_OWNER_PENDING（オーナー認証申請）</strong>が加わり、幹Cの入口が開通し、今回 <strong>S_ADMIN_OWNER_REVIEW（オーナー認証審査）</strong>が加わって、書類提出→審査→承認（verified_owner_id・profiles.role=owner 付与）／却下（理由必須）まで幹Cの入口〜認証が一気通貫で動くようになった。「自分の面」の残りは S_BADGES のみ。地図と、オーナーの管理画面（ダッシュボード以降）は、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
     "updatedAt": "2026-09-21",
-    "ref": "branch: feature/owner-claim"
+    "ref": "branch: feature/owner-verification-review"
   },
   "metrics": [
     {
@@ -357,16 +357,16 @@
     },
     {
       "k": "MIGRATIONS",
-      "v": "46",
+      "v": "47",
       "unit": "",
       "note": "RLSポリシー込み。forward-only 運用",
       "ratio": null
     },
     {
       "k": "TESTS",
-      "v": "99",
+      "v": "102",
       "unit": " files",
-      "note": "unit / RLS統合32本 / E2E 7本。統合・E2EともCIで実行",
+      "note": "unit / RLS統合33本 / E2E 8本。統合・E2EともCIで実行",
       "ratio": null
     }
   ],
@@ -590,15 +590,20 @@
         {
           "status": "done",
           "tag": "_actions",
-          "title": "Server Actions 20本",
-          "body": "auth / onboarding / posts / drafts / feed / follows / cafes / congestion / cafe-lists / likes / comments / bookmarks / blocks / settings / notifications / profiles / reports / admin-reports / admin-ng-words / owner（claimCafe, withdrawClaim）。入力は全て Zod、返りは Result 型。"
+          "title": "Server Actions 21本",
+          "body": "auth / onboarding / posts / drafts / feed / follows / cafes / congestion / cafe-lists / likes / comments / bookmarks / blocks / settings / notifications / profiles / reports / admin-reports / admin-ng-words / owner（claimCafe, withdrawClaim）/ admin-owner-verifications（一覧・詳細・承認却下）。入力は全て Zod、返りは Result 型。"
         },
         {
-          "status": "partial",
+          "status": "done",
           "tag": "S_OWNER_CLAIM / S_OWNER_PENDING",
           "title": "オーナー認証申請（幹Cの入口）",
-          "body": "書類2点以上のアップロード・連絡先メール・確認チェック3つで申請し、審査中／却下（理由表示・再申請導線）／取り下げ（確認ダイアログ）まで一本通った。S_CAFE_DETAIL に「このカフェのオーナーですか？」導線を追加。",
-          "why": "審査（承認/却下）を行う S_ADMIN_OWNER_REVIEW が未実装のため、申請しても verified_owner_id は付与されずオーナーバッジは出ない（④幹C-1）。実機確認・E2E化もまだ（D34と同種、未起票）"
+          "body": "書類2点以上のアップロード・連絡先メール・確認チェック3つで申請し、審査中／却下（理由表示・再申請導線）／取り下げ（確認ダイアログ）まで一本通った。S_CAFE_DETAIL に「このカフェのオーナーですか？」導線を追加。"
+        },
+        {
+          "status": "done",
+          "tag": "S_ADMIN_OWNER_REVIEW",
+          "title": "オーナー認証審査",
+          "body": "一覧（ステータス別タブ）＋個別レビュー（申請内容・書類プレビュー、signed URL 5分）＋承認/却下判定。承認で cafes.verified_owner_id・profiles.role=owner を admin 経由で付与、却下は理由メモ必須で owner_verification_rejected 通知。resolveReport と同じ条件付きUPDATEによる排他制御。実機確認・E2E（承認/却下1本ずつ）まで実施。"
         }
       ]
     },
@@ -706,7 +711,7 @@
           "status": "todo",
           "tag": "owner 4画面 + S_POST_OFFICIAL",
           "title": "オーナーの面",
-          "body": "認証申請 / 審査中は開通済み。残るはダッシュボード / 店舗編集 / 投稿分析 / 常連認定。幹Cの起点（入口）は開いたが、本体はここから。"
+          "body": "認証申請 / 審査中 / 運営の審査（承認でverified_owner_id付与）は開通済み。残るはダッシュボード / 店舗編集 / 投稿分析 / 常連認定。幹Cの起点（入口〜認証）は開いたが、本体はここから。"
         },
         {
           "status": "todo",
@@ -758,11 +763,10 @@
           "body": "朝カフェマスター等。定義はあるが付与の仕組みが無い。"
         },
         {
-          "status": "partial",
+          "status": "done",
           "tag": "幹C-1",
           "title": "オーナー認証バッジ",
-          "body": "cafe_owner_verifications 実装済み。申請フォーム（S_OWNER_CLAIM/S_OWNER_PENDING）まで開通したが、審査してverified_owner_idを付与する画面（S_ADMIN_OWNER_REVIEW）がまだ無いため、バッジは誰にも付かない。",
-          "why": "審査UIは次PRのスコープ（⑦H1 5th）"
+          "body": "申請（S_OWNER_CLAIM/S_OWNER_PENDING）→ 審査（S_ADMIN_OWNER_REVIEW）→ verified_owner_id 付与まで一本通り、S_CAFE_DETAIL の「✓公式」表示（cafe-detail.ts isVerified）が実データで点灯するようになった。"
         },
         {
           "status": "todo",
@@ -1031,7 +1035,7 @@
               "status": "future",
               "tag": "5th",
               "title": "幹Cを起こす（着手中）",
-              "body": "オーナー認証申請（S_OWNER_CLAIM/S_OWNER_PENDING）が開通。次は審査（S_ADMIN_OWNER_REVIEW）→ ダッシュボード → オーナー限定投稿 → 常連認定。"
+              "body": "オーナー認証申請〜運営審査（S_OWNER_CLAIM/S_OWNER_PENDING/S_ADMIN_OWNER_REVIEW）が開通し、verified_owner_id 付与まで一本通った。次はダッシュボード → 店舗編集 → オーナー限定投稿 → 投稿分析 → 常連認定。"
             },
             {
               "status": "future",
