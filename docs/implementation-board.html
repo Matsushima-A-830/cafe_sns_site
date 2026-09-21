@@ -336,16 +336,16 @@
     "eyebrow": "CAFE SNS / IMPLEMENTATION BOARD",
     "headline": "気分で見つかる、<br>行きつけと繋がる",
     "sub": "いま立っているもの と これから立てるもの",
-    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローして、その店に行けるか確かめて、自分の店リストに貯める」までの一本。ここに<strong>いいね・コメント（返信1階層、オーナー公式返信、投稿主モデレーション）・保存（post_bookmarks）</strong>が加わり、投稿への反応が一通り揃った。さらに <strong>S_CAFE_NEW（カフェ新規登録）</strong>が開通し、composer の中だけだった「見つからないカフェを登録する」が専用画面になった。マイページは4カードに戻り、S_BOOKMARKS も開通した。<strong>S_SETTINGS（設定）と S_BLOCKED_USERS（ブロック管理）</strong>・<strong>S_NOTIFICATIONS（通知）</strong>・<strong>S_PROFILE_EDIT（プロフィール編集）</strong>・<strong>S_REPORT_FORM（通報フォーム）</strong>に続き、今回 <strong>S_ADMIN_REPORTS / S_ADMIN_REVIEW（通報審査キュー）</strong>が加わり、通報の受付から判定（非表示化・削除・停止・却下）・監査記録・通報者通知までが一気通貫で動くようになった。「自分の面」の残りは S_BADGES のみ。「安全ライン」の残りは ng_words（自動検出）のみ。地図、オーナー側UIは、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
+    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローして、その店に行けるか確かめて、自分の店リストに貯める」までの一本。ここに<strong>いいね・コメント（返信1階層、オーナー公式返信、投稿主モデレーション）・保存（post_bookmarks）</strong>が加わり、投稿への反応が一通り揃った。さらに <strong>S_CAFE_NEW（カフェ新規登録）</strong>が開通し、composer の中だけだった「見つからないカフェを登録する」が専用画面になった。マイページは4カードに戻り、S_BOOKMARKS も開通した。<strong>S_SETTINGS（設定）と S_BLOCKED_USERS（ブロック管理）</strong>・<strong>S_NOTIFICATIONS（通知）</strong>・<strong>S_PROFILE_EDIT（プロフィール編集）</strong>・<strong>S_REPORT_FORM（通報フォーム）</strong>に続き、S_ADMIN_REPORTS / S_ADMIN_REVIEW（通報審査キュー）に続き、今回 <strong>ng_words（NGワード辞書・自動検出）と S_ADMIN_NG_WORDS（NGワード管理）</strong>が加わり、投稿・コメント作成時に block ワードを自動検出して保存拒否するところまで一気通貫で動くようになった。「安全ラインを引く」はこれで完了。「自分の面」の残りは S_BADGES のみ。地図、オーナー側UIは、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
     "updatedAt": "2026-09-21",
-    "ref": "branch: feature/admin-reports"
+    "ref": "branch: feature/ng-words"
   },
 
   "metrics": [
     { "k": "SCREENS", "v": "27", "unit": "/ 37", "note": "ワイヤー37画面のうち、画面IDコメント付きの page.tsx があるもの。S_CAFE_NEW / S_ADMIN_* はワイヤー自体が無いためこの分母に入らない", "ratio": 75 },
-    { "k": "TABLES", "v": "22", "unit": "/ 27", "note": "tables.md の27テーブル中、マイグレーション済み（audit_logs 追加）", "ratio": 80 },
-    { "k": "MIGRATIONS", "v": "41", "unit": "", "note": "RLSポリシー込み。forward-only 運用", "ratio": null },
-    { "k": "TESTS", "v": "90", "unit": " files", "note": "unit / RLS統合29本 / E2E 6本。統合・E2EともCIで実行", "ratio": null }
+    { "k": "TABLES", "v": "23", "unit": "/ 27", "note": "tables.md の27テーブル中、マイグレーション済み（ng_words 追加）", "ratio": 85 },
+    { "k": "MIGRATIONS", "v": "43", "unit": "", "note": "RLSポリシー込み。forward-only 運用", "ratio": null },
+    { "k": "TESTS", "v": "93", "unit": " files", "note": "unit / RLS統合30本 / E2E 7本。統合・E2EともCIで実行", "ratio": null }
   ],
 
   "sections": [
@@ -443,8 +443,11 @@
         { "status": "partial", "tag": "S_ADMIN_REPORTS / S_ADMIN_REVIEW", "title": "通報審査キュー",
           "body": "ステータス別タブの一覧、個別レビュー（通報内容・対象の内容・reason）、判定（投稿非表示/コメント削除/ユーザー停止/却下）→ audit_logs 記録 → 通報者への report_resolved 通知まで一気通貫で動く。posts/comments に admin 専用の SELECT/UPDATE バイパスポリシーを追加し、hidden・削除済みの対象も審査できる。",
           "why": "ワイヤーフレーム自体が無く画面要素は実装時に判断／cafe 対象は却下のみで具体的な対応が未設計／通知は通報者のみで被通報者には送らない／audit_logs・notifications の INSERT 失敗はエラーを握りつぶす（D48）" },
-        { "status": "done", "tag": "_actions", "title": "Server Actions 18本",
-          "body": "auth / onboarding / posts / drafts / feed / follows / cafes / congestion / cafe-lists / likes / comments / bookmarks / blocks / settings / notifications / profiles / reports / admin-reports。入力は全て Zod、返りは Result 型。" }
+        { "status": "partial", "tag": "S_ADMIN_NG_WORDS", "title": "NGワード管理",
+          "body": "一覧・追加（severity/category選択）・削除確認ダイアログ。createPost/createComment は check_ng_words()（security definer）で severity=block のワードを検出し保存拒否する。初期辞書20語を投入。",
+          "why": "severity=warn の運営レビューキュー送りは reports テーブルの設計上見送り、保存を妨げないだけ（D49）／画面IDはワイヤーフレーム自体が無く実装時に採番" },
+        { "status": "done", "tag": "_actions", "title": "Server Actions 19本",
+          "body": "auth / onboarding / posts / drafts / feed / follows / cafes / congestion / cafe-lists / likes / comments / bookmarks / blocks / settings / notifications / profiles / reports / admin-reports / admin-ng-words。入力は全て Zod、返りは Result 型。" }
       ]
     },
 
@@ -480,15 +483,13 @@
     {
       "kind": "frame", "id": "f-todo", "row": 1, "x": 2980, "w": 1340,
       "title": "③ まだ存在しない画面",
-      "tally": "SCREENS 10 / TABLES 6",
+      "tally": "SCREENS 10 / TABLES 4",
       "lede": "未実装の大半は「テーブルが無いから画面も無い」。逆に言えば、テーブルを1つ足すたびに複数画面が開く。",
       "notes": [
         { "status": "todo", "tag": "S_MAP / S_SEARCH / S_FILTER_*", "title": "探す面",
           "body": "地図は areas.center_location の座標45件が未収集（A3）。タグ検索も未着手。" },
         { "status": "todo", "tag": "S_BADGES", "title": "自分の面の残り",
           "body": "バッジのみ。設定・ブロック管理・通知・プロフィール編集は開通した。マイページ本体とお気に入り・行きたい・下書き・保存も実装済み。" },
-        { "status": "todo", "tag": "ng_words", "title": "NGワード辞書と自動検出",
-          "body": "admin 審査キュー（S_ADMIN_REPORTS/REVIEW）は開通したが、投稿/コメントの自動フラグ元になる ng_words テーブルと辞書がまだ無く、通報は人手の通報頼み。" },
         { "status": "todo", "tag": "owner 6画面 + S_POST_OFFICIAL", "title": "オーナーの面",
           "body": "認証申請 / 審査中 / ダッシュボード / 店舗編集 / 投稿分析 / 常連認定。幹Cはここが入口。" },
         { "status": "todo", "tag": "user_badges / area_visits", "title": "ゲーミフィケーション",
@@ -579,7 +580,9 @@
         { "status": "risk", "tag": "D44", "title": "通知一覧の相対時刻がハイドレーションミスマッチのリスク",
           "body": "NotificationItem は 'use client' のままSSRされ、formatRelativeTime が new Date() を引数無しで呼ぶため、作成直後（1分未満）の通知でサーバーとクライアントの表示が食い違いうる。" },
         { "status": "risk", "tag": "D48", "title": "admin 審査キューで見送ったもの",
-          "body": "resolveReport は posts/comments/profiles/reports/audit_logs/notifications を1つの Server Action 呼び出しで順に更新するがトランザクションではない。audit_logs/notifications の INSERT 失敗は console.error に留めて Server Action 自体は成功扱いにするため、監査ログの欠落を検知する仕組みが無い。通知は通報者のみで被通報者には送らない。" }
+          "body": "resolveReport は posts/comments/profiles/reports/audit_logs/notifications を1つの Server Action 呼び出しで順に更新するがトランザクションではない。audit_logs/notifications の INSERT 失敗は console.error に留めて Server Action 自体は成功扱いにするため、監査ログの欠落を検知する仕組みが無い。通知は通報者のみで被通報者には送らない。" },
+        { "status": "risk", "tag": "D49", "title": "ng_words の severity=warn が保存を妨げるだけの片肺",
+          "body": "block は保存拒否まで実装したが、warn の「運営レビューキューに送る」は reports テーブルの reporter_id NOT NULL 制約と設計判断が必要で見送り。warn ワードは検出しても保存を止めない（screen-flow.md の設計メモと整合）。" }
       ]
     },
 
@@ -591,7 +594,6 @@
       "chains": [
         { "src": "cafe_owner_verifications", "outs": ["オーナー認証バッジ", "owner 6画面", "幹C の起点"] },
         { "src": "regular_customers", "outs": ["常連認定", "「私の行きつけ」タブ", "常連分析"] },
-        { "src": "ng_words", "outs": ["投稿/コメントのNGワード検出", "admin 審査キューへの自動フラグ投入"] },
         { "src": "user_badges / area_visits", "outs": ["バッジ獲得", "エリア制覇マップ", "シーン開拓バッジ＝幹A-4", "notifications.type='badge' の発火元"] },
         { "src": "areas.center_location（データ）", "outs": ["S_MAP", "近くのカフェ", "エリア自動判定"] }
       ]
@@ -612,8 +614,8 @@
               "body": "S_CAFE_NEW（登録）・登録者本人による未認証期間中の編集（B8）・カフェ詳細・user_cafe_lists まで実装済み。残るのは地図（6th）とオーナー側の情報編集（幹C側、5th）。" },
             { "status": "future", "tag": "3rd", "title": "自分の面を開く（ほぼ完了）",
               "body": "設定・ブロック管理・通知・プロフィール編集は実装済み。マイページと4つのリスト（お気に入り・行きたい・下書き・保存）も実装済み。残るのはバッジのみ。" },
-            { "status": "future", "tag": "4th", "title": "安全ラインを引く（ほぼ完了）",
-              "body": "ブロック解除導線・S_REPORT_FORM（通報フォーム）・S_ADMIN_REPORTS/REVIEW（審査キュー）は実装済み。残るのは ng_words（自動検出）のみ。若年層向けサービスとして公開の前提条件。" },
+            { "status": "future", "tag": "4th", "title": "安全ラインを引く（完了）",
+              "body": "ブロック解除導線・S_REPORT_FORM（通報フォーム）・S_ADMIN_REPORTS/REVIEW（審査キュー）・ng_words（NGワード自動検出＋S_ADMIN_NG_WORDS）まで実装済み。severity=warn のキュー送りのみ見送り（D49）。" },
             { "status": "future", "tag": "5th", "title": "幹Cを起こす",
               "body": "オーナー認証 → ダッシュボード → オーナー限定投稿 → 常連認定。差別化の半分がここから始まる。" },
             { "status": "future", "tag": "6th", "title": "地図",
