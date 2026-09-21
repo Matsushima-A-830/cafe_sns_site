@@ -146,6 +146,23 @@ describe('profiles の UPDATE', () => {
     expect(error?.message).toContain('FORBIDDEN')
   })
 
+  // guard_privileged_profile_columns は role/status しか弾かない。username の
+  // 「変更不可」は DB 制約ではなく Server Action 側のスキーマ設計だけで担保している
+  // ため、RLS はむしろ許可することをここで固定する（app/_actions/profiles.ts 参照）
+  it('username は RLS では守られていない（アプリ層の責務であることの記録）', async () => {
+    const { error } = await alice.client
+      .from('profiles')
+      .update({ username: 'alice_renamed' })
+      .eq('id', alice.userId)
+
+    expect(error).toBeNull()
+
+    const after = await service.from('profiles').select('username').eq('id', alice.userId).single()
+    expect(after.data?.username).toBe('alice_renamed')
+
+    await service.from('profiles').update({ username: 'alice_rls' }).eq('id', alice.userId)
+  })
+
   it('updated_at はトリガーで自動更新される', async () => {
     const before = await service
       .from('profiles')
