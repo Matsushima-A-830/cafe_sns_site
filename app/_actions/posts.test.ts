@@ -240,6 +240,23 @@ describe('createPost', () => {
     expect(spies.rpc).not.toHaveBeenCalledWith('finalize_post', expect.anything())
   })
 
+  it('ブログ投稿はタイトルもNGワード判定に含める（本文には無くタイトルだけにある場合も検出する）', async () => {
+    const { stub, spies } = buildSupabaseStub({ checkNgWords: { data: '死ね', error: null } })
+    createClientMock.mockResolvedValue(stub)
+
+    const result = await createPost({
+      postType: 'blog',
+      postId,
+      title: '死ねばいいのに',
+      bodyJson: textDoc,
+    })
+
+    expect(result).toEqual({ ok: false, error: 'NG_WORD_DETECTED' })
+    expect(spies.rpc).toHaveBeenCalledWith('check_ng_words', {
+      p_text: expect.stringContaining('死ねばいいのに'),
+    })
+  })
+
   it('check_ng_words の想定外エラーは INTERNAL_ERROR を返す', async () => {
     const { stub } = buildSupabaseStub({
       checkNgWords: { error: { message: 'boom' } },

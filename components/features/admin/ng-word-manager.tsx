@@ -52,16 +52,19 @@ export function NgWordManager({ initialItems }: { initialItems: NgWordListItem[]
         setFormError(errorMessage(result.error))
         return
       }
-      setItems((current) => [
-        ...current,
-        {
-          id: result.data.ngWordId,
-          word: trimmedWord,
-          severity,
-          category: selectedCategory ?? null,
-          createdAt: new Date().toISOString(),
-        },
-      ])
+      // listNgWords は word 昇順（citext 比較）で返す。追加時もその順序を保つ
+      const newItem: NgWordListItem = {
+        id: result.data.ngWordId,
+        word: trimmedWord,
+        severity,
+        category: selectedCategory ?? null,
+        createdAt: new Date().toISOString(),
+      }
+      setItems((current) =>
+        [...current, newItem].sort((a, b) =>
+          a.word.localeCompare(b.word, 'ja', { sensitivity: 'base' }),
+        ),
+      )
       setWord('')
       setCategory('')
       setStatus(`「${trimmedWord}」を追加しました`)

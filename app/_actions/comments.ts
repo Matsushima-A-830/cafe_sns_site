@@ -83,6 +83,14 @@ async function insertComment(
   if (body.length === 0) return { ok: false, error: 'POST_BODY_EMPTY' }
   if (body.length > COMMENT_BODY_MAX_CHARS) return { ok: false, error: 'POST_BODY_TOO_LONG' }
 
+  // FK は posts.status も deleted_at も見ない。これが無いと作者本人に限って
+  // hidden な予約行・論理削除済みの投稿にもコメントが通る（likes.ts と同じ理由）。
+  // NGワード判定より先に見る: 存在しない投稿への書き込みは POST_NOT_FOUND を
+  // 優先させ、無駄な RPC 呼び出しも避ける
+  if (!(await publishedPostExists(supabase, input.postId))) {
+    return { ok: false, error: 'POST_NOT_FOUND' }
+  }
+
   // check_ng_words は posts.ts createPost と同じ関数。severity=block のみ判定対象
   //   supabase/migrations/20260921040000_create_ng_words.sql
   const { data: ngWord, error: ngWordError } = await supabase.rpc('check_ng_words', {
@@ -90,12 +98,6 @@ async function insertComment(
   })
   if (ngWordError) throw new Error(`NGワードチェックに失敗しました: ${ngWordError.message}`)
   if (ngWord) return { ok: false, error: 'NG_WORD_DETECTED' }
-
-  // FK は posts.status も deleted_at も見ない。これが無いと作者本人に限って
-  // hidden な予約行・論理削除済みの投稿にもコメントが通る（likes.ts と同じ理由）
-  if (!(await publishedPostExists(supabase, input.postId))) {
-    return { ok: false, error: 'POST_NOT_FOUND' }
-  }
 
   const { data, error } = await supabase
     .from('comments')

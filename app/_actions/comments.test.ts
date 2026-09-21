@@ -144,6 +144,16 @@ describe('createComment', () => {
     expect(result).toEqual({ ok: false, error: 'POST_NOT_FOUND' })
   })
 
+  it('存在しない投稿へのNGワード本文は POST_NOT_FOUND を優先し、check_ng_words を呼ばない', async () => {
+    const { stub, spies } = buildSupabaseStub({ postExists: { count: 0, error: null } })
+    createClientMock.mockResolvedValue(stub)
+
+    const result = await createComment({ postId, body: '死ねと言われた' })
+
+    expect(result).toEqual({ ok: false, error: 'POST_NOT_FOUND' })
+    expect(spies.rpc).not.toHaveBeenCalled()
+  })
+
   it('成功時は commentId と確定した comment_count を返す', async () => {
     const { stub, spies } = buildSupabaseStub({
       commentCount: { data: { comment_count: 3 }, error: null },

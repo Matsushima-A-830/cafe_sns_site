@@ -159,10 +159,12 @@ export async function createPost(
   }
 
   // check_ng_words は ng_words の admin限定RLSを security definer でバイパスして
-  // 参照する（authenticated からのみ実行可能）。severity=block のみ判定対象
+  // 参照する（authenticated からのみ実行可能）。severity=block のみ判定対象。
+  // ブログのタイトルも判定対象に含める（本文だけ見ると title 単体のNGワードが素通りする）
   //   supabase/migrations/20260921040000_create_ng_words.sql
+  const ngCheckText = data.postType === 'blog' ? `${data.title}\n${plainText}` : plainText
   const { data: ngWord, error: ngWordError } = await supabase.rpc('check_ng_words', {
-    p_text: plainText,
+    p_text: ngCheckText,
   })
   if (ngWordError) {
     return { ok: false, error: 'INTERNAL_ERROR', details: ngWordError.message }
