@@ -336,30 +336,64 @@
     "eyebrow": "CAFE SNS / IMPLEMENTATION BOARD",
     "headline": "気分で見つかる、<br>行きつけと繋がる",
     "sub": "いま立っているもの と これから立てるもの",
-    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローして、その店に行けるか確かめて、自分の店リストに貯める」までの一本。ここに<strong>いいね・コメント（返信1階層、オーナー公式返信、投稿主モデレーション）・保存（post_bookmarks）</strong>が加わり、投稿への反応が一通り揃った。さらに <strong>S_CAFE_NEW（カフェ新規登録）</strong>が開通し、composer の中だけだった「見つからないカフェを登録する」が専用画面になった。マイページは4カードに戻り、S_BOOKMARKS も開通した。<strong>S_SETTINGS（設定）と S_BLOCKED_USERS（ブロック管理）</strong>・<strong>S_NOTIFICATIONS（通知）</strong>・<strong>S_PROFILE_EDIT（プロフィール編集）</strong>・<strong>S_REPORT_FORM（通報フォーム）</strong>に続き、S_ADMIN_REPORTS / S_ADMIN_REVIEW（通報審査キュー）に続き、今回 <strong>ng_words（NGワード辞書・自動検出）と S_ADMIN_NG_WORDS（NGワード管理）</strong>が加わり、投稿・コメント作成時に block ワードを自動検出して保存拒否するところまで一気通貫で動くようになった。「安全ラインを引く」はこれで完了。「自分の面」の残りは S_BADGES のみ。地図、オーナー側UIは、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
+    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローして、その店に行けるか確かめて、自分の店リストに貯める」までの一本。ここに<strong>いいね・コメント（返信1階層、オーナー公式返信、投稿主モデレーション）・保存（post_bookmarks）</strong>が加わり、投稿への反応が一通り揃った。さらに <strong>S_CAFE_NEW（カフェ新規登録）</strong>が開通し、composer の中だけだった「見つからないカフェを登録する」が専用画面になった。マイページは4カードに戻り、S_BOOKMARKS も開通した。<strong>S_SETTINGS（設定）と S_BLOCKED_USERS（ブロック管理）</strong>・<strong>S_NOTIFICATIONS（通知）</strong>・<strong>S_PROFILE_EDIT（プロフィール編集）</strong>・<strong>S_REPORT_FORM（通報フォーム）</strong>に続き、S_ADMIN_REPORTS / S_ADMIN_REVIEW（通報審査キュー）に続き、今回 <strong>ng_words（NGワード辞書・自動検出）と S_ADMIN_NG_WORDS（NGワード管理）</strong>が加わり、投稿・コメント作成時に block ワードを自動検出して保存拒否するところまで一気通貫で動くようになった。「安全ラインを引く」はこれで完了。続けて <strong>S_OWNER_CLAIM / S_OWNER_PENDING（オーナー認証申請）</strong>が加わり、幹Cの入口が開通した——書類提出から審査中・却下・取り下げまでは一本通ったが、審査（承認）を行う画面はまだ無いため verified_owner_id は付与されない。「自分の面」の残りは S_BADGES のみ。地図と、オーナーの管理画面（ダッシュボード以降）は、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
     "updatedAt": "2026-09-21",
-    "ref": "branch: feature/ng-words"
+    "ref": "branch: feature/owner-claim"
   },
-
   "metrics": [
-    { "k": "SCREENS", "v": "27", "unit": "/ 37", "note": "ワイヤー37画面のうち、画面IDコメント付きの page.tsx があるもの。S_CAFE_NEW / S_ADMIN_* はワイヤー自体が無いためこの分母に入らない", "ratio": 75 },
-    { "k": "TABLES", "v": "23", "unit": "/ 27", "note": "tables.md の27テーブル中、マイグレーション済み（ng_words 追加）", "ratio": 85 },
-    { "k": "MIGRATIONS", "v": "43", "unit": "", "note": "RLSポリシー込み。forward-only 運用", "ratio": null },
-    { "k": "TESTS", "v": "93", "unit": " files", "note": "unit / RLS統合30本 / E2E 7本。統合・E2EともCIで実行", "ratio": null }
+    {
+      "k": "SCREENS",
+      "v": "29",
+      "unit": "/ 37",
+      "note": "ワイヤー37画面のうち、画面IDコメント付きの page.tsx があるもの（S_OWNER_CLAIM/S_OWNER_PENDING 追加）。S_CAFE_NEW / S_ADMIN_* はワイヤー自体が無いためこの分母に入らない",
+      "ratio": 80
+    },
+    {
+      "k": "TABLES",
+      "v": "24",
+      "unit": "/ 27",
+      "note": "tables.md の27テーブル中、マイグレーション済み（cafe_owner_verifications 追加）",
+      "ratio": 90
+    },
+    {
+      "k": "MIGRATIONS",
+      "v": "46",
+      "unit": "",
+      "note": "RLSポリシー込み。forward-only 運用",
+      "ratio": null
+    },
+    {
+      "k": "TESTS",
+      "v": "99",
+      "unit": " files",
+      "note": "unit / RLS統合32本 / E2E 7本。統合・E2EともCIで実行",
+      "ratio": null
+    }
   ],
-
   "sections": [
     {
-      "kind": "title", "row": 0, "x": 80, "w": 1180
+      "kind": "title",
+      "row": 0,
+      "x": 80,
+      "w": 1180
     },
     {
-      "kind": "legend", "row": 0, "x": 1340, "w": 520
+      "kind": "legend",
+      "row": 0,
+      "x": 1340,
+      "w": 520
     },
     {
-      "kind": "metrics", "row": 0, "x": 1940, "w": 1400
+      "kind": "metrics",
+      "row": 0,
+      "x": 1940,
+      "w": 1400
     },
     {
-      "kind": "list", "row": 0, "x": 3420, "w": 900,
+      "kind": "list",
+      "row": 0,
+      "x": 3420,
+      "w": 900,
       "title": "このボードの出典",
       "items": [
         "<b>コード</b> — app / lib / components / supabase/migrations の実ファイル",
@@ -370,301 +404,751 @@
         "<b>更新</b> — 実装のたびに <code>/board-update</code>（指標は scripts/board-stats.sh）"
       ]
     },
-
     {
-      "kind": "frame", "id": "f-now", "row": 1, "x": 80, "w": 1600,
+      "kind": "frame",
+      "id": "f-now",
+      "row": 1,
+      "x": 80,
+      "w": 1600,
       "title": "① いま動く導線",
       "tally": "auto",
       "lede": "縦切りで通っているのは「サインアップ → オンボーディング → 気分で探す → 書く → フォローする → いいね・コメントする」。投稿に反応する導線は<strong>いいねとコメント</strong>が立ち、保存だけがまだ空いている。",
       "notes": [
-        { "status": "done", "tag": "S_SIGNUP ×3 / S_MINOR_CONSENT", "title": "年齢ゲート付きサインアップ",
+        {
+          "status": "done",
+          "tag": "S_SIGNUP ×3 / S_MINOR_CONSENT",
+          "title": "年齢ゲート付きサインアップ",
           "body": "メール+パスワード。生年月日必須で13歳未満はブロック、13〜17歳は保護者同意フローへ。",
-          "why": "同意メールの送信基盤は未整備（B3）" },
-        { "status": "done", "tag": "S_LOGIN / middleware", "title": "権限ゲート",
-          "body": "guest / pending / suspended / onboarding / user を middleware の1箇所で判定。ページ側に認可を書かない。" },
-        { "status": "done", "tag": "S_ONBOARD_PROFILE / AREA / INTERESTS", "title": "オンボーディング3段",
-          "body": "ホームエリアと「好きな気分」を必ず選ばせる。幹Aの前提データがここで貯まる。" },
-        { "status": "done", "tag": "S_ACCOUNT_PENDING / SUSPENDED", "title": "停止・同意待ちの受け皿",
-          "body": "行き止まりの画面を先に用意してある。" },
-        { "status": "partial", "tag": "S_HOME", "title": "気分入り口つきホーム",
+          "why": "同意メールの送信基盤は未整備（B3）"
+        },
+        {
+          "status": "done",
+          "tag": "S_LOGIN / middleware",
+          "title": "権限ゲート",
+          "body": "guest / pending / suspended / onboarding / user を middleware の1箇所で判定。ページ側に認可を書かない。"
+        },
+        {
+          "status": "done",
+          "tag": "S_ONBOARD_PROFILE / AREA / INTERESTS",
+          "title": "オンボーディング3段",
+          "body": "ホームエリアと「好きな気分」を必ず選ばせる。幹Aの前提データがここで貯まる。"
+        },
+        {
+          "status": "done",
+          "tag": "S_ACCOUNT_PENDING / SUSPENDED",
+          "title": "停止・同意待ちの受け皿",
+          "body": "行き止まりの画面を先に用意してある。"
+        },
+        {
+          "status": "partial",
+          "tag": "S_HOME",
+          "title": "気分入り口つきホーム",
           "body": "最上部が「今、どんなカフェ気分？」。フォロー中 / おすすめのタブ切替、PCは3カラム。",
-          "why": "サイドナビはホーム・発見・投稿の3項目だけ。検索/通知アイコン・ボトムナビは遷移先が無いので出していない（D27）" },
-        { "status": "partial", "tag": "S_EXPLORE", "title": "発見タブ",
+          "why": "サイドナビはホーム・発見・投稿の3項目だけ。検索/通知アイコン・ボトムナビは遷移先が無いので出していない（D27）"
+        },
+        {
+          "status": "partial",
+          "tag": "S_EXPLORE",
+          "title": "発見タブ",
           "body": "「おすすめ」「新着」の2サブタブ。おすすめ＝興味タグに1つでも一致する公開投稿を新着順。",
-          "why": "「近くのカフェ」は地図・座標が未整備のためタブごと非表示（D25）／スコアリング無し（D24）" },
-        { "status": "done", "tag": "S_POST_DETAIL", "title": "投稿詳細",
-          "body": "SSR。非公開・ブロック関係は存在自体を隠して404。いいね・コメント（返信1階層・公式返信バッジ・投稿主モデレーション）・保存・通報のアクション行が揃った。" },
-        { "status": "partial", "tag": "S_USER_PROFILE_PUBLIC", "title": "他人のプロフィール",
+          "why": "「近くのカフェ」は地図・座標が未整備のためタブごと非表示（D25）／スコアリング無し（D24）"
+        },
+        {
+          "status": "done",
+          "tag": "S_POST_DETAIL",
+          "title": "投稿詳細",
+          "body": "SSR。非公開・ブロック関係は存在自体を隠して404。いいね・コメント（返信1階層・公式返信バッジ・投稿主モデレーション）・保存・通報のアクション行が揃った。"
+        },
+        {
+          "status": "partial",
+          "tag": "S_USER_PROFILE_PUBLIC",
+          "title": "他人のプロフィール",
           "body": "アバター・表示名・bio・3カウント・フォローボタン・投稿グリッド。通報する単独リンクを追加。",
-          "why": "バッジ・行きつけタブは対応テーブルが無く非表示（D28）" },
-        { "status": "partial", "tag": "S_CAFE_DETAIL", "title": "カフェ詳細",
+          "why": "バッジ・行きつけタブは対応テーブルが無く非表示（D28）"
+        },
+        {
+          "status": "partial",
+          "tag": "S_CAFE_DETAIL",
+          "title": "カフェ詳細",
           "body": "営業時間表（JST基準・深夜営業対応の「営業中 / 準備中」バッジ）、混雑度の3段階フォールバックと報告フォーム、基本情報、投稿グリッド、通報する単独リンク。",
-          "why": "地図・オーナーからのセクションは元テーブルとデータが未整備（D30）／ヒーロー画像は最新投稿の流用（D31）／通報完了画面のブロック提案はオーナーIDを公開していないため常に出ない（D47）" },
-        { "status": "done", "tag": "S_POST_SHORT / S_POST_BLOG", "title": "composer",
-          "body": "Tiptap（JSON保存）、画像アップロード、カフェ選択、厳選タグ、公開範囲、15秒デバウンスの下書き自動保存、プレビュー。" },
-        { "status": "done", "tag": "S_POST_SUCCESS", "title": "投稿完了",
-          "body": "ピークエンド則の着地点。/new は形式選択シート。" },
-        { "status": "partial", "tag": "S_MYPAGE", "title": "マイページ",
+          "why": "地図・オーナーからのセクションは元テーブルとデータが未整備（D30）／ヒーロー画像は最新投稿の流用（D31）／通報完了画面のブロック提案はオーナーIDを公開していないため常に出ない（D47）"
+        },
+        {
+          "status": "done",
+          "tag": "S_POST_SHORT / S_POST_BLOG",
+          "title": "composer",
+          "body": "Tiptap（JSON保存）、画像アップロード、カフェ選択、厳選タグ、公開範囲、15秒デバウンスの下書き自動保存、プレビュー。"
+        },
+        {
+          "status": "done",
+          "tag": "S_POST_SUCCESS",
+          "title": "投稿完了",
+          "body": "ピークエンド則の着地点。/new は形式選択シート。"
+        },
+        {
+          "status": "partial",
+          "tag": "S_MYPAGE",
+          "title": "マイページ",
           "body": "ヘッダ3カウント、お気に入り/行きたい/下書き/保存の4カード（件数バッジ）、直近5件のタブ切替プレビュー、自分の投稿グリッド。「プロフィール編集」ボタンから S_PROFILE_EDIT へ。",
-          "why": "バッジ・行きつけ・制覇マップは元テーブルが未整備（D32）" },
-        { "status": "partial", "tag": "S_PROFILE_EDIT", "title": "プロフィール編集",
+          "why": "バッジ・行きつけ・制覇マップは元テーブルが未整備（D32）"
+        },
+        {
+          "status": "partial",
+          "tag": "S_PROFILE_EDIT",
+          "title": "プロフィール編集",
           "body": "表示名・自己紹介・ホームエリアを編集。ユーザーネームは disabled 表示のみで、Server Action のスキーマにも含めず構造的に変更不可にしている。変更検知で保存ボタンを disabled、離脱時は beforeunload のみで確認する。",
-          "why": "アバター差し替えは Storage 導線が丸ごと無く別スコープ（D45）／username の変更不可は RLS/トリガーでは守られていない（D46）" },
-        { "status": "partial", "tag": "S_FAVORITES / S_WANT_TO_GO", "title": "カフェの2リスト",
+          "why": "アバター差し替えは Storage 導線が丸ごと無く別スコープ（D45）／username の変更不可は RLS/トリガーでは守られていない（D46）"
+        },
+        {
+          "status": "partial",
+          "tag": "S_FAVORITES / S_WANT_TO_GO",
+          "title": "カフェの2リスト",
           "body": "カフェ詳細のトグルで出し入れ。2つは排他ではなく同じ店が両方に入る。閉店・非公開の店は cafes!inner で一覧からも件数からも落とす。",
-          "why": "サムネ・投稿件数はN+1になるため非表示。並び替え・地図・ページ送りも未実装（D32）" },
-        { "status": "partial", "tag": "S_DRAFTS", "title": "下書き一覧",
+          "why": "サムネ・投稿件数はN+1になるため非表示。並び替え・地図・ページ送りも未実装（D32）"
+        },
+        {
+          "status": "partial",
+          "tag": "S_DRAFTS",
+          "title": "下書き一覧",
           "body": "期限切れを除いた一覧、続きを書く、確認ダイアログつき削除。30日で自動削除する旨も明示。",
-          "why": "期限切れ行の実削除は日次ジョブ待ちで、取得時の除外で代替している（A6）" },
-        { "status": "done", "tag": "follows", "title": "フォロー",
-          "body": "楽観更新つきフォローボタン。ブロック済み相手・停止アカウントは INSERT 時に弾く。" },
-        { "status": "partial", "tag": "likes", "title": "いいね",
+          "why": "期限切れ行の実削除は日次ジョブ待ちで、取得時の除外で代替している（A6）"
+        },
+        {
+          "status": "done",
+          "tag": "follows",
+          "title": "フォロー",
+          "body": "楽観更新つきフォローボタン。ブロック済み相手・停止アカウントは INSERT 時に弾く。"
+        },
+        {
+          "status": "partial",
+          "tag": "likes",
+          "title": "いいね",
           "body": "投稿カードと投稿詳細で共通。楽観更新のあとサーバーの確定件数で上書きする。未ログインはカードで件数のみ、詳細でログイン導線。返報性通知は notifications 実装で開通した。",
-          "why": "SELECTが投稿の可視性を継承していない（D38）" },
-        { "status": "partial", "tag": "comments", "title": "コメント",
+          "why": "SELECTが投稿の可視性を継承していない（D38）"
+        },
+        {
+          "status": "partial",
+          "tag": "comments",
+          "title": "コメント",
           "body": "返信1階層まで・オーナー公式返信バッジ（幹C）・投稿主による論理削除モデレーション。lib/posts/comments.ts の keyset ページング一覧、CommentList/CommentForm が投稿詳細に埋め込み済み。",
-          "why": "NGワード検出は辞書未整備で見送り（B4）" },
-        { "status": "done", "tag": "post_bookmarks", "title": "保存",
-          "body": "likes と同型（追加/解除を分ける・security definer トリガーで bookmark_count 維持）。投稿カード・投稿詳細のBookmarkButton、マイページ4枚目のカードと S_BOOKMARKS 一覧まで開通。" },
-        { "status": "partial", "tag": "S_CAFE_NEW", "title": "カフェ新規登録",
+          "why": "NGワード検出は辞書未整備で見送り（B4）"
+        },
+        {
+          "status": "done",
+          "tag": "post_bookmarks",
+          "title": "保存",
+          "body": "likes と同型（追加/解除を分ける・security definer トリガーで bookmark_count 維持）。投稿カード・投稿詳細のBookmarkButton、マイページ4枚目のカードと S_BOOKMARKS 一覧まで開通。"
+        },
+        {
+          "status": "partial",
+          "tag": "S_CAFE_NEW",
+          "title": "カフェ新規登録",
           "body": "カフェ名・カナ・都道府県/市区町村・エリア・住所・電話・Web・説明を入力して登録。composer の CafePicker から新しいタブで開く導線あり。登録者本人は verified_owner_id が付くまで自分の登録内容を編集できる（B8）。",
-          "why": "重複防止はアプリ層の警告のみでブロックしない（B9）／location・main_image_path は未収集・未整備のため受け付けない（A3・D31）／登録直後から全ユーザーに公開される（D40）" },
-        { "status": "partial", "tag": "S_SETTINGS", "title": "設定",
+          "why": "重複防止はアプリ層の警告のみでブロックしない（B9）／location・main_image_path は未収集・未整備のため受け付けない（A3・D31）／登録直後から全ユーザーに公開される（D40）"
+        },
+        {
+          "status": "partial",
+          "tag": "S_SETTINGS",
+          "title": "設定",
           "body": "プライバシー（位置情報・おすすめ活用）・通知3種・文字サイズ。項目ごとに押した瞬間に保存する楽観更新。",
-          "why": "アカウント区分（メール/パスワード変更・退会）とその他区分（規約等）は未実装（D41 と別スコープ）／font_scale は保存のみで表示への反映は未着手（D41）" },
-        { "status": "partial", "tag": "S_BLOCKED_USERS", "title": "ブロック管理",
+          "why": "アカウント区分（メール/パスワード変更・退会）とその他区分（規約等）は未実装（D41 と別スコープ）／font_scale は保存のみで表示への反映は未着手（D41）"
+        },
+        {
+          "status": "partial",
+          "tag": "S_BLOCKED_USERS",
+          "title": "ブロック管理",
           "body": "一覧・確認ダイアログつき解除。公開プロフィールに最小限のブロックボタンを追加し、作成の入口も開通した。",
-          "why": "通報・ブロック・非表示をまとめた統合「⋯」メニュー化はスコープ外（D47）" },
-        { "status": "done", "tag": "S_NOTIFICATIONS", "title": "通知",
-          "body": "フィルタタブ（すべて/フォロー/コメント/いいね）、もっと見る方式の一覧、個別・一括の既読化、フォロー通知への「フォローバック」ボタン。/me から導線を追加（AuthNavには未読バッジを出さない設計判断）。likes/comments/follows の3トリガーが自己通知・ブロック相手・通知設定offを弾いてから INSERT する。" },
-        { "status": "partial", "tag": "S_REPORT_FORM", "title": "通報フォーム",
+          "why": "通報・ブロック・非表示をまとめた統合「⋯」メニュー化はスコープ外（D47）"
+        },
+        {
+          "status": "done",
+          "tag": "S_NOTIFICATIONS",
+          "title": "通知",
+          "body": "フィルタタブ（すべて/フォロー/コメント/いいね）、もっと見る方式の一覧、個別・一括の既読化、フォロー通知への「フォローバック」ボタン。/me から導線を追加（AuthNavには未読バッジを出さない設計判断）。likes/comments/follows の3トリガーが自己通知・ブロック相手・通知設定offを弾いてから INSERT する。"
+        },
+        {
+          "status": "partial",
+          "tag": "S_REPORT_FORM",
+          "title": "通報フォーム",
           "body": "投稿/コメント/ユーザー/カフェを通報。理由選択・補足説明・完了画面（該当ユーザーのブロック提案）。投稿詳細・カフェ詳細・公開プロフィールに単独「通報する」リンクで導線。",
-          "why": "自己通報の CHECK 制約は user のみ（post/comment/cafe は見送り）（D47）" },
-        { "status": "partial", "tag": "S_ADMIN_REPORTS / S_ADMIN_REVIEW", "title": "通報審査キュー",
+          "why": "自己通報の CHECK 制約は user のみ（post/comment/cafe は見送り）（D47）"
+        },
+        {
+          "status": "partial",
+          "tag": "S_ADMIN_REPORTS / S_ADMIN_REVIEW",
+          "title": "通報審査キュー",
           "body": "ステータス別タブの一覧、個別レビュー（通報内容・対象の内容・reason）、判定（投稿非表示/コメント削除/ユーザー停止/却下）→ audit_logs 記録 → 通報者への report_resolved 通知まで一気通貫で動く。posts/comments に admin 専用の SELECT/UPDATE バイパスポリシーを追加し、hidden・削除済みの対象も審査できる。",
-          "why": "ワイヤーフレーム自体が無く画面要素は実装時に判断／cafe 対象は却下のみで具体的な対応が未設計／通知は通報者のみで被通報者には送らない／audit_logs・notifications の INSERT 失敗はエラーを握りつぶす（D48）" },
-        { "status": "partial", "tag": "S_ADMIN_NG_WORDS", "title": "NGワード管理",
+          "why": "ワイヤーフレーム自体が無く画面要素は実装時に判断／cafe 対象は却下のみで具体的な対応が未設計／通知は通報者のみで被通報者には送らない／audit_logs・notifications の INSERT 失敗はエラーを握りつぶす（D48）"
+        },
+        {
+          "status": "partial",
+          "tag": "S_ADMIN_NG_WORDS",
+          "title": "NGワード管理",
           "body": "一覧・追加（severity/category選択）・削除確認ダイアログ。createPost/createComment は check_ng_words()（security definer）で severity=block のワードを検出し保存拒否する。初期辞書20語を投入。",
-          "why": "severity=warn の運営レビューキュー送りは reports テーブルの設計上見送り、保存を妨げないだけ（D49）／画面IDはワイヤーフレーム自体が無く実装時に採番" },
-        { "status": "done", "tag": "_actions", "title": "Server Actions 19本",
-          "body": "auth / onboarding / posts / drafts / feed / follows / cafes / congestion / cafe-lists / likes / comments / bookmarks / blocks / settings / notifications / profiles / reports / admin-reports / admin-ng-words。入力は全て Zod、返りは Result 型。" }
+          "why": "severity=warn の運営レビューキュー送りは reports テーブルの設計上見送り、保存を妨げないだけ（D49）／画面IDはワイヤーフレーム自体が無く実装時に採番"
+        },
+        {
+          "status": "done",
+          "tag": "_actions",
+          "title": "Server Actions 20本",
+          "body": "auth / onboarding / posts / drafts / feed / follows / cafes / congestion / cafe-lists / likes / comments / bookmarks / blocks / settings / notifications / profiles / reports / admin-reports / admin-ng-words / owner（claimCafe, withdrawClaim）。入力は全て Zod、返りは Result 型。"
+        },
+        {
+          "status": "partial",
+          "tag": "S_OWNER_CLAIM / S_OWNER_PENDING",
+          "title": "オーナー認証申請（幹Cの入口）",
+          "body": "書類2点以上のアップロード・連絡先メール・確認チェック3つで申請し、審査中／却下（理由表示・再申請導線）／取り下げ（確認ダイアログ）まで一本通った。S_CAFE_DETAIL に「このカフェのオーナーですか？」導線を追加。",
+          "why": "審査（承認/却下）を行う S_ADMIN_OWNER_REVIEW が未実装のため、申請しても verified_owner_id は付与されずオーナーバッジは出ない（④幹C-1）。実機確認・E2E化もまだ（D34と同種、未起票）"
+        }
       ]
     },
-
     {
-      "kind": "frame", "id": "f-base", "row": 1, "x": 1740, "w": 1180,
+      "kind": "frame",
+      "id": "f-base",
+      "row": 1,
+      "x": 1740,
+      "w": 1180,
       "title": "② 足場（DB・認可・ツーリング）",
-      "tally": "MIGRATIONS 41",
+      "tally": "MIGRATIONS 46",
       "lede": "認可はアプリ層に書かず RLS に寄せてある。ここが厚いぶん、画面は後から速く積める。",
       "notes": [
-        { "status": "done", "tag": "22 tables", "title": "実装済みテーブル",
-          "body": "areas / tags / badges / profiles / user_settings / user_interest_tags / follows / blocks / cafes / cafe_business_hours / cafe_congestion_reports / posts / post_images / post_tags / drafts / user_cafe_lists / likes / comments / post_bookmarks / notifications / reports / audit_logs" },
-        { "status": "done", "tag": "trigger", "title": "カウント維持トリガーの原型",
-          "body": "posts.like_count / comment_count / bookmark_count を増減で維持する。posts_update_own が作者しか許さないため <code>security definer</code> が必須。カウント更新では updated_at を動かさない。3列とも likes・comments・post_bookmarks の3トリガーが同じ形で維持する。" },
-        { "status": "done", "tag": "RLS pitfall", "title": "論理削除UPDATEがRLSで永久に弾かれる罠",
-          "body": "PostgreSQLのRLSはUPDATE後の新しい行が何らかのSELECTポリシーを満たすかも検証する。<code>deleted_at IS NULL</code>必須のSELECTポリシーだけだと、本人であっても論理削除のUPDATEが常に42501で弾かれる。<code>posts_select_own</code>（D19以前に発見）と同型の穴を comments でも踏み、<code>comments_select_own</code>（author_id / is_post_author、deleted_at を見ない）で解消。post_bookmarks は物理DELETEのみ（likesと同型）でUPDATEが無く、この穴自体を踏まなかった。" },
-        { "status": "done", "tag": "RLS", "title": "認可は全部ポリシー側",
-          "body": "is_active_user / is_blocked_either_way / is_admin を共通関数化。JWTカスタムクレイムに role と status を載せる。posts/comments には is_admin() バイパスの permissive policy を追加し、admin の審査キューが hidden・削除済みの行も読み書きできるようにした。" },
-        { "status": "done", "tag": "RPC", "title": "reservePost → upload → finalize_post",
-          "body": "「投稿行が無いと画像を置けない／画像が無いと投稿できない」の循環依存を、hidden で予約してから確定する形で解消。" },
-        { "status": "done", "tag": "storage", "title": "post-images バケット",
-          "body": "署名付きURLで直PUT。lib/storage/ のラッパー越しにしか触らない（将来のS3移行のため）。" },
-        { "status": "done", "tag": "search", "title": "simple tsvector + pg_trgm",
-          "body": "日本語の部分一致は pg_trgm が主役。pgroonga は採らない。" },
-        { "status": "done", "tag": "seed", "title": "マスタ初期セット",
-          "body": "厳選タグ30 / 東京45エリア / バッジ20の定義。バッジは<strong>マスタのみ</strong>で付与側は無い。" },
-        { "status": "done", "tag": "CI", "title": "Biome + tsc + design-system 検査",
-          "body": "#000禁止・インラインstyle禁止・非8倍数余白の検出を pre-commit と CI の両方で走らせる。" },
-        { "status": "done", "tag": "tests", "title": "テスト90ファイル",
-          "body": "RLS統合テスト29本は Supabase local 前提。PRごとに CI の Supabase Integration ジョブで回る。E2Eは6本。" }
+        {
+          "status": "done",
+          "tag": "24 tables",
+          "title": "実装済みテーブル",
+          "body": "areas / tags / badges / profiles / user_settings / user_interest_tags / follows / blocks / cafes / cafe_business_hours / cafe_congestion_reports / posts / post_images / post_tags / drafts / user_cafe_lists / likes / comments / post_bookmarks / notifications / reports / audit_logs / ng_words / cafe_owner_verifications"
+        },
+        {
+          "status": "done",
+          "tag": "trigger",
+          "title": "カウント維持トリガーの原型",
+          "body": "posts.like_count / comment_count / bookmark_count を増減で維持する。posts_update_own が作者しか許さないため <code>security definer</code> が必須。カウント更新では updated_at を動かさない。3列とも likes・comments・post_bookmarks の3トリガーが同じ形で維持する。"
+        },
+        {
+          "status": "done",
+          "tag": "RLS pitfall",
+          "title": "論理削除UPDATEがRLSで永久に弾かれる罠",
+          "body": "PostgreSQLのRLSはUPDATE後の新しい行が何らかのSELECTポリシーを満たすかも検証する。<code>deleted_at IS NULL</code>必須のSELECTポリシーだけだと、本人であっても論理削除のUPDATEが常に42501で弾かれる。<code>posts_select_own</code>（D19以前に発見）と同型の穴を comments でも踏み、<code>comments_select_own</code>（author_id / is_post_author、deleted_at を見ない）で解消。post_bookmarks は物理DELETEのみ（likesと同型）でUPDATEが無く、この穴自体を踏まなかった。"
+        },
+        {
+          "status": "done",
+          "tag": "RLS",
+          "title": "認可は全部ポリシー側",
+          "body": "is_active_user / is_blocked_either_way / is_admin を共通関数化。JWTカスタムクレイムに role と status を載せる。posts/comments には is_admin() バイパスの permissive policy を追加し、admin の審査キューが hidden・削除済みの行も読み書きできるようにした。"
+        },
+        {
+          "status": "done",
+          "tag": "RPC",
+          "title": "reservePost → upload → finalize_post",
+          "body": "「投稿行が無いと画像を置けない／画像が無いと投稿できない」の循環依存を、hidden で予約してから確定する形で解消。"
+        },
+        {
+          "status": "done",
+          "tag": "storage",
+          "title": "post-images バケット",
+          "body": "署名付きURLで直PUT。lib/storage/ のラッパー越しにしか触らない（将来のS3移行のため）。"
+        },
+        {
+          "status": "done",
+          "tag": "search",
+          "title": "simple tsvector + pg_trgm",
+          "body": "日本語の部分一致は pg_trgm が主役。pgroonga は採らない。"
+        },
+        {
+          "status": "done",
+          "tag": "seed",
+          "title": "マスタ初期セット",
+          "body": "厳選タグ30 / 東京45エリア / バッジ20の定義。バッジは<strong>マスタのみ</strong>で付与側は無い。"
+        },
+        {
+          "status": "done",
+          "tag": "CI",
+          "title": "Biome + tsc + design-system 検査",
+          "body": "#000禁止・インラインstyle禁止・非8倍数余白の検出を pre-commit と CI の両方で走らせる。"
+        },
+        {
+          "status": "done",
+          "tag": "tests",
+          "title": "テスト99ファイル",
+          "body": "RLS統合テスト32本は Supabase local 前提。PRごとに CI の Supabase Integration ジョブで回る。E2Eは7本。"
+        },
+        {
+          "status": "done",
+          "tag": "RLS pitfall",
+          "title": "埋め込みselectがRLSに食われる罠",
+          "body": "子テーブルから親テーブルを <code>cafe:cafes!fkey(...)</code> のように埋め込みselectすると、親側のSELECT RLSも同時に適用される。本人の行であっても親（cafe）がactiveでなければ埋め込み側がnullになり、本人からも自分の申請が見えなくなる。is_cafe_owner()と同じ理由の security definer 関数（get_owner_verification_cafe）で回避（cafe_owner_verifications実装時に発見）。"
+        }
       ]
     },
-
     {
-      "kind": "frame", "id": "f-todo", "row": 1, "x": 2980, "w": 1340,
+      "kind": "frame",
+      "id": "f-todo",
+      "row": 1,
+      "x": 2980,
+      "w": 1340,
       "title": "③ まだ存在しない画面",
-      "tally": "SCREENS 10 / TABLES 4",
+      "tally": "SCREENS 8 / TABLES 3",
       "lede": "未実装の大半は「テーブルが無いから画面も無い」。逆に言えば、テーブルを1つ足すたびに複数画面が開く。",
       "notes": [
-        { "status": "todo", "tag": "S_MAP / S_SEARCH / S_FILTER_*", "title": "探す面",
-          "body": "地図は areas.center_location の座標45件が未収集（A3）。タグ検索も未着手。" },
-        { "status": "todo", "tag": "S_BADGES", "title": "自分の面の残り",
-          "body": "バッジのみ。設定・ブロック管理・通知・プロフィール編集は開通した。マイページ本体とお気に入り・行きたい・下書き・保存も実装済み。" },
-        { "status": "todo", "tag": "owner 6画面 + S_POST_OFFICIAL", "title": "オーナーの面",
-          "body": "認証申請 / 審査中 / ダッシュボード / 店舗編集 / 投稿分析 / 常連認定。幹Cはここが入口。" },
-        { "status": "todo", "tag": "user_badges / area_visits", "title": "ゲーミフィケーション",
-          "body": "バッジ付与とエリア制覇マップ。定義20件は seed 済みで、貯める側が空。notifications.type='badge' は CHECK 制約に確保済みだが、発火元（付与ロジック）がこれ待ち。" }
+        {
+          "status": "todo",
+          "tag": "S_MAP / S_SEARCH / S_FILTER_*",
+          "title": "探す面",
+          "body": "地図は areas.center_location の座標45件が未収集（A3）。タグ検索も未着手。"
+        },
+        {
+          "status": "todo",
+          "tag": "S_BADGES",
+          "title": "自分の面の残り",
+          "body": "バッジのみ。設定・ブロック管理・通知・プロフィール編集は開通した。マイページ本体とお気に入り・行きたい・下書き・保存も実装済み。"
+        },
+        {
+          "status": "todo",
+          "tag": "owner 4画面 + S_POST_OFFICIAL",
+          "title": "オーナーの面",
+          "body": "認証申請 / 審査中は開通済み。残るはダッシュボード / 店舗編集 / 投稿分析 / 常連認定。幹Cの起点（入口）は開いたが、本体はここから。"
+        },
+        {
+          "status": "todo",
+          "tag": "user_badges / area_visits",
+          "title": "ゲーミフィケーション",
+          "body": "バッジ付与とエリア制覇マップ。定義20件は seed 済みで、貯める側が空。notifications.type='badge' は CHECK 制約に確保済みだが、発火元（付与ロジック）がこれ待ち。"
+        }
       ]
     },
-
     {
-      "kind": "frame", "id": "f-core", "row": 2, "x": 80, "w": 1600,
+      "kind": "frame",
+      "id": "f-core",
+      "row": 2,
+      "x": 80,
+      "w": 1600,
       "title": "④ 差別化の到達度",
       "tally": "auto",
       "lede": "positioning.md の判断基準は「幹A（気分検索）か幹C（オーナー連携）を強化するか」。現在地を素直に置くと、<strong>幹Aの入口だけが立ち、幹Cは1行も無い</strong>。",
       "notes": [
-        { "status": "done", "tag": "幹A-1", "title": "トップの気分入り口",
-          "body": "S_HOME 最上部が「今、どんなカフェ気分？」から始まる。Instagram型のフォロー起点にしていない。" },
-        { "status": "done", "tag": "幹A-2", "title": "シーンタグの第一級化",
-          "body": "tags.category='occasion' を優先表示。エリアは絞り込みに格下げ済み。" },
-        { "status": "done", "tag": "幹A-5", "title": "オンボーディングで気分必須",
-          "body": "スキップ不可。user_interest_tags に保存。" },
-        { "status": "partial", "tag": "幹A-3", "title": "シーン別レコメンド",
+        {
+          "status": "done",
+          "tag": "幹A-1",
+          "title": "トップの気分入り口",
+          "body": "S_HOME 最上部が「今、どんなカフェ気分？」から始まる。Instagram型のフォロー起点にしていない。"
+        },
+        {
+          "status": "done",
+          "tag": "幹A-2",
+          "title": "シーンタグの第一級化",
+          "body": "tags.category='occasion' を優先表示。エリアは絞り込みに格下げ済み。"
+        },
+        {
+          "status": "done",
+          "tag": "幹A-5",
+          "title": "オンボーディングで気分必須",
+          "body": "スキップ不可。user_interest_tags に保存。"
+        },
+        {
+          "status": "partial",
+          "tag": "幹A-3",
+          "title": "シーン別レコメンド",
           "body": "「おすすめ」は興味タグの単純一致＋新着順。",
-          "why": "likes・post_bookmarks が揃い人気度の材料は完成したが、スコアリング自体は未着手（D24）" },
-        { "status": "todo", "tag": "幹A-4", "title": "シーン開拓バッジ",
-          "body": "朝カフェマスター等。定義はあるが付与の仕組みが無い。" },
-        { "status": "todo", "tag": "幹C-1", "title": "オーナー認証バッジ",
-          "body": "cafe_owner_verifications 未作成。書類2点以上の審査フローも未実装。" },
-        { "status": "todo", "tag": "幹C-2", "title": "オーナー限定投稿4フォーマット",
-          "body": "豆知識 / 今日のおすすめ / 臨時休業 / 新メニュー。" },
-        { "status": "todo", "tag": "幹C-3", "title": "常連認定 と 行きつけ",
-          "body": "regular_customers 未作成。プロフィールの「行きつけ」タブもこれ待ち。" },
-        { "status": "done", "tag": "幹C-4", "title": "オーナー公式返信",
-          "body": "is_official 列と権限制御（該当カフェの verified_owner_id 本人のみ、RLS＋トリガーの二重防御）に加え、CommentList が「オーナー公式」バッジを表示するところまで開通。投稿する導線自体はオーナー側画面（幹C-1〜3）待ち。" },
-        { "status": "todo", "tag": "幹C-5", "title": "常連分析",
-          "body": "ダッシュボードの分析面。蓄積データが先。" }
+          "why": "likes・post_bookmarks が揃い人気度の材料は完成したが、スコアリング自体は未着手（D24）"
+        },
+        {
+          "status": "todo",
+          "tag": "幹A-4",
+          "title": "シーン開拓バッジ",
+          "body": "朝カフェマスター等。定義はあるが付与の仕組みが無い。"
+        },
+        {
+          "status": "partial",
+          "tag": "幹C-1",
+          "title": "オーナー認証バッジ",
+          "body": "cafe_owner_verifications 実装済み。申請フォーム（S_OWNER_CLAIM/S_OWNER_PENDING）まで開通したが、審査してverified_owner_idを付与する画面（S_ADMIN_OWNER_REVIEW）がまだ無いため、バッジは誰にも付かない。",
+          "why": "審査UIは次PRのスコープ（⑦H1 5th）"
+        },
+        {
+          "status": "todo",
+          "tag": "幹C-2",
+          "title": "オーナー限定投稿4フォーマット",
+          "body": "豆知識 / 今日のおすすめ / 臨時休業 / 新メニュー。"
+        },
+        {
+          "status": "todo",
+          "tag": "幹C-3",
+          "title": "常連認定 と 行きつけ",
+          "body": "regular_customers 未作成。プロフィールの「行きつけ」タブもこれ待ち。"
+        },
+        {
+          "status": "done",
+          "tag": "幹C-4",
+          "title": "オーナー公式返信",
+          "body": "is_official 列と権限制御（該当カフェの verified_owner_id 本人のみ、RLS＋トリガーの二重防御）に加え、CommentList が「オーナー公式」バッジを表示するところまで開通。投稿する導線自体はオーナー側画面（幹C-1〜3）待ち。"
+        },
+        {
+          "status": "todo",
+          "tag": "幹C-5",
+          "title": "常連分析",
+          "body": "ダッシュボードの分析面。蓄積データが先。"
+        }
       ]
     },
-
     {
-      "kind": "frame", "id": "f-risk", "row": 2, "x": 1740, "w": 1180,
+      "kind": "frame",
+      "id": "f-risk",
+      "row": 2,
+      "x": 1740,
+      "w": 1180,
       "title": "⑤ 既知の穴",
       "tally": "pending-items より",
       "lede": "隠していない未決事項。優先度と一緒に記録してあるものを、効きが強い順に並べた。",
       "notes": [
-        { "status": "risk", "tag": "A10", "title": "EXIF除去がクライアント任せ",
-          "body": "署名付きURLで直PUTするため、サーバ側で位置情報の除去を強制できない。若年層の安全に直結する。" },
-        { "status": "risk", "tag": "D34", "title": "composer が実機未確認のまま",
-          "body": "投稿詳細・S_HOME・S_EXPLORE・プロフィールはいいね導線の範囲で実機確認した（2026-09-19）。残るのは composer で、canvasのWebP変換・実JPEGのEXIF除去・15秒デバウンス・署名URL直PUTは実機でしか確かめられない。" },
-        { "status": "risk", "tag": "D23", "title": "閲覧系がキャッシュに載らない",
-          "body": "動的セグメント＋cookie 参照で ISR から外れる。加えて anon で静的に描くとブロック関係が効かない。速度と認可がセットの問題。" },
-        { "status": "risk", "tag": "D29", "title": "停止・削除ユーザーの投稿が残る",
-          "body": "プロフィールは404になるが、posts_select が作者の status を見ないためフィードには残り続ける。" },
-        { "status": "risk", "tag": "A1", "title": "Safari 未検証",
-          "body": "MVP期間中は非対応としているが、メインターゲットの10〜20代はiPhone比率が高い。リリース前に集中検証が要る。" },
-        { "status": "risk", "tag": "D19", "title": "finalize されない hidden 投稿",
-          "body": "予約だけして離脱した行の掃除方針が未定。pg_cron が Free で使えない制約とセット。" },
-        { "status": "risk", "tag": "D15 / D16", "title": "署名URLの TOCTOU とレート制限",
-          "body": "枚数チェックに競合の余地があり、発行回数の上限も無い。" },
-        { "status": "risk", "tag": "A3", "title": "エリア座標45件が未収集",
-          "body": "S_MAP・現在地検索・エリア自動判定を止めている唯一の残データ。" },
-        { "status": "risk", "tag": "D30",
+        {
+          "status": "risk",
+          "tag": "A10",
+          "title": "EXIF除去がクライアント任せ",
+          "body": "署名付きURLで直PUTするため、サーバ側で位置情報の除去を強制できない。若年層の安全に直結する。"
+        },
+        {
+          "status": "risk",
+          "tag": "D34",
+          "title": "composer が実機未確認のまま",
+          "body": "投稿詳細・S_HOME・S_EXPLORE・プロフィールはいいね導線の範囲で実機確認した（2026-09-19）。残るのは composer で、canvasのWebP変換・実JPEGのEXIF除去・15秒デバウンス・署名URL直PUTは実機でしか確かめられない。"
+        },
+        {
+          "status": "risk",
+          "tag": "D23",
+          "title": "閲覧系がキャッシュに載らない",
+          "body": "動的セグメント＋cookie 参照で ISR から外れる。加えて anon で静的に描くとブロック関係が効かない。速度と認可がセットの問題。"
+        },
+        {
+          "status": "risk",
+          "tag": "D29",
+          "title": "停止・削除ユーザーの投稿が残る",
+          "body": "プロフィールは404になるが、posts_select が作者の status を見ないためフィードには残り続ける。"
+        },
+        {
+          "status": "risk",
+          "tag": "A1",
+          "title": "Safari 未検証",
+          "body": "MVP期間中は非対応としているが、メインターゲットの10〜20代はiPhone比率が高い。リリース前に集中検証が要る。"
+        },
+        {
+          "status": "risk",
+          "tag": "D19",
+          "title": "finalize されない hidden 投稿",
+          "body": "予約だけして離脱した行の掃除方針が未定。pg_cron が Free で使えない制約とセット。"
+        },
+        {
+          "status": "risk",
+          "tag": "D15 / D16",
+          "title": "署名URLの TOCTOU とレート制限",
+          "body": "枚数チェックに競合の余地があり、発行回数の上限も無い。"
+        },
+        {
+          "status": "risk",
+          "tag": "A3",
+          "title": "エリア座標45件が未収集",
+          "body": "S_MAP・現在地検索・エリア自動判定を止めている唯一の残データ。"
+        },
+        {
+          "status": "risk",
+          "tag": "D30",
           "body": "地図・オーナーからのセクション・通報が未実装。投稿/基本情報のタブも中身が1枚なので出していない。行きたい/お気に入りは user_cafe_lists の実装で解消した。",
-          "title": "カフェ詳細に出していない要素" },
-        { "status": "risk", "tag": "D31",
+          "title": "カフェ詳細に出していない要素"
+        },
+        {
+          "status": "risk",
+          "tag": "D31",
           "title": "cafe-images バケットが無い",
-          "body": "cafes.main_image_path の定義先バケットが存在せず、オーナーのアップロード導線も無い。ヒーロー画像は最新投稿の1枚目で代用中。" },
-        { "status": "risk", "tag": "D32", "title": "マイページに出していない要素",
-          "body": "保存カードは post_bookmarks 実装で復活し4枚に戻った。プロフィール編集は S_PROFILE_EDIT 実装で解消。バッジ・行きつけ・制覇マップは元テーブル未整備のまま非表示。一覧（お気に入り/行きたい/保存）はページ送りが無く100件で打ち切る。" },
-        { "status": "risk", "tag": "D45", "title": "アバター差し替えが未実装",
-          "body": "S_PROFILE_EDIT で表示名・bio・ホームエリアは編集できるが、avatars バケット・署名URLエンドポイント・アップロードUIが丸ごと無い。EXIF除去+WebP変換ロジックは post-images 用のものをそのまま流用できる。" },
-        { "status": "risk", "tag": "D46", "title": "username の変更不可がRLSで守られていない",
-          "body": "guard_privileged_profile_columns は role/status しか弾かず、username はガード対象外。PostgREST を直接叩けば書き換え可能で、S_PROFILE_EDIT の「変更不可」表示はアプリ層（Zodスキーマに含めない）だけで担保している状態。RLS統合テストで固定して記録した。" },
-        { "status": "risk", "tag": "D47", "title": "通報フォームで見送ったもの",
-          "body": "自己通報チェックは target_type='user' のみ CHECK 制約（post/comment/cafe の所有者ルックアップは複雑化するため見送り）。統合「⋯」メニューは単独リンクで代替。カフェ通報は verified_owner_id を公開していないため完了画面のブロック提案が常に出ない。" },
-        { "status": "risk", "tag": "D33", "title": "送信中の disabled がフォーカスを奪う",
-          "body": "無効化された瞬間にフォーカスが body へ落ちる。CafeListButtons と LikeButton は aria-busy に置き換え済み（実機でフォーカス保持を確認）。CongestionSection / FollowButton / DraftList / CafeListView の4つに残っている（起票時は2つと数えていた）。" },
-        { "status": "risk", "tag": "D37", "title": "refresh がトランザクションの中",
-          "body": "router.refresh() を startTransition の中で呼ぶため、isPending が RSC の往復のあいだ真のままになり、その間の押下が黙って捨てられる。LikeButton では PostFeed も LikeButton も props から state を1度しか初期化しないため、refresh の結果自体が捨てられている。対象6コンポーネント。" },
-        { "status": "risk", "tag": "D36", "title": "follows がブロックを反映していない",
-          "body": "likes の SELECT にはブロックを入れたが、follows_select_all は using (true) のまま。ブロック相手との行は delete_follows_on_block が消すので関係は残らないが、「その人が他に誰をフォローしているか」は読める。フォロワー一覧を作るときに揃えるか決める。" },
-        { "status": "risk", "tag": "D26", "title": "ページ送りが「もっと見る」",
-          "body": "クエリは keyset カーソルなのでUIだけ差し替えれば無限スクロールに移行できる。" },
-        { "status": "risk", "tag": "D38", "title": "likes の SELECT が投稿の可視性を継承していない",
-          "body": "comments 実装時に発見。likes_select_all はブロック関係しか見ておらず、hidden・論理削除済み・非公開投稿への「いいね」の存在（user_id の羅列）が post_id さえ分かれば読める。comments で固めた exists(posts) パターンを横展開すれば直るが、意図的に別PRに切り出した（放置期間あり）。" },
-        { "status": "risk", "tag": "D40", "title": "登録直後のカフェが即全公開",
-          "body": "status='active' 即時公開で中間状態が無い。admin 審査キューは通報経由の対応に限られ、カフェ自体を通報しても却下以外の対応が無い（S_CAFE_NEW 実装時の決定 / D48）。" },
-        { "status": "risk", "tag": "D43", "title": "通知の個別既読化にロールバックが無い",
-          "body": "NotificationList.handleMarkRead は楽観更新後の Server Action 呼び出しを結果を見ずに投げっぱなしにしており、失敗しても readAt を戻さない。すべて既読ボタン側は /code-review で見つかった同種のバグを修正済みだが、個別クリックの方は未対応のまま。" },
-        { "status": "risk", "tag": "D44", "title": "通知一覧の相対時刻がハイドレーションミスマッチのリスク",
-          "body": "NotificationItem は 'use client' のままSSRされ、formatRelativeTime が new Date() を引数無しで呼ぶため、作成直後（1分未満）の通知でサーバーとクライアントの表示が食い違いうる。" },
-        { "status": "risk", "tag": "D48", "title": "admin 審査キューで見送ったもの",
-          "body": "resolveReport は posts/comments/profiles/reports/audit_logs/notifications を1つの Server Action 呼び出しで順に更新するがトランザクションではない。audit_logs/notifications の INSERT 失敗は console.error に留めて Server Action 自体は成功扱いにするため、監査ログの欠落を検知する仕組みが無い。通知は通報者のみで被通報者には送らない。" },
-        { "status": "risk", "tag": "D49", "title": "ng_words の severity=warn が保存を妨げるだけの片肺",
-          "body": "block は保存拒否まで実装したが、warn の「運営レビューキューに送る」は reports テーブルの reporter_id NOT NULL 制約と設計判断が必要で見送り。warn ワードは検出しても保存を止めない（screen-flow.md の設計メモと整合）。" }
+          "body": "cafes.main_image_path の定義先バケットが存在せず、オーナーのアップロード導線も無い。ヒーロー画像は最新投稿の1枚目で代用中。"
+        },
+        {
+          "status": "risk",
+          "tag": "D32",
+          "title": "マイページに出していない要素",
+          "body": "保存カードは post_bookmarks 実装で復活し4枚に戻った。プロフィール編集は S_PROFILE_EDIT 実装で解消。バッジ・行きつけ・制覇マップは元テーブル未整備のまま非表示。一覧（お気に入り/行きたい/保存）はページ送りが無く100件で打ち切る。"
+        },
+        {
+          "status": "risk",
+          "tag": "D45",
+          "title": "アバター差し替えが未実装",
+          "body": "S_PROFILE_EDIT で表示名・bio・ホームエリアは編集できるが、avatars バケット・署名URLエンドポイント・アップロードUIが丸ごと無い。EXIF除去+WebP変換ロジックは post-images 用のものをそのまま流用できる。"
+        },
+        {
+          "status": "risk",
+          "tag": "D46",
+          "title": "username の変更不可がRLSで守られていない",
+          "body": "guard_privileged_profile_columns は role/status しか弾かず、username はガード対象外。PostgREST を直接叩けば書き換え可能で、S_PROFILE_EDIT の「変更不可」表示はアプリ層（Zodスキーマに含めない）だけで担保している状態。RLS統合テストで固定して記録した。"
+        },
+        {
+          "status": "risk",
+          "tag": "D47",
+          "title": "通報フォームで見送ったもの",
+          "body": "自己通報チェックは target_type='user' のみ CHECK 制約（post/comment/cafe の所有者ルックアップは複雑化するため見送り）。統合「⋯」メニューは単独リンクで代替。カフェ通報は verified_owner_id を公開していないため完了画面のブロック提案が常に出ない。"
+        },
+        {
+          "status": "risk",
+          "tag": "D33",
+          "title": "送信中の disabled がフォーカスを奪う",
+          "body": "無効化された瞬間にフォーカスが body へ落ちる。CafeListButtons と LikeButton は aria-busy に置き換え済み（実機でフォーカス保持を確認）。CongestionSection / FollowButton / DraftList / CafeListView の4つに残っている（起票時は2つと数えていた）。"
+        },
+        {
+          "status": "risk",
+          "tag": "D37",
+          "title": "refresh がトランザクションの中",
+          "body": "router.refresh() を startTransition の中で呼ぶため、isPending が RSC の往復のあいだ真のままになり、その間の押下が黙って捨てられる。LikeButton では PostFeed も LikeButton も props から state を1度しか初期化しないため、refresh の結果自体が捨てられている。対象6コンポーネント。"
+        },
+        {
+          "status": "risk",
+          "tag": "D36",
+          "title": "follows がブロックを反映していない",
+          "body": "likes の SELECT にはブロックを入れたが、follows_select_all は using (true) のまま。ブロック相手との行は delete_follows_on_block が消すので関係は残らないが、「その人が他に誰をフォローしているか」は読める。フォロワー一覧を作るときに揃えるか決める。"
+        },
+        {
+          "status": "risk",
+          "tag": "D26",
+          "title": "ページ送りが「もっと見る」",
+          "body": "クエリは keyset カーソルなのでUIだけ差し替えれば無限スクロールに移行できる。"
+        },
+        {
+          "status": "risk",
+          "tag": "D38",
+          "title": "likes の SELECT が投稿の可視性を継承していない",
+          "body": "comments 実装時に発見。likes_select_all はブロック関係しか見ておらず、hidden・論理削除済み・非公開投稿への「いいね」の存在（user_id の羅列）が post_id さえ分かれば読める。comments で固めた exists(posts) パターンを横展開すれば直るが、意図的に別PRに切り出した（放置期間あり）。"
+        },
+        {
+          "status": "risk",
+          "tag": "D40",
+          "title": "登録直後のカフェが即全公開",
+          "body": "status='active' 即時公開で中間状態が無い。admin 審査キューは通報経由の対応に限られ、カフェ自体を通報しても却下以外の対応が無い（S_CAFE_NEW 実装時の決定 / D48）。"
+        },
+        {
+          "status": "risk",
+          "tag": "D43",
+          "title": "通知の個別既読化にロールバックが無い",
+          "body": "NotificationList.handleMarkRead は楽観更新後の Server Action 呼び出しを結果を見ずに投げっぱなしにしており、失敗しても readAt を戻さない。すべて既読ボタン側は /code-review で見つかった同種のバグを修正済みだが、個別クリックの方は未対応のまま。"
+        },
+        {
+          "status": "risk",
+          "tag": "D44",
+          "title": "通知一覧の相対時刻がハイドレーションミスマッチのリスク",
+          "body": "NotificationItem は 'use client' のままSSRされ、formatRelativeTime が new Date() を引数無しで呼ぶため、作成直後（1分未満）の通知でサーバーとクライアントの表示が食い違いうる。"
+        },
+        {
+          "status": "risk",
+          "tag": "D48",
+          "title": "admin 審査キューで見送ったもの",
+          "body": "resolveReport は posts/comments/profiles/reports/audit_logs/notifications を1つの Server Action 呼び出しで順に更新するがトランザクションではない。audit_logs/notifications の INSERT 失敗は console.error に留めて Server Action 自体は成功扱いにするため、監査ログの欠落を検知する仕組みが無い。通知は通報者のみで被通報者には送らない。"
+        },
+        {
+          "status": "risk",
+          "tag": "D49",
+          "title": "ng_words の severity=warn が保存を妨げるだけの片肺",
+          "body": "block は保存拒否まで実装したが、warn の「運営レビューキューに送る」は reports テーブルの reporter_id NOT NULL 制約と設計判断が必要で見送り。warn ワードは検出しても保存を止めない（screen-flow.md の設計メモと整合）。"
+        },
+        {
+          "status": "risk",
+          "tag": "D50",
+          "title": "owner-documents に孤立ファイルが残りうる",
+          "body": "verification_id はDB行の予約なしにクライアントで生成してパス命名にのみ使う設計（CHECK制約のため posts の予約行パターンが使えない）。申請送信前に離脱するとアップロード済みファイルが孤立する。削除ボタンでのベストエフォート削除は実装したが、離脱だけは掃除できない。"
+        }
       ]
     },
-
     {
-      "kind": "chain", "id": "f-chain", "row": 2, "x": 2980, "w": 1340,
+      "kind": "chain",
+      "id": "f-chain",
+      "row": 2,
+      "x": 2980,
+      "w": 1340,
       "title": "⑥ 依存の連鎖",
       "tally": "1テーブル → 複数画面",
       "lede": "左が未作成テーブル、右がそれで開く体験。着手順を決めるときはこの左端を見る。",
       "chains": [
-        { "src": "cafe_owner_verifications", "outs": ["オーナー認証バッジ", "owner 6画面", "幹C の起点"] },
-        { "src": "regular_customers", "outs": ["常連認定", "「私の行きつけ」タブ", "常連分析"] },
-        { "src": "user_badges / area_visits", "outs": ["バッジ獲得", "エリア制覇マップ", "シーン開拓バッジ＝幹A-4", "notifications.type='badge' の発火元"] },
-        { "src": "areas.center_location（データ）", "outs": ["S_MAP", "近くのカフェ", "エリア自動判定"] }
+        {
+          "src": "regular_customers",
+          "outs": [
+            "常連認定",
+            "「私の行きつけ」タブ",
+            "常連分析"
+          ]
+        },
+        {
+          "src": "user_badges / area_visits",
+          "outs": [
+            "バッジ獲得",
+            "エリア制覇マップ",
+            "シーン開拓バッジ＝幹A-4",
+            "notifications.type='badge' の発火元"
+          ]
+        },
+        {
+          "src": "areas.center_location（データ）",
+          "outs": [
+            "S_MAP",
+            "近くのカフェ",
+            "エリア自動判定"
+          ]
+        }
       ]
     },
-
     {
-      "kind": "lanes", "id": "f-future", "row": 3, "x": 80, "w": 4240,
+      "kind": "lanes",
+      "id": "f-future",
+      "row": 3,
+      "x": 80,
+      "w": 4240,
       "title": "⑦ 理想への道筋",
       "tally": "NOW → RELEASE → PHASE 2",
       "lede": "順番には意味がある。H1は「反応が無いSNS」を終わらせる順、H2は公開に耐える品質、H3はPMFが見えてから。",
       "lanes": [
         {
-          "title": "H1 — MVP機能を閉じる", "when": "NEXT / 着手順",
+          "title": "H1 — MVP機能を閉じる",
+          "when": "NEXT / 着手順",
           "notes": [
-            { "status": "future", "tag": "1st", "title": "反応を実装する（完了）",
-              "body": "likes・comments・post_bookmarks が出揃い、投稿へのいいね・コメント・保存が一通り動く。おすすめの人気度スコア（D24）はまだ書けるようになっただけで未着手。" },
-            { "status": "future", "tag": "2nd", "title": "店の面を開く（完了）",
-              "body": "S_CAFE_NEW（登録）・登録者本人による未認証期間中の編集（B8）・カフェ詳細・user_cafe_lists まで実装済み。残るのは地図（6th）とオーナー側の情報編集（幹C側、5th）。" },
-            { "status": "future", "tag": "3rd", "title": "自分の面を開く（ほぼ完了）",
-              "body": "設定・ブロック管理・通知・プロフィール編集は実装済み。マイページと4つのリスト（お気に入り・行きたい・下書き・保存）も実装済み。残るのはバッジのみ。" },
-            { "status": "future", "tag": "4th", "title": "安全ラインを引く（完了）",
-              "body": "ブロック解除導線・S_REPORT_FORM（通報フォーム）・S_ADMIN_REPORTS/REVIEW（審査キュー）・ng_words（NGワード自動検出＋S_ADMIN_NG_WORDS）まで実装済み。severity=warn のキュー送りのみ見送り（D49）。" },
-            { "status": "future", "tag": "5th", "title": "幹Cを起こす",
-              "body": "オーナー認証 → ダッシュボード → オーナー限定投稿 → 常連認定。差別化の半分がここから始まる。" },
-            { "status": "future", "tag": "6th", "title": "地図",
-              "body": "座標45件を収集して S_MAP と「近くのカフェ」を戻す。" }
+            {
+              "status": "future",
+              "tag": "1st",
+              "title": "反応を実装する（完了）",
+              "body": "likes・comments・post_bookmarks が出揃い、投稿へのいいね・コメント・保存が一通り動く。おすすめの人気度スコア（D24）はまだ書けるようになっただけで未着手。"
+            },
+            {
+              "status": "future",
+              "tag": "2nd",
+              "title": "店の面を開く（完了）",
+              "body": "S_CAFE_NEW（登録）・登録者本人による未認証期間中の編集（B8）・カフェ詳細・user_cafe_lists まで実装済み。残るのは地図（6th）とオーナー側の情報編集（幹C側、5th）。"
+            },
+            {
+              "status": "future",
+              "tag": "3rd",
+              "title": "自分の面を開く（ほぼ完了）",
+              "body": "設定・ブロック管理・通知・プロフィール編集は実装済み。マイページと4つのリスト（お気に入り・行きたい・下書き・保存）も実装済み。残るのはバッジのみ。"
+            },
+            {
+              "status": "future",
+              "tag": "4th",
+              "title": "安全ラインを引く（完了）",
+              "body": "ブロック解除導線・S_REPORT_FORM（通報フォーム）・S_ADMIN_REPORTS/REVIEW（審査キュー）・ng_words（NGワード自動検出＋S_ADMIN_NG_WORDS）まで実装済み。severity=warn のキュー送りのみ見送り（D49）。"
+            },
+            {
+              "status": "future",
+              "tag": "5th",
+              "title": "幹Cを起こす（着手中）",
+              "body": "オーナー認証申請（S_OWNER_CLAIM/S_OWNER_PENDING）が開通。次は審査（S_ADMIN_OWNER_REVIEW）→ ダッシュボード → オーナー限定投稿 → 常連認定。"
+            },
+            {
+              "status": "future",
+              "tag": "6th",
+              "title": "地図",
+              "body": "座標45件を収集して S_MAP と「近くのカフェ」を戻す。"
+            }
           ]
         },
         {
-          "title": "H2 — 公開に耐える状態へ", "when": "BEFORE RELEASE",
+          "title": "H2 — 公開に耐える状態へ",
+          "when": "BEFORE RELEASE",
           "notes": [
-            { "status": "future", "tag": "safari", "title": "Safari 集中検証",
-              "body": "-webkit- / 100vh / date input / backdrop-filter。実機込みで通す（A1）。" },
-            { "status": "future", "tag": "perf", "title": "キャッシュ方針の決着",
-              "body": "generateStaticParams か cacheComponents か、SSR確定か。ブロック判定をどこで効かせるかとセットで決める（D23）。LCP<2.5s / INP<200ms を計測して守る。" },
-            { "status": "future", "tag": "sec", "title": "EXIF除去をサーバ側で強制",
-              "body": "クライアント信頼をやめる（A10）。署名URLのレート制限とTOCTOUも同時に塞ぐ。" },
-            { "status": "future", "tag": "ops", "title": "RLS統合テストをCIへ",
-              "body": "認可の正しさが手元実行頼みになっている状態を終わらせる（D10）。" },
-            { "status": "future", "tag": "infra", "title": "本番AWS構成を確定",
-              "body": "Vercel先行 → AWS。画像は Supabase Storage → S3 + CloudFront（A5 / C1）。費用アラートも。" },
-            { "status": "future", "tag": "legal", "title": "法務・運用の整備",
-              "body": "利用規約 / プライバシーポリシー / 特商法表記 / 削除依頼窓口 / モデレーションフロー。" }
+            {
+              "status": "future",
+              "tag": "safari",
+              "title": "Safari 集中検証",
+              "body": "-webkit- / 100vh / date input / backdrop-filter。実機込みで通す（A1）。"
+            },
+            {
+              "status": "future",
+              "tag": "perf",
+              "title": "キャッシュ方針の決着",
+              "body": "generateStaticParams か cacheComponents か、SSR確定か。ブロック判定をどこで効かせるかとセットで決める（D23）。LCP<2.5s / INP<200ms を計測して守る。"
+            },
+            {
+              "status": "future",
+              "tag": "sec",
+              "title": "EXIF除去をサーバ側で強制",
+              "body": "クライアント信頼をやめる（A10）。署名URLのレート制限とTOCTOUも同時に塞ぐ。"
+            },
+            {
+              "status": "future",
+              "tag": "ops",
+              "title": "RLS統合テストをCIへ",
+              "body": "認可の正しさが手元実行頼みになっている状態を終わらせる（D10）。"
+            },
+            {
+              "status": "future",
+              "tag": "infra",
+              "title": "本番AWS構成を確定",
+              "body": "Vercel先行 → AWS。画像は Supabase Storage → S3 + CloudFront（A5 / C1）。費用アラートも。"
+            },
+            {
+              "status": "future",
+              "tag": "legal",
+              "title": "法務・運用の整備",
+              "body": "利用規約 / プライバシーポリシー / 特商法表記 / 削除依頼窓口 / モデレーションフロー。"
+            }
           ]
         },
         {
-          "title": "H3 — 幹を太らせる", "when": "AFTER PMF",
+          "title": "H3 — 幹を太らせる",
+          "when": "AFTER PMF",
           "notes": [
-            { "status": "future", "tag": "幹A+", "title": "気分の解像度を上げる",
-              "body": "人気度・鮮度・タグ一致の重み付けスコア、「同じ気分の人が保存したカフェ」、シーン開拓バッジ。データが貯まってから効く施策。" },
-            { "status": "future", "tag": "幹C+", "title": "常連エコシステム",
-              "body": "常連数の推移と投稿パターン分析、行きつけの可視化。オーナーが継続来店を実感できるところまで。" },
-            { "status": "future", "tag": "幹B", "title": "コミュニティ / オフライン",
-              "body": "朝活カフェ部などの趣味グループ、カフェ巡り会、チェックイン、似た好みのマッチング。MVP後に検討（C5）。" },
-            { "status": "future", "tag": "behavior", "title": "行動経済学の第2弾",
-              "body": "社会的証明（今週◯人が保存）・希少性・アンカリング。いずれもデータ蓄積が前提で、先に入れても嘘になる。" },
-            { "status": "future", "tag": "platform", "title": "アプリ化と収益化",
-              "body": "技術選定（C2）と収益化フラグ（C3）。ブラウザ版の手応えを見てから。" },
-            { "status": "future", "tag": "guard", "title": "やらないことを守る",
-              "body": "DM・ストーリーズ・映えフィルタ・ショップ誘導は入れない。Instagramでもできる機能は3問を通してから。" }
+            {
+              "status": "future",
+              "tag": "幹A+",
+              "title": "気分の解像度を上げる",
+              "body": "人気度・鮮度・タグ一致の重み付けスコア、「同じ気分の人が保存したカフェ」、シーン開拓バッジ。データが貯まってから効く施策。"
+            },
+            {
+              "status": "future",
+              "tag": "幹C+",
+              "title": "常連エコシステム",
+              "body": "常連数の推移と投稿パターン分析、行きつけの可視化。オーナーが継続来店を実感できるところまで。"
+            },
+            {
+              "status": "future",
+              "tag": "幹B",
+              "title": "コミュニティ / オフライン",
+              "body": "朝活カフェ部などの趣味グループ、カフェ巡り会、チェックイン、似た好みのマッチング。MVP後に検討（C5）。"
+            },
+            {
+              "status": "future",
+              "tag": "behavior",
+              "title": "行動経済学の第2弾",
+              "body": "社会的証明（今週◯人が保存）・希少性・アンカリング。いずれもデータ蓄積が前提で、先に入れても嘘になる。"
+            },
+            {
+              "status": "future",
+              "tag": "platform",
+              "title": "アプリ化と収益化",
+              "body": "技術選定（C2）と収益化フラグ（C3）。ブラウザ版の手応えを見てから。"
+            },
+            {
+              "status": "future",
+              "tag": "guard",
+              "title": "やらないことを守る",
+              "body": "DM・ストーリーズ・映えフィルタ・ショップ誘導は入れない。Instagramでもできる機能は3問を通してから。"
+            }
           ]
         }
       ]
     }
   ],
-
   "wires": [
-    { "from": "f-base", "to": "f-now", "label": "RLSが認可を全部持つ" },
-    { "from": "f-todo", "to": "f-chain", "label": "テーブルが無い＝画面が無い" },
-    { "from": "f-now", "to": "f-core", "label": "立っているのは幹Aの入口だけ" },
-    { "from": "f-risk", "to": "f-future", "label": "穴はH2で返済する" }
+    {
+      "from": "f-base",
+      "to": "f-now",
+      "label": "RLSが認可を全部持つ"
+    },
+    {
+      "from": "f-todo",
+      "to": "f-chain",
+      "label": "テーブルが無い＝画面が無い"
+    },
+    {
+      "from": "f-now",
+      "to": "f-core",
+      "label": "立っているのは幹Aの入口だけ"
+    },
+    {
+      "from": "f-risk",
+      "to": "f-future",
+      "label": "穴はH2で返済する"
+    }
   ]
 }
 </script>

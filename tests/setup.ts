@@ -9,6 +9,15 @@ process.env.NEXT_PUBLIC_SUPABASE_URL ??= 'http://127.0.0.1:54321'
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= 'test-anon-key'
 process.env.NEXT_PUBLIC_SITE_URL ??= 'http://localhost:3000'
 
+// jsdom は ResizeObserver を実装しない。Radix の Checkbox 等（useSize フック）が
+// マウント時に呼ぶため、使うコンポーネントのテストが軒並み落ちる。実測不要なテストなので no-op で足りる
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver
+
 afterEach(() => {
   cleanup()
 })

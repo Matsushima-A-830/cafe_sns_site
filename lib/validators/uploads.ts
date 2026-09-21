@@ -13,3 +13,12 @@ export const uploadSignSchema = z.object({
 })
 
 export type UploadSignInput = z.infer<typeof uploadSignSchema>
+
+/** owner-documents 版。サイズ上限・MIME判定は validateOwnerDocumentUpload に一本化する */
+export const ownerDocumentUploadSignSchema = z.object({
+  verificationId: z.string().uuid('申請IDの形式が正しくありません'),
+  contentType: z.string().min(1, 'ファイル形式を指定してください'),
+  fileSize: z.number().int().positive('ファイルサイズを指定してください'),
+})
+
+export type OwnerDocumentUploadSignInput = z.infer<typeof ownerDocumentUploadSignSchema>

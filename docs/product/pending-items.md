@@ -151,15 +151,14 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **推奨:** b + c のハイブリッド（コスト重視）
 - **決定期限:** バッジUI実装前
 
-### B2. Googleビジネスプロフィール連携（オーナー認証）
+### B2. Googleビジネスプロフィール連携（オーナー認証）（決定済み・2026-09-21）
 
-- **課題:** OAuth相当のフロー実装が技術的に可能か未検証。
-- **必要作業:**
+- **決定:** MVPでは見送り、書類提出のみで S_OWNER_CLAIM を実装する。OAuth相当のフロー実装が
+  技術的に可能か未検証のままスコープに入れるとPRが肥大化するため
+- **再検討条件:** 書類審査の運用負荷が高いと判明した場合、フェーズ2で再検討
   - Google My Business API のドキュメント確認
   - 個人開発者でも利用可能なAPIか審査要件確認
   - 認証済み判定のペイロード確認
-- **代替案:** 検証結果NG時は書類提出のみに絞る
-- **決定期限:** オーナー認証機能実装前
 
 ### B3. 保護者同意メールのテンプレート・送信基盤
 
@@ -1148,6 +1147,21 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **対応判断:** `warn` の自動キュー送りが必要になったら、`reports` の `reporter_id` 扱い
   （NULL許容化 or システム用ダミーID）を先に設計してから着手する
 - 参照: NGワード辞書・自動検出実装時にスコープ外と判断（2026-09-21）
+
+### D50. S_OWNER_CLAIM で書類アップロード後に離脱すると owner-documents に孤立ファイルが残る
+
+- **課題:** `verificationId` はクライアントで `crypto.randomUUID()` により生成し、DB行の予約なしに
+  書類を `owner-documents/{user_id}/{verificationId}/...` へ直接アップロードする設計にした
+  （[tables.md #cafe_owner_verifications](../architecture/data-model/tables.md#cafe_owner_verifications)、
+  CHECK制約 `jsonb_array_length(document_urls) >= 2` があるため posts の予約行パターンが使えない）。
+  申請送信前にページを離脱・リロードすると、アップロード済みファイルは Storage に残ったまま
+  どの `cafe_owner_verifications` 行にも紐付かず孤立する。D19（`reservePost` の hidden 投稿放置）と
+  同型の問題
+- **現状の動作:** 実害は「Storage 容量を静かに消費する」のみ（他ユーザーからは読めない。
+  `owner_documents_objects_select_own_or_admin` RLS で本人+adminのみ）
+- **対応判断:** 定期バッチ（`created_at` が古く `cafe_owner_verifications` に対応行が無いパスを削除）
+  が必要になったら着手。MVPの申請数では静観して問題ない規模と判断
+- 参照: オーナー認証申請（S_OWNER_CLAIM/S_OWNER_PENDING）実装時に記録（2026-09-21）
 
 ## 削除・アーカイブ判断待ち
 

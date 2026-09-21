@@ -368,12 +368,21 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 **列の意味:**
 - `contact_email` — 運営からの追加確認先。`profiles` のログイン用メールとは別に持つ（[S_OWNER_CLAIM](../../design/wireframes/owner.md#s_owner_claimオーナー認証申請)）
 - `applicant_note` — 「屋号と本人氏名が異なる場合の説明」等の補足事項
+- `document_urls` の要素は `{ type: string, path: string }` の jsonb オブジェクト（例: `{"type": "business_license", "path": "owner-documents/{user_id}/{verification_id}/{uuid}.pdf"}`）。`type` は `business_license` / `business_card_with_photo` / `corporate_registry` / `notification_of_business` / `other` のいずれか。単なるURL配列にしないのは、admin 側の審査画面（S_ADMIN_OWNER_REVIEW、後続PR）が書類種別ごとに表示を分けるため
+- `status='rejected'` の履歴は `DELETE` せず残す。却下後の再申請に待機期間は設けない（ワイヤー [owner.md](../../design/wireframes/owner.md) の「再申請する」ボタンが正）。再申請は新しい行として INSERT され、`review_notes` は直近の却下理由として S_OWNER_CLAIM に表示する
 
 **RLS:**
 - SELECT: 本人 + admin
 - INSERT: 認証済み（`user_id = auth.uid()`）
 - UPDATE: admin（審査）、**または本人が `status = 'pending' → 'withdrawn'` に変更する場合のみ**（申請の取り下げ）
 - DELETE: 不可（履歴保持）
+
+**追加の制約（RLS/CHECKでは表現できないもの）:**
+- 部分ユニークインデックス `cafe_owner_verifications_pending_unique on (cafe_id) where status = 'pending'` — 同一カフェへの同時複数申請を防ぐ（[reports_open_unique](../../../supabase/migrations/20260921000000_create_reports.sql) と同型）。一意制約違反（23505）は `VERIFICATION_ALREADY_PENDING` に変換する
+- BEFORE INSERT トリガーで `cafes.verified_owner_id IS NOT NULL` を検査し、`CAFE_ALREADY_CLAIMED` として弾く（[guard_posts_official_owner](../../../supabase/migrations/20260907120000_create_posts.sql) と同型）。`cafe_owner_verifications` 単体の RLS/CHECK ではテーブルをまたぐ検証を表現できないため
+
+**ストレージパスの例外:**
+- `owner-documents/{user_id}/{verification_id}/{uuid}.{ext}` の `verification_id` は DB 行の存在を要求しない。クライアントで `crypto.randomUUID()` を生成してパス命名にのみ使う（[posts の予約行パターン](./README.md#オブジェクトパス規約)とは異なる。`document_urls` に `CHECK (jsonb_array_length(document_urls) >= 2)` があるため、空の予約行を先に INSERT できない）。認可は `storage.objects` RLS のパス第1セグメント（`user_id`）のみで担保し、書類を2点以上アップロードし終えてから `cafe_owner_verifications` に一括 INSERT する
 
 ---
 

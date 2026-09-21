@@ -45,6 +45,12 @@ const messages: Partial<Record<ErrorCode, string>> = {
   UNSUPPORTED_MEDIA_TYPE: 'この形式の画像は使えません',
   EXIF_STRIP_FAILED: '画像の位置情報を削除できませんでした。別の画像をお試しください',
   UPLOAD_FAILED: '画像をアップロードできませんでした。通信状況を確認してください',
+  // 経営者 / 認証申請
+  CAFE_ALREADY_CLAIMED: 'このカフェは既に別のオーナーが認証済みです',
+  DOCUMENTS_INSUFFICIENT: '書類を2点以上選択してください',
+  VERIFICATION_ALREADY_PENDING: 'このカフェへの申請は既に審査中です',
+  VERIFICATION_REJECTED: '前回の申請は却下されています。内容を確認のうえ再申請してください',
+  NOT_OWNER: 'オーナー権限がありません',
 }
 
 export function errorMessage(code: ErrorCode): string {

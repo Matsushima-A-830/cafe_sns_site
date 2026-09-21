@@ -212,6 +212,16 @@ owner-documents/{user_id}/{verification_id}/{uuid}.{ext}
 予約したまま finalize されない hidden 投稿の掃除方針は未決
 （[pending-items D19](../../product/pending-items.md#d19-reservepost-で予約した-hidden-投稿がfinalizeされないまま放置される問題)）。
 
+### owner-documents は予約行方式を使わない
+
+`owner-documents` は `post-images` と同じパス規約に見えるが、`cafe_owner_verifications` に
+`CHECK (jsonb_array_length(document_urls) >= 2)` があるため、`reservePost` と同じ「空行を先に
+INSERT してから確定する」手順が使えない（空の `document_urls` で INSERT した時点で CHECK 違反）。
+署名付きURL発行の認可は `is_post_author()` 相当の DB 行検証をせず、`storage.objects` RLS の
+パス第1セグメント（`user_id`）のみで担保する。書類を全件アップロードし終えてから
+`document_urls` が2件以上揃った状態で `cafe_owner_verifications` へ一度に INSERT する
+（詳細は [tables.md#cafe_owner_verifications](./tables.md#cafe_owner_verifications)）。
+
 ### 移行を1箇所に閉じる
 
 すべての読み書きは `lib/storage/` のラッパー経由にする。Server Actions やコンポーネントから Supabase Storage クライアントを直接呼ばない。S3 移行時の差し替え点をこのディレクトリだけに閉じるのが目的（[CLAUDE.md 開発哲学2](../../../CLAUDE.md)）。
