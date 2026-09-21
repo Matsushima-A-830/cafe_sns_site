@@ -1105,6 +1105,36 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **対応判断:** 通報が実運用でどう使われるか（自己通報の実害・非表示ニーズの有無）を見てから着手する
 - 参照: S_REPORT_FORM 実装時にスコープ外と判断（2026-09-21）
 
+### D48. S_ADMIN_REPORTS / S_ADMIN_REVIEW で見送ったもの
+
+- **課題:** ワイヤーフレームが存在せず（37画面インデックスに `S_ADMIN_*` は無い）、根拠は
+  [screen-flow.md](../design/screen-flow.md#5-通報ブロックフロー) の Mermaid フローと
+  [routing.md](../architecture/routing.md) のルート定義のみ。画面要素は実装時に判断した
+- **判定アクションは post/comment/user の3種＋却下のみ** — `target_type='cafe'` は却下しか選べない。
+  cafe への具体的な対応（`verified_owner_id` の停止・カフェの非公開化等）は未設計のまま
+- **audit_logs の INSERT は admin の Server Action から直接書き込む方式** — `docs/architecture/
+  data-model/tables.md` は元々「INSERT はシステム」とだけ書いていたが、security definer 関数を
+  介さず `actor_id = auth.uid()` を RLS で強制する形にした（[tables.md #audit_logs](
+  ../architecture/data-model/tables.md#audit_logs)）
+- **通知は通報者のみ** — screen-flow.md の「対応選択 → 通知」は「通報者・被通報者に通知」と読めるが、
+  `notification-item.tsx` の `report_resolved` ラベル（「通報の対応が完了しました」）が通報者向けの
+  文言だったため、被通報者への通知は実装しなかった。被通報者はユーザー停止等の効果自体で状態変化に
+  気づける前提
+- **audit_logs の失敗はエラーを握りつぶす** — `resolveReport` は reports 更新が成功すれば
+  audit_logs / notifications の INSERT 失敗を `console.error` に留め、Server Action 自体は成功扱いにする
+  （判定そのものは既に反映済みのため、監査記録の失敗でユーザー影響のある操作全体を失敗にしたくない）。
+  監査ログの欠落を検知する仕組みは無い
+- **Server Action 呼び出し1回の中で複数テーブルを更新するがトランザクションではない** —
+  排他制御として reports の条件付き UPDATE（`status IN (pending, reviewing)`）を対象への副作用より
+  先に行い、0件なら `REPORT_ALREADY_RESOLVED` を返して副作用を実行しない形にしたため、
+  「2人のadminが同時に判定して片方が上書きされる」レースは解消した（`/code-review` 指摘、2026-09-21）。
+  ただし reports 更新に勝った**後**の副作用（posts/comments/profiles 更新）・audit_logs・通知の
+  途中失敗はロールバックされない。admin の再実行を前提にした設計で、ロールバック機構は用意していない
+- **対応判断:** cafe への対応・被通報者通知・監査ログの信頼性強化は、実運用で必要になってから着手する
+- 参照: S_ADMIN_REPORTS / S_ADMIN_REVIEW 実装時にスコープ外と判断（2026-09-21）。
+  `requireAdmin` の role のみチェック（status未確認）と notifications_insert_admin の type無制限は
+  `/code-review` 指摘を受けて実装時に修正済み（2026-09-21）
+
 ## 削除・アーカイブ判断待ち
 
 現時点で「削除する」と決めた項目はなし。追加・変更発生時にここに追記。
