@@ -41,6 +41,7 @@ function buildSupabaseStub(
     commentCount?: { data: { comment_count: number } | null; error?: unknown }
     commentsInsert?: { data: { id: string } | null; error?: unknown }
     commentsUpdate?: { error?: unknown }
+    checkNgWords?: { data?: string | null; error?: unknown }
   } = {},
 ) {
   const user = 'user' in options ? options.user : { id: userId }
@@ -48,6 +49,8 @@ function buildSupabaseStub(
   const commentCountResult = options.commentCount ?? { data: { comment_count: 1 }, error: null }
   const commentsInsertResult = options.commentsInsert ?? { data: { id: commentId }, error: null }
   const commentsUpdateResult = options.commentsUpdate ?? { error: null }
+  const checkNgWordsResult = options.checkNgWords ?? { data: null, error: null }
+  const rpc = vi.fn().mockResolvedValue(checkNgWordsResult)
 
   const postsTable = {
     select: vi.fn((columns: string) =>
@@ -68,8 +71,9 @@ function buildSupabaseStub(
     stub: {
       auth: { getUser: vi.fn().mockResolvedValue({ data: { user } }) },
       from,
+      rpc,
     },
-    spies: { insert: commentsTable.insert, update: commentsTable.update },
+    spies: { insert: commentsTable.insert, update: commentsTable.update, rpc },
   }
 }
 
@@ -112,6 +116,25 @@ describe('createComment', () => {
     expect(result).toEqual({ ok: false, error: 'POST_BODY_TOO_LONG' })
   })
 
+  it('block該当のNGワードを検出したら NG_WORD_DETECTED を返し comments.insert を呼ばない', async () => {
+    const { stub, spies } = buildSupabaseStub({ checkNgWords: { data: '死ね', error: null } })
+    createClientMock.mockResolvedValue(stub)
+
+    const result = await createComment({ postId, body: '死ねと言われた' })
+
+    expect(result).toEqual({ ok: false, error: 'NG_WORD_DETECTED' })
+    expect(spies.insert).not.toHaveBeenCalled()
+  })
+
+  it('check_ng_words の想定外エラーは INTERNAL_ERROR を返す', async () => {
+    const { stub } = buildSupabaseStub({ checkNgWords: { error: { message: 'boom' } } })
+    createClientMock.mockResolvedValue(stub)
+
+    const result = await createComment({ postId, body: 'こんにちは' })
+
+    expect(result).toEqual({ ok: false, error: 'INTERNAL_ERROR' })
+  })
+
   it('投稿が存在しない（非公開・論理削除済み含む）なら POST_NOT_FOUND を返す', async () => {
     const { stub } = buildSupabaseStub({ postExists: { count: 0, error: null } })
     createClientMock.mockResolvedValue(stub)
@@ -119,6 +142,16 @@ describe('createComment', () => {
     const result = await createComment({ postId, body: 'こんにちは' })
 
     expect(result).toEqual({ ok: false, error: 'POST_NOT_FOUND' })
+  })
+
+  it('存在しない投稿へのNGワード本文は POST_NOT_FOUND を優先し、check_ng_words を呼ばない', async () => {
+    const { stub, spies } = buildSupabaseStub({ postExists: { count: 0, error: null } })
+    createClientMock.mockResolvedValue(stub)
+
+    const result = await createComment({ postId, body: '死ねと言われた' })
+
+    expect(result).toEqual({ ok: false, error: 'POST_NOT_FOUND' })
+    expect(spies.rpc).not.toHaveBeenCalled()
   })
 
   it('成功時は commentId と確定した comment_count を返す', async () => {

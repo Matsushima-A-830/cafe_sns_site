@@ -15,7 +15,7 @@ docs/
 ├── architecture/                   データモデル・ルーティング・エラー
 ├── design/                         デザインシステム・画面遷移・ワイヤーフレーム
 ├── operations/                     開発サイクル・Git・デプロイ
-└── seed/                           バッジ・タグ・エリアの初期投入データ
+└── seed/                           バッジ・タグ・エリア・NGワードの初期投入データ
 ```
 
 ## カテゴリ別インデックス
@@ -60,6 +60,7 @@ docs/
 | [badges-initial-set.md](./seed/badges-initial-set.md) | MVP投入バッジ20個 |
 | [curated-tags-initial-set.md](./seed/curated-tags-initial-set.md) | 厳選タグ30個（シーン15+雰囲気10+その他5） |
 | [areas-initial-set.md](./seed/areas-initial-set.md) | 東京45エリア（23区+副地域22） |
+| [ng-words-initial-set.md](./seed/ng-words-initial-set.md) | NGワード初期セット（代表20語、運営が随時追加） |
 
 ### 📖 横断参照
 

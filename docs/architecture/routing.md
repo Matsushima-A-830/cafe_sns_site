@@ -150,7 +150,7 @@ app/
 │       ├── verifications/
 │       │   ├── page.tsx             # /admin/verifications (オーナー認証審査キュー)
 │       │   └── [id]/page.tsx        # /admin/verifications/[id] (S_ADMIN_OWNER_REVIEW)
-│       └── ng-words/page.tsx        # /admin/ng-words (NGワード管理)
+│       └── ng-words/page.tsx        # /admin/ng-words (S_ADMIN_NG_WORDS NGワード管理)
 │
 └── api/                             # Route Handlers
     ├── auth/
@@ -209,6 +209,7 @@ app/
 | S_ADMIN_REPORTS | `/admin/reports` | SSR |
 | S_ADMIN_REVIEW | `/admin/reports/[id]` | SSR |
 | S_ADMIN_OWNER_REVIEW | `/admin/verifications/[id]` | SSR |
+| S_ADMIN_NG_WORDS | `/admin/ng-words` | SSR |
 | S_EXPLORE_DEFAULT / S_MAP_CARD / S_ACCOUNT_ACTIVATED | 独立ルートなし | 上位画面内の状態 |
 
 ## middleware.ts 設計

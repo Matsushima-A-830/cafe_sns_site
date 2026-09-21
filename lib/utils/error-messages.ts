@@ -26,6 +26,7 @@ const messages: Partial<Record<ErrorCode, string>> = {
   POST_BODY_TOO_LONG: '本文が長すぎます。分割して投稿してください',
   COMMENT_NOT_FOUND: '返信先のコメントが見つかりませんでした',
   COMMENT_HAS_REPLIES: '返信が付いているため削除できません。投稿主に削除を依頼してください',
+  NG_WORD_DETECTED: 'この内容は投稿できません。表現を見直してください',
   POST_TAGS_LIMIT_EXCEEDED: 'タグは5個までです',
   POST_IMAGES_LIMIT_EXCEEDED: '写真は10枚までです',
   CAFE_NOT_FOUND: '選択したカフェが見つかりませんでした。選び直してください',

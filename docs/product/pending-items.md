@@ -170,15 +170,13 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - 同意リンククリック時のワンタイムトークン設計
 - **決定期限:** サインアップ実装前
 
-### B4. NGワード辞書の初期セット
+### B4. NGワード辞書の初期セット 🟢 決定（2026-09-21）
 
-- **課題:** `ng_words` テーブルに投入する初期辞書が未定。
-- **選択肢:**
-  - a) OSSの日本語NGワードリストを利用（例: TokyoJapanese/Japanese-ng-words）
-  - b) 独自にキュレーション
-  - c) 外部AIモデレーション（Perspective API）に移行
-- **推奨:** MVPは a、成長後に c を検討
-- **決定期限:** 投稿機能実装前
+- **決定:** OSSの日本語NGワードリストを流用（選択肢 a）。初期セットは
+  [seed/ng-words-initial-set.md](../seed/ng-words-initial-set.md) 参照
+- **一致方式:** MVPは単純な部分一致（大文字小文字を無視した文字列包含）。語境界一致・曖昧一致は将来検討
+- **成長後:** 外部AIモデレーション（Perspective API 等）への移行を検討（選択肢 c）
+- 参照: [D49](#d49-ng_words-severitywarn-の運営レビューキュー送りを見送り)（`severity=warn` の扱いは別途見送り）
 
 ### B5. `cafe_special_hours` テーブルの要否
 
@@ -1134,6 +1132,22 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - 参照: S_ADMIN_REPORTS / S_ADMIN_REVIEW 実装時にスコープ外と判断（2026-09-21）。
   `requireAdmin` の role のみチェック（status未確認）と notifications_insert_admin の type無制限は
   `/code-review` 指摘を受けて実装時に修正済み（2026-09-21）
+
+### D49. `ng_words` `severity=warn` の運営レビューキュー送りを見送り
+
+- **課題:** [tables.md #ng_words](../architecture/data-model/tables.md#ng_words) は「`block` は保存拒否、
+  `warn` は運営レビューキューに送る」と書いているが、レビューキューにあたる `reports` テーブルは
+  `reporter_id` が NOT NULL かつ `reports_insert_own` RLS が `auth.uid() = reporter_id` を要求する設計
+  （[20260921000000_create_reports.sql](../../supabase/migrations/20260921000000_create_reports.sql)）。
+  システムが自動生成する行に「通報者」を誰にするか、`reason` の CHECK 制約への追加値など
+  別の設計判断が必要で1PRに収まらないため、今回は `block` の保存拒否のみを実装した
+- **現状の動作:** `severity=warn` のワードは検出しても投稿・コメントをブロックしない（保存される）。
+  [screen-flow.md](../design/screen-flow.md#3-投稿作成フロー) の「OK or warn」分岐と整合しており、
+  同ドキュメントの設計メモ「NGワードの `block` は投稿時に自動ブロックするため、`reports` は
+  ユーザー起点のみ」とも矛盾しない
+- **対応判断:** `warn` の自動キュー送りが必要になったら、`reports` の `reporter_id` 扱い
+  （NULL許容化 or システム用ダミーID）を先に設計してから着手する
+- 参照: NGワード辞書・自動検出実装時にスコープ外と判断（2026-09-21）
 
 ## 削除・アーカイブ判断待ち
 
