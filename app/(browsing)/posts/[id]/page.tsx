@@ -161,6 +161,18 @@ function PostContent({ post, isAuthenticated }: { post: PostDetail; isAuthentica
           returnTo={`/posts/${post.id}`}
           showLoginHint
         />
+        {/* 統合「⋯」メニュー（ブロック・非表示含む）は別スコープ。block-button.tsx と
+            同じ判断で単独リンクだけ出す */}
+        <Link
+          href={
+            isAuthenticated
+              ? `/report/post/${post.id}`
+              : `/login?next=${encodeURIComponent(`/report/post/${post.id}`)}`
+          }
+          className="text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
+        >
+          通報する
+        </Link>
       </div>
     </div>
   )
@@ -178,9 +190,6 @@ export default async function PostDetailPage({ params }: PageProps) {
   const canModerateComments = viewerId !== null && viewerId === post.author.id
   const returnTo = `/posts/${post.id}`
 
-  // アクション行はいいね・コメント・保存。通報は reports が未作成なので、
-  // 枠やプレースホルダを先に出さない（投稿カードと同じ判断）
-  //   docs/design/wireframes/browsing.md #S_POST_DETAIL
   if (post.postType === 'blog') {
     return (
       <article className="mx-auto flex w-full max-w-[720px] flex-col gap-6 px-4 py-8">

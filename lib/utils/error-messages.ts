@@ -35,6 +35,9 @@ const messages: Partial<Record<ErrorCode, string>> = {
   // ブロック
   BLOCKED_USER: 'この操作は行えません',
   BLOCK_SELF_FORBIDDEN: '自分自身はブロックできません',
+  // 通報
+  SELF_REPORT_FORBIDDEN: '自分自身は通報できません',
+  REPORT_ALREADY_SUBMITTED: 'この対象は既に通報済みです',
   // アップロード
   FILE_TOO_LARGE: '画像のサイズが大きすぎます',
   UNSUPPORTED_MEDIA_TYPE: 'この形式の画像は使えません',

@@ -2,6 +2,7 @@
 // 詳細: docs/design/wireframes/browsing.md#s_cafe_detailカフェ詳細 / docs/architecture/routing.md
 import type { Metadata } from 'next'
 import Image from 'next/image'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { BusinessHoursTable } from '@/components/features/cafes/business-hours-table'
@@ -157,7 +158,7 @@ export default async function CafeDetailPage({ params }: PageProps) {
   const now = new Date()
   const today = jstDayOfWeek(now)
 
-  // 地図・「徒歩3分」（座標未収集）・「オーナーから」（幹C本体）・通報（reports）は
+  // 地図・「徒歩3分」（座標未収集）・「オーナーから」（幹C本体）は
   // 元テーブル・データが未整備のため出していない — pending-items D30
   const query: FeedQuery = {
     scope: 'new',
@@ -205,6 +206,18 @@ export default async function CafeDetailPage({ params }: PageProps) {
           membership={membership}
           isAuthenticated={user !== null}
         />
+
+        {/* 統合「⋯」メニューは別スコープ。block-button.tsx と同じ判断で単独リンクだけ出す */}
+        <Link
+          href={
+            user !== null
+              ? `/report/cafe/${cafe.id}`
+              : `/login?next=${encodeURIComponent(`/report/cafe/${cafe.id}`)}`
+          }
+          className="self-start text-sm text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
+        >
+          通報する
+        </Link>
       </header>
 
       <div className="flex flex-col gap-8 lg:grid lg:grid-cols-3 lg:items-start">
