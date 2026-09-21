@@ -72,6 +72,15 @@ export async function createOnboardedUser(suffix: string): Promise<E2EUser> {
   return { email, password: PASSWORD, userId, username }
 }
 
+/** createOnboardedUser のadmin版。profiles.role は本人更新できないため service role で直接立てる */
+export async function createOnboardedAdmin(suffix: string): Promise<E2EUser> {
+  const user = await createOnboardedUser(suffix)
+  const service = serviceRoleClient()
+  const { error } = await service.from('profiles').update({ role: 'admin' }).eq('id', user.userId)
+  if (error) throw new Error(`E2E admin への昇格に失敗: ${error.message}`)
+  return user
+}
+
 export type E2ECafe = { id: string; name: string }
 
 /** 公開中（`status='active'`）のカフェ。これ以外は cafes の RLS が行ごと隠す */
@@ -87,6 +96,34 @@ export async function createActiveCafe(suffix: string): Promise<E2ECafe> {
 
   if (error || !data) throw new Error(`E2E カフェの作成に失敗: ${error?.message}`)
   return { id: data.id as string, name }
+}
+
+export type E2EOwnerVerification = { id: string; cafeId: string; cafeName: string }
+
+/** 審査待ち（status='pending'）のオーナー認証申請。書類2点以上の CHECK 制約を満たす */
+export async function createPendingOwnerVerification(
+  userId: string,
+  suffix: string,
+): Promise<E2EOwnerVerification> {
+  const service = serviceRoleClient()
+  const cafe = await createActiveCafe(suffix)
+
+  const { data, error } = await service
+    .from('cafe_owner_verifications')
+    .insert({
+      user_id: userId,
+      cafe_id: cafe.id,
+      document_urls: [
+        { type: 'business_license', path: `${userId}/e2e-${suffix}/a.jpg` },
+        { type: 'notification_of_business', path: `${userId}/e2e-${suffix}/b.pdf` },
+      ],
+      contact_email: `owner-${suffix}@example.test`,
+    })
+    .select('id')
+    .single()
+
+  if (error || !data) throw new Error(`E2E オーナー認証申請の作成に失敗: ${error?.message}`)
+  return { id: data.id as string, cafeId: cafe.id, cafeName: cafe.name }
 }
 
 export type E2EPost = { id: string; excerpt: string }
