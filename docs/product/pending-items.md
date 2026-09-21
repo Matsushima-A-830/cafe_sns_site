@@ -803,8 +803,8 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **出していないものと理由:**
   - **バッジ枠・「制覇マップを見る」・`/me/badges`** — `user_badges` / `area_visits` が未作成（D28 と同じ判断）
   - **「私の行きつけ」枠** — `regular_customers` が未作成（D28 と同じ）
-  - **「プロフィールを編集」ボタンと `/me/edit`** — アバター差し替えの Storage 導線とセットで実装する。
-    当面はヘッダに「公開プロフィールを見る」（`/users/[username]`）だけを置いている
+  - **アバター差し替え** — `/me/edit`（表示名・bio・ホームエリア編集）は実装済み（feature/profile-edit）。
+    アバター変更は Storage 導線が別途必要なため未実装のまま（D45）
   - **カフェカードのサムネイルと「投稿12」** — どちらもカフェ1件ごとに追加の問い合わせが要り
     N+1 になる（`cafes.main_image_path` は D31 のとおり値が入る経路が無く、投稿件数は
     PostgREST では1クエリにまとめられない）。カード表示は名前・エリア・メモ・追加日のみ
@@ -1053,6 +1053,34 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   `formatPostDate` 等の安定表示、またはプレースホルダ）。もしくは `<time>` に
   `suppressHydrationWarning` を付ける
 - 参照: S_NOTIFICATIONS 実装後の `/self-review`（2026-09-20）
+
+### D45. アバター差し替え（S_PROFILE_EDIT）が未実装
+
+- **課題:** `/me/edit` で表示名・bio・ホームエリアは編集できるが、アバター画像の変更導線が無い。
+  必要なもの一式が丸ごと欠けている: `avatars` Storage バケット＋RLS（マイグレーション未作成）、
+  署名URL発行エンドポイント（`app/api/uploads/sign/route.ts` は `post-images` 専用）、
+  クライアント側アップロードコード。設計自体は
+  [data-model/README.md](../architecture/data-model/README.md) にバケット構成
+  （`avatars/{user_id}/{uuid}.webp`、2MB上限、public）として記載済み
+- **対応案（未検討）:** `20260908090000_create_post_images_storage.sql` と同型のマイグレーションを
+  avatars 用に作る。EXIF除去+WebP変換は `lib/storage/post-image-processing.ts` の
+  `processPostImage` がそのまま流用できる（投稿画像専用ロジックではない）
+- 参照: S_PROFILE_EDIT 実装時の着手判断（2026-09-21）
+
+### D46. `profiles.username` の「変更不可」が RLS/トリガーで守られていない
+
+- **課題:** `guard_privileged_profile_columns`（`20260905130000_create_profiles.sql`）は
+  `role` / `status` の変更だけを弾く。`username` はガード対象外のため、`profiles_update_self`
+  ポリシー（`auth.uid() = id`）さえ満たせば PostgREST 経由で誰でも自分の `username` を直接書き換えられる。
+  S_PROFILE_EDIT の「ユーザーネームは変更できません」は `app/_actions/profiles.ts` の
+  `profileEditSchema` に `username` を含めないことでしか担保していない
+  — CLAUDE.md の「RLSに認可を委譲」からは外れた状態
+- **現状の扱い:** この PR では直さず、ギャップを
+  `tests/integration/profiles-rls.test.ts`「username は RLS では守られていない」で固定して記録した
+- **対応案（未検討）:** `guard_privileged_profile_columns` に `username` の変更検知を追加する
+  （`role`/`status` と同じ RAISE EXCEPTION 方式）。`profiles` テーブル全体に影響するマイグレーションになるため、
+  S_PROFILE_EDIT とは別 PR で対応する
+- 参照: S_PROFILE_EDIT の `/code-review`（2026-09-21）
 
 ## 削除・アーカイブ判断待ち
 

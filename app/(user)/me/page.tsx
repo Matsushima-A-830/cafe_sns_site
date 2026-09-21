@@ -171,8 +171,8 @@ export default async function MyPage() {
     },
   ]
 
-  // バッジ（user_badges）・「私の行きつけ」（regular_customers）・制覇マップ（area_visits）・
-  // プロフィール編集（/me/edit）は元テーブル・ルートが未整備のため出していない — pending-items D32
+  // バッジ（user_badges）・「私の行きつけ」（regular_customers）・制覇マップ（area_visits）は
+  // 元テーブルが未整備のため出していない — pending-items D32
   const query: FeedQuery = {
     scope: 'new',
     tagSlug: null,
@@ -219,7 +219,11 @@ export default async function MyPage() {
             </Link>
           </Button>
 
-          {/* 他人から見た自分の見え方を確認する導線（プロフィール編集は未実装） */}
+          <Button asChild variant="outline" size="lg">
+            <Link href="/me/edit">プロフィール編集</Link>
+          </Button>
+
+          {/* 他人から見た自分の見え方を確認する導線 */}
           <Button asChild variant="outline" size="lg">
             <Link href={`/users/${profile.username}`}>公開プロフィールを見る</Link>
           </Button>

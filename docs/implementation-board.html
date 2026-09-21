@@ -336,16 +336,16 @@
     "eyebrow": "CAFE SNS / IMPLEMENTATION BOARD",
     "headline": "気分で見つかる、<br>行きつけと繋がる",
     "sub": "いま立っているもの と これから立てるもの",
-    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローして、その店に行けるか確かめて、自分の店リストに貯める」までの一本。ここに<strong>いいね・コメント（返信1階層、オーナー公式返信、投稿主モデレーション）・保存（post_bookmarks）</strong>が加わり、投稿への反応が一通り揃った。さらに <strong>S_CAFE_NEW（カフェ新規登録）</strong>が開通し、composer の中だけだった「見つからないカフェを登録する」が専用画面になった。マイページは4カードに戻り、S_BOOKMARKS も開通した。<strong>S_SETTINGS（設定）と S_BLOCKED_USERS（ブロック管理）</strong>に続き、今回 <strong>S_NOTIFICATIONS（通知）</strong>が加わり、いいね・コメント・フォローの3種が実際にアプリ内通知として届くようになった（返報性の導線が初めて成立）。「自分の面」の残りは2画面（プロフィール編集・バッジ）まで縮んだ。地図、オーナー側UIは、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
-    "updatedAt": "2026-09-20",
-    "ref": "branch: feature/notifications"
+    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローして、その店に行けるか確かめて、自分の店リストに貯める」までの一本。ここに<strong>いいね・コメント（返信1階層、オーナー公式返信、投稿主モデレーション）・保存（post_bookmarks）</strong>が加わり、投稿への反応が一通り揃った。さらに <strong>S_CAFE_NEW（カフェ新規登録）</strong>が開通し、composer の中だけだった「見つからないカフェを登録する」が専用画面になった。マイページは4カードに戻り、S_BOOKMARKS も開通した。<strong>S_SETTINGS（設定）と S_BLOCKED_USERS（ブロック管理）</strong>・<strong>S_NOTIFICATIONS（通知）</strong>に続き、今回 <strong>S_PROFILE_EDIT（プロフィール編集）</strong>が加わり、表示名・自己紹介・ホームエリアを自分で書き換えられるようになった（アバター差し替えは別スコープ、D45）。「自分の面」の残りは S_BADGES のみ。地図、オーナー側UIは、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
+    "updatedAt": "2026-09-21",
+    "ref": "branch: feature/profile-edit"
   },
 
   "metrics": [
-    { "k": "SCREENS", "v": "25", "unit": "/ 37", "note": "ワイヤー37画面のうち、画面IDコメント付きの page.tsx があるもの。S_CAFE_NEW はワイヤー自体が無いためこの分母に入らない", "ratio": 68 },
+    { "k": "SCREENS", "v": "26", "unit": "/ 37", "note": "ワイヤー37画面のうち、画面IDコメント付きの page.tsx があるもの。S_CAFE_NEW はワイヤー自体が無いためこの分母に入らない", "ratio": 70 },
     { "k": "TABLES", "v": "20", "unit": "/ 27", "note": "tables.md の27テーブル中、マイグレーション済み", "ratio": 74 },
     { "k": "MIGRATIONS", "v": "37", "unit": "", "note": "RLSポリシー込み。forward-only 運用", "ratio": null },
-    { "k": "TESTS", "v": "84", "unit": " files", "note": "unit / RLS統合27本 / E2E 5本。統合・E2EともCIで実行", "ratio": null }
+    { "k": "TESTS", "v": "86", "unit": " files", "note": "unit / RLS統合27本 / E2E 6本。統合・E2EともCIで実行", "ratio": null }
   ],
 
   "sections": [
@@ -406,8 +406,11 @@
         { "status": "done", "tag": "S_POST_SUCCESS", "title": "投稿完了",
           "body": "ピークエンド則の着地点。/new は形式選択シート。" },
         { "status": "partial", "tag": "S_MYPAGE", "title": "マイページ",
-          "body": "ヘッダ3カウント、お気に入り/行きたい/下書き/保存の4カード（件数バッジ）、直近5件のタブ切替プレビュー、自分の投稿グリッド。",
-          "why": "バッジ・行きつけ・制覇マップ・プロフィール編集は元テーブルとルートが未整備（D32）" },
+          "body": "ヘッダ3カウント、お気に入り/行きたい/下書き/保存の4カード（件数バッジ）、直近5件のタブ切替プレビュー、自分の投稿グリッド。「プロフィール編集」ボタンから S_PROFILE_EDIT へ。",
+          "why": "バッジ・行きつけ・制覇マップは元テーブルが未整備（D32）" },
+        { "status": "partial", "tag": "S_PROFILE_EDIT", "title": "プロフィール編集",
+          "body": "表示名・自己紹介・ホームエリアを編集。ユーザーネームは disabled 表示のみで、Server Action のスキーマにも含めず構造的に変更不可にしている。変更検知で保存ボタンを disabled、離脱時は beforeunload のみで確認する。",
+          "why": "アバター差し替えは Storage 導線が丸ごと無く別スコープ（D45）／username の変更不可は RLS/トリガーでは守られていない（D46）" },
         { "status": "partial", "tag": "S_FAVORITES / S_WANT_TO_GO", "title": "カフェの2リスト",
           "body": "カフェ詳細のトグルで出し入れ。2つは排他ではなく同じ店が両方に入る。閉店・非公開の店は cafes!inner で一覧からも件数からも落とす。",
           "why": "サムネ・投稿件数はN+1になるため非表示。並び替え・地図・ページ送りも未実装（D32）" },
@@ -435,8 +438,8 @@
           "why": "通報を含む「⋯」メニュー全体はスコープ外（reports 未整備）" },
         { "status": "done", "tag": "S_NOTIFICATIONS", "title": "通知",
           "body": "フィルタタブ（すべて/フォロー/コメント/いいね）、もっと見る方式の一覧、個別・一括の既読化、フォロー通知への「フォローバック」ボタン。/me から導線を追加（AuthNavには未読バッジを出さない設計判断）。likes/comments/follows の3トリガーが自己通知・ブロック相手・通知設定offを弾いてから INSERT する。" },
-        { "status": "done", "tag": "_actions", "title": "Server Actions 15本",
-          "body": "auth / onboarding / posts / drafts / feed / follows / cafes / congestion / cafe-lists / likes / comments / bookmarks / blocks / settings / notifications。入力は全て Zod、返りは Result 型。" }
+        { "status": "done", "tag": "_actions", "title": "Server Actions 16本",
+          "body": "auth / onboarding / posts / drafts / feed / follows / cafes / congestion / cafe-lists / likes / comments / bookmarks / blocks / settings / notifications / profiles。入力は全て Zod、返りは Result 型。" }
       ]
     },
 
@@ -472,13 +475,13 @@
     {
       "kind": "frame", "id": "f-todo", "row": 1, "x": 2980, "w": 1340,
       "title": "③ まだ存在しない画面",
-      "tally": "SCREENS 12 / TABLES 7",
+      "tally": "SCREENS 11 / TABLES 7",
       "lede": "未実装の大半は「テーブルが無いから画面も無い」。逆に言えば、テーブルを1つ足すたびに複数画面が開く。",
       "notes": [
         { "status": "todo", "tag": "S_MAP / S_SEARCH / S_FILTER_*", "title": "探す面",
           "body": "地図は areas.center_location の座標45件が未収集（A3）。タグ検索も未着手。" },
-        { "status": "todo", "tag": "S_PROFILE_EDIT / S_BADGES", "title": "自分の面の残り",
-          "body": "プロフィール編集 / バッジ。設定・ブロック管理・通知は開通した。マイページ本体とお気に入り・行きたい・下書き・保存も実装済み。" },
+        { "status": "todo", "tag": "S_BADGES", "title": "自分の面の残り",
+          "body": "バッジのみ。設定・ブロック管理・通知・プロフィール編集は開通した。マイページ本体とお気に入り・行きたい・下書き・保存も実装済み。" },
         { "status": "todo", "tag": "reports / ng_words", "title": "通報・モデレーション",
           "body": "S_REPORT_FORM と admin 側の審査キュー。若年層向けサービスの前提条件。" },
         { "status": "todo", "tag": "owner 6画面 + S_POST_OFFICIAL", "title": "オーナーの面",
@@ -547,7 +550,11 @@
           "title": "cafe-images バケットが無い",
           "body": "cafes.main_image_path の定義先バケットが存在せず、オーナーのアップロード導線も無い。ヒーロー画像は最新投稿の1枚目で代用中。" },
         { "status": "risk", "tag": "D32", "title": "マイページに出していない要素",
-          "body": "保存カードは post_bookmarks 実装で復活し4枚に戻った。バッジ・行きつけ・制覇マップ・プロフィール編集は元テーブル未整備のまま非表示。一覧（お気に入り/行きたい/保存）はページ送りが無く100件で打ち切る。" },
+          "body": "保存カードは post_bookmarks 実装で復活し4枚に戻った。プロフィール編集は S_PROFILE_EDIT 実装で解消。バッジ・行きつけ・制覇マップは元テーブル未整備のまま非表示。一覧（お気に入り/行きたい/保存）はページ送りが無く100件で打ち切る。" },
+        { "status": "risk", "tag": "D45", "title": "アバター差し替えが未実装",
+          "body": "S_PROFILE_EDIT で表示名・bio・ホームエリアは編集できるが、avatars バケット・署名URLエンドポイント・アップロードUIが丸ごと無い。EXIF除去+WebP変換ロジックは post-images 用のものをそのまま流用できる。" },
+        { "status": "risk", "tag": "D46", "title": "username の変更不可がRLSで守られていない",
+          "body": "guard_privileged_profile_columns は role/status しか弾かず、username はガード対象外。PostgREST を直接叩けば書き換え可能で、S_PROFILE_EDIT の「変更不可」表示はアプリ層（Zodスキーマに含めない）だけで担保している状態。RLS統合テストで固定して記録した。" },
         { "status": "risk", "tag": "D33", "title": "送信中の disabled がフォーカスを奪う",
           "body": "無効化された瞬間にフォーカスが body へ落ちる。CafeListButtons と LikeButton は aria-busy に置き換え済み（実機でフォーカス保持を確認）。CongestionSection / FollowButton / DraftList / CafeListView の4つに残っている（起票時は2つと数えていた）。" },
         { "status": "risk", "tag": "D37", "title": "refresh がトランザクションの中",
@@ -594,8 +601,8 @@
               "body": "likes・comments・post_bookmarks が出揃い、投稿へのいいね・コメント・保存が一通り動く。おすすめの人気度スコア（D24）はまだ書けるようになっただけで未着手。" },
             { "status": "future", "tag": "2nd", "title": "店の面を開く（完了）",
               "body": "S_CAFE_NEW（登録）・登録者本人による未認証期間中の編集（B8）・カフェ詳細・user_cafe_lists まで実装済み。残るのは地図（6th）とオーナー側の情報編集（幹C側、5th）。" },
-            { "status": "future", "tag": "3rd", "title": "自分の面を開く",
-              "body": "設定・ブロック管理・通知は実装済み。マイページと4つのリスト（お気に入り・行きたい・下書き・保存）も実装済み。残るのはプロフィール編集とバッジ。" },
+            { "status": "future", "tag": "3rd", "title": "自分の面を開く（ほぼ完了）",
+              "body": "設定・ブロック管理・通知・プロフィール編集は実装済み。マイページと4つのリスト（お気に入り・行きたい・下書き・保存）も実装済み。残るのはバッジのみ。" },
             { "status": "future", "tag": "4th", "title": "安全ラインを引く",
               "body": "reports / ng_words / ブロック解除導線 / admin 審査キュー。若年層向けサービスとして公開の前提条件。" },
             { "status": "future", "tag": "5th", "title": "幹Cを起こす",

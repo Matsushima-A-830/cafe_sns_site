@@ -97,7 +97,7 @@ app/
 │   ├── layout.tsx                   # サイドナビ + ボトムナビのアプリシェル
 │   ├── me/
 │   │   ├── page.tsx                 # /me (S_MYPAGE)
-│   │   ├── edit/page.tsx            # /me/edit (S_PROFILE_EDIT) ※未実装: アバター差し替えの Storage 導線とセットで実装する
+│   │   ├── edit/page.tsx            # /me/edit (S_PROFILE_EDIT) ※アバター差し替えは未実装（pending-items D45）
 │   │   ├── favorites/page.tsx       # /me/favorites (S_FAVORITES)
 │   │   ├── want-to-go/page.tsx      # /me/want-to-go (S_WANT_TO_GO)
 │   │   ├── bookmarks/page.tsx       # /me/bookmarks (S_BOOKMARKS)
