@@ -1124,11 +1124,16 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   audit_logs / notifications の INSERT 失敗を `console.error` に留め、Server Action 自体は成功扱いにする
   （判定そのものは既に反映済みのため、監査記録の失敗でユーザー影響のある操作全体を失敗にしたくない）。
   監査ログの欠落を検知する仕組みは無い
-- **Server Action 呼び出し1回の中で複数テーブルを更新するがトランザクションではない** — 途中で
-  失敗すると部分的に適用された状態になりうる（例: posts.status は更新されたが reports.status
-  更新前に失敗）。admin の再実行を前提にした設計で、ロールバック機構は用意していない
+- **Server Action 呼び出し1回の中で複数テーブルを更新するがトランザクションではない** —
+  排他制御として reports の条件付き UPDATE（`status IN (pending, reviewing)`）を対象への副作用より
+  先に行い、0件なら `REPORT_ALREADY_RESOLVED` を返して副作用を実行しない形にしたため、
+  「2人のadminが同時に判定して片方が上書きされる」レースは解消した（`/code-review` 指摘、2026-09-21）。
+  ただし reports 更新に勝った**後**の副作用（posts/comments/profiles 更新）・audit_logs・通知の
+  途中失敗はロールバックされない。admin の再実行を前提にした設計で、ロールバック機構は用意していない
 - **対応判断:** cafe への対応・被通報者通知・監査ログの信頼性強化は、実運用で必要になってから着手する
-- 参照: S_ADMIN_REPORTS / S_ADMIN_REVIEW 実装時にスコープ外と判断（2026-09-21）
+- 参照: S_ADMIN_REPORTS / S_ADMIN_REVIEW 実装時にスコープ外と判断（2026-09-21）。
+  `requireAdmin` の role のみチェック（status未確認）と notifications_insert_admin の type無制限は
+  `/code-review` 指摘を受けて実装時に修正済み（2026-09-21）
 
 ## 削除・アーカイブ判断待ち
 

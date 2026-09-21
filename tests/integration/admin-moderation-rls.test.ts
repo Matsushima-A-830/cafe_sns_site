@@ -174,4 +174,15 @@ describe('notifications への admin INSERT', () => {
 
     expect(error?.code).toBe(RLS_VIOLATION)
   })
+
+  it('admin でも report_resolved 以外の type は INSERT できない（notify_on_like 等のトリガーが守るチェックのバイパス防止）', async () => {
+    const { error } = await admin.client.from('notifications').insert({
+      recipient_id: alice.userId,
+      type: 'like',
+      entity_type: 'post',
+      entity_id: hiddenPost.id,
+    })
+
+    expect(error?.code).toBe(RLS_VIOLATION)
+  })
 })

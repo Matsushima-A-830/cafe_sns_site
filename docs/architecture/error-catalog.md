@@ -106,6 +106,7 @@
 |---|---|---|
 | `SELF_REPORT_FORBIDDEN` | 自分自身への通報禁止 | createReport |
 | `REPORT_ALREADY_SUBMITTED` | 同一対象への**未処理の**通報が既にある（DB の部分ユニークインデックスで担保） | createReport |
+| `REPORT_ALREADY_RESOLVED` | 別の admin が既に判定済み（pending/reviewing でなくなっていた） | resolveReport |
 
 ---
 
@@ -129,7 +130,7 @@ export type ErrorCode =
   | 'DOCUMENTS_INSUFFICIENT' | 'VERIFICATION_ALREADY_PENDING'
   | 'VERIFICATION_REJECTED' | 'NOT_OWNER'
   | 'FILE_TOO_LARGE' | 'UNSUPPORTED_MEDIA_TYPE' | 'EXIF_STRIP_FAILED' | 'UPLOAD_FAILED'
-  | 'SELF_REPORT_FORBIDDEN' | 'REPORT_ALREADY_SUBMITTED'
+  | 'SELF_REPORT_FORBIDDEN' | 'REPORT_ALREADY_SUBMITTED' | 'REPORT_ALREADY_RESOLVED'
 ```
 
 ```typescript

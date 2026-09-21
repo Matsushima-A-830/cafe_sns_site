@@ -19,7 +19,7 @@ const postId = '44444444-4444-4444-8444-444444444444'
 /** select().eq()... の末に await されるチェーンを模す（comments.test.ts と同じ手法） */
 function makeChain(terminalResult: unknown): Record<string, unknown> {
   const chain: Record<string, unknown> = {}
-  for (const method of ['select', 'eq', 'order', 'update', 'insert']) {
+  for (const method of ['select', 'eq', 'in', 'order', 'update', 'insert']) {
     chain[method] = vi.fn(() => chain)
   }
   chain.maybeSingle = vi.fn().mockResolvedValue(terminalResult)
@@ -33,9 +33,11 @@ function makeChain(terminalResult: unknown): Record<string, unknown> {
 type Options = {
   user?: { id: string } | null
   role?: string | null
+  status?: string | null
   reportsSelectList?: { data: unknown[] | null; error?: unknown }
   reportsSelectDetail?: { data: unknown | null; error?: unknown }
-  reportsUpdate?: { error?: unknown }
+  /** resolveReport の条件付き UPDATE の結果。data:null は「他の admin が先に判定済み」を表す */
+  reportsUpdate?: { data: unknown | null; error?: unknown }
   postsUpdate?: { error?: unknown }
   commentsUpdate?: { error?: unknown }
   profilesUpdate?: { error?: unknown }
@@ -47,9 +49,10 @@ type Options = {
 function mockClient(options: Options = {}) {
   const user = 'user' in options ? options.user : { id: adminId }
   const role = 'role' in options ? options.role : 'admin'
+  const status = 'status' in options ? options.status : 'active'
 
   const profilesTable = {
-    select: vi.fn(() => makeChain({ data: { role }, error: null })),
+    select: vi.fn(() => makeChain({ data: { role, status }, error: null })),
     update: vi.fn(() => makeChain(options.profilesUpdate ?? { error: null })),
   }
   const reportsTable = {
@@ -62,7 +65,9 @@ function mockClient(options: Options = {}) {
           .mockResolvedValue(options.reportsSelectDetail ?? { data: null, error: null }),
       })),
     })),
-    update: vi.fn(() => makeChain(options.reportsUpdate ?? { error: null })),
+    update: vi.fn(() =>
+      makeChain(options.reportsUpdate ?? { data: { id: reportId }, error: null }),
+    ),
   }
   const postsTable = { update: vi.fn(() => makeChain(options.postsUpdate ?? { error: null })) }
   const commentsTable = {
@@ -113,6 +118,14 @@ describe('requireAdmin ガード（listReports 経由で検証）', () => {
 
   it('admin ロールでなければ FORBIDDEN を返す', async () => {
     mockClient({ role: 'general' })
+
+    const result = await listReports('pending')
+
+    expect(result).toEqual({ ok: false, error: 'FORBIDDEN' })
+  })
+
+  it('role=admin でも status が active でなければ FORBIDDEN を返す（RLSのis_admin()と同じ条件に揃える）', async () => {
+    mockClient({ role: 'admin', status: 'suspended' })
 
     const result = await listReports('pending')
 
@@ -216,23 +229,28 @@ describe('resolveReport', () => {
     expect(result).toEqual({ ok: false, error: 'NOT_FOUND' })
   })
 
-  it('既に resolved/rejected な通報は CONFLICT を返す', async () => {
-    mockClient({
+  it('条件付きUPDATEが0件（他のadminが同時に判定済み）なら REPORT_ALREADY_RESOLVED を返す', async () => {
+    const spies = mockClient({
       reportsSelectDetail: {
         data: {
           id: reportId,
           target_type: 'post',
           target_id: postId,
           reporter_id: reporterId,
-          status: 'resolved',
+          status: 'pending',
         },
         error: null,
       },
+      // .eq('id',...).in('status', ['pending','reviewing']) が0件だったことを表す
+      reportsUpdate: { data: null, error: null },
     })
 
     const result = await resolveReport({ reportId, decision: 'reject' })
 
-    expect(result).toEqual({ ok: false, error: 'CONFLICT' })
+    expect(result).toEqual({ ok: false, error: 'REPORT_ALREADY_RESOLVED' })
+    // 排他制御に負けた以上、対象への副作用を実行してはいけない
+    expect(spies.postsUpdate).not.toHaveBeenCalled()
+    expect(spies.auditLogsInsert).not.toHaveBeenCalled()
   })
 
   it('decision と target_type が食い違う場合は INVALID_INPUT を返す', async () => {

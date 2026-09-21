@@ -58,3 +58,4 @@ export type ErrorCode =
   // 通報
   | 'SELF_REPORT_FORBIDDEN'
   | 'REPORT_ALREADY_SUBMITTED'
+  | 'REPORT_ALREADY_RESOLVED'

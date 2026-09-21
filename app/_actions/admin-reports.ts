@@ -24,11 +24,15 @@ async function requireAdmin(supabase: Client): Promise<Result<{ id: string }, Ad
 
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, status')
     .eq('id', user.id)
     .maybeSingle()
   if (error) throw new Error(`権限確認に失敗しました: ${error.message}`)
-  if (profile?.role !== 'admin') return { ok: false, error: 'FORBIDDEN' }
+  // RLS の is_admin() と同じ条件（role='admin' かつ status='active'）に揃える。
+  // role だけ見ると、停止済み admin が「更新は0件通っただけ」で ok:true を返しかねない
+  if (profile?.role !== 'admin' || profile.status !== 'active') {
+    return { ok: false, error: 'FORBIDDEN' }
+  }
 
   return { ok: true, data: { id: user.id } }
 }
@@ -135,7 +139,7 @@ type ResolveReportError =
   | AdminGuardError
   | 'INVALID_INPUT'
   | 'NOT_FOUND'
-  | 'CONFLICT'
+  | 'REPORT_ALREADY_RESOLVED'
   | 'INTERNAL_ERROR'
 
 const DECISION_TO_TARGET_TYPE: Record<
@@ -148,10 +152,12 @@ const DECISION_TO_TARGET_TYPE: Record<
 }
 
 /**
- * 判定の実行。対象への副作用（非表示化・削除・停止）→ reports 更新 →
- * audit_logs INSERT → 通報者への report_resolved 通知、の順で行う。
- * Supabase JS はクライアント側マルチステートメントトランザクションを持たないため
- * 途中失敗時のロールバックは無い。admin 操作の再実行は安全（べき等）な内容のみなので許容する
+ * 判定の実行。reports の条件付き更新（status が pending/reviewing の間だけ）を
+ * 対象への副作用より先に行い、その1本を「同時判定のどちらが勝つか」の排他制御に使う。
+ * 更新0件なら他の admin が先に判定済みとみなして REPORT_ALREADY_RESOLVED を返し、
+ * 副作用（非表示化・削除・停止）を実行しない。
+ * Supabase JS はクライアント側マルチステートメントトランザクションを持たないため、
+ * reports 更新に勝った後の副作用・audit_logs・通知の失敗はロールバックされない
  *   docs/design/screen-flow.md #5-通報ブロックフロー
  */
 export async function resolveReport(
@@ -173,12 +179,26 @@ export async function resolveReport(
     .maybeSingle()
   if (reportError) throw new Error(`通報の取得に失敗しました: ${reportError.message}`)
   if (!report) return { ok: false, error: 'NOT_FOUND' }
-  if (report.status !== 'pending' && report.status !== 'reviewing') {
-    return { ok: false, error: 'CONFLICT' }
-  }
   if (decision !== 'reject' && DECISION_TO_TARGET_TYPE[decision] !== report.target_type) {
     return { ok: false, error: 'INVALID_INPUT' }
   }
+
+  const newStatus: ReportStatus = decision === 'reject' ? 'rejected' : 'resolved'
+  const { data: updatedReport, error: updateError } = await supabase
+    .from('reports')
+    .update({
+      status: newStatus,
+      reviewer_id: guard.data.id,
+      resolution_notes: resolutionNotes || null,
+      resolved_at: new Date().toISOString(),
+    })
+    .eq('id', reportId)
+    .in('status', ['pending', 'reviewing'])
+    .select('id')
+    .maybeSingle()
+  if (updateError) throw new Error(`通報の更新に失敗しました: ${updateError.message}`)
+  // 0件 = 他の admin が同時に判定済み（このSELECTとUPDATEの間で status が変わった）
+  if (!updatedReport) return { ok: false, error: 'REPORT_ALREADY_RESOLVED' }
 
   if (decision === 'hide_post') {
     const { error } = await supabase
@@ -199,18 +219,6 @@ export async function resolveReport(
       .eq('id', report.target_id)
     if (error) throw new Error(`ユーザーの停止に失敗しました: ${error.message}`)
   }
-
-  const newStatus: ReportStatus = decision === 'reject' ? 'rejected' : 'resolved'
-  const { error: updateError } = await supabase
-    .from('reports')
-    .update({
-      status: newStatus,
-      reviewer_id: guard.data.id,
-      resolution_notes: resolutionNotes || null,
-      resolved_at: new Date().toISOString(),
-    })
-    .eq('id', reportId)
-  if (updateError) throw new Error(`通報の更新に失敗しました: ${updateError.message}`)
 
   const { error: auditError } = await supabase.from('audit_logs').insert({
     actor_id: guard.data.id,
