@@ -21,6 +21,9 @@ function row(overrides: Record<string, unknown> = {}) {
     like_count: 0,
     comment_count: 0,
     bookmark_count: 0,
+    is_official: false,
+    official_format: null,
+    metadata: {},
     author: {
       id: 'user-1',
       username: 'kaho',

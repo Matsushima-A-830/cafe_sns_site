@@ -1,4 +1,9 @@
 import { z } from 'zod'
+import {
+  NEW_MENU_IMAGE_MAX_COUNT,
+  NEW_MENU_IMAGE_MIN_COUNT,
+  OFFICIAL_FORMATS,
+} from '@/lib/constants/posts'
 
 // Tiptap JSON の中身そのものは検証しない（エディタが生成する構造を信頼する）。
 // 空文言・サイズ上限チェックは extractPlainText 経由でアプリ層（createPost）が行う
@@ -131,3 +136,116 @@ export function getBodyJsonByteSize(bodyJson: unknown): number | null {
 export const postIdSchema = z.object({
   postId: z.string().uuid('投稿IDの形式が正しくありません'),
 })
+
+// ============================================
+// 公式投稿（S_POST_OFFICIAL, 幹C-2）
+//   docs/design/wireframes/composer.md #S_POST_OFFICIAL
+//   docs/architecture/data-model/tables.md #metadataのスキーマ公式投稿
+// ============================================
+
+// YYYY-MM-DD のみ許可。z.iso.date() ではなく imagePathSchema と同じ考え方で
+// 正規表現に寄せ、zod のバージョン差に振り回されないようにする
+const dateOnlySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付の形式が正しくありません')
+
+export const reserveOfficialPostSchema = z.object({
+  officialFormat: z.enum(OFFICIAL_FORMATS),
+})
+
+export type ReserveOfficialPostInput = z.infer<typeof reserveOfficialPostSchema>
+
+const officialImagePathsSchema = z
+  .array(imagePathSchema)
+  .default([])
+  .transform((paths) => Array.from(new Set(paths)))
+  .pipe(z.array(z.string()).max(10, '画像は10枚までです'))
+
+// 新メニューはワイヤーの「写真（1〜3枚）」通り必須・上限3枚にする（他フォーマットより厳しい）
+const newMenuImagePathsSchema = z
+  .array(imagePathSchema)
+  .transform((paths) => Array.from(new Set(paths)))
+  .pipe(
+    z
+      .array(z.string())
+      .min(NEW_MENU_IMAGE_MIN_COUNT, '写真は1枚以上選んでください')
+      .max(NEW_MENU_IMAGE_MAX_COUNT, `写真は${NEW_MENU_IMAGE_MAX_COUNT}枚までです`),
+  )
+
+// menu_name/price_yen/valid_until/available_from/starts_on/ends_on/reason は
+// tables.md #metadataのスキーマ公式投稿 に定義された固定キー。一言コメント・説明といった
+// 自由文は metadata ではなく posts.body_json（Tiptap doc）に持たせる — 一般投稿と同じ
+// 本文カラムに寄せることで body_text/body_search による全文検索の対象にも自然に乗る
+const todaySpecialMetadataSchema = z.object({
+  v: z.literal(1),
+  menu_name: z
+    .string()
+    .trim()
+    .min(1, 'メニュー名を入力してください')
+    .max(60, 'メニュー名は60文字以内で入力してください'),
+  price_yen: z.number().int().min(0).max(1_000_000).nullable(),
+  // 「今日のみ」「〜今週末」は送信時にクライアントが具体的な日付へ変換する。「期限なし」は null
+  valid_until: dateOnlySchema.nullable(),
+})
+
+const newMenuMetadataSchema = z.object({
+  v: z.literal(1),
+  menu_name: z
+    .string()
+    .trim()
+    .min(1, 'メニュー名を入力してください')
+    .max(60, 'メニュー名は60文字以内で入力してください'),
+  price_yen: z.number().int().min(0).max(1_000_000).nullable(),
+  available_from: dateOnlySchema,
+})
+
+const closureMetadataSchema = z
+  .object({
+    v: z.literal(1),
+    closure_type: z.enum(['closed', 'hours_changed']),
+    starts_on: dateOnlySchema,
+    ends_on: dateOnlySchema,
+    reason: z.string().trim().max(200, '理由は200文字以内で入力してください'),
+  })
+  .refine((data) => data.starts_on <= data.ends_on, {
+    message: '終了日は開始日以降にしてください',
+    path: ['ends_on'],
+  })
+
+const tipMetadataSchema = z.object({ v: z.literal(1) })
+
+export const createOfficialPostSchema = z.discriminatedUnion('officialFormat', [
+  z.object({
+    officialFormat: z.literal('today_special'),
+    postId: z.string().uuid('投稿IDの形式が正しくありません'),
+    // 一言コメント。空文字も許可（写真だけの投稿を成立させる — short と同じ考え方）
+    bodyJson: tiptapDocSchema,
+    imagePaths: officialImagePathsSchema,
+    metadata: todaySpecialMetadataSchema,
+  }),
+  z.object({
+    officialFormat: z.literal('new_menu'),
+    postId: z.string().uuid('投稿IDの形式が正しくありません'),
+    bodyJson: tiptapDocSchema,
+    imagePaths: newMenuImagePathsSchema,
+    metadata: newMenuMetadataSchema,
+  }),
+  z.object({
+    officialFormat: z.literal('closure'),
+    postId: z.string().uuid('投稿IDの形式が正しくありません'),
+    // 本文は metadata.reason から自動生成するため画像もクライアント入力も受け取らない
+    metadata: closureMetadataSchema,
+  }),
+  z.object({
+    officialFormat: z.literal('tip'),
+    postId: z.string().uuid('投稿IDの形式が正しくありません'),
+    title: z
+      .string()
+      .trim()
+      .min(1, 'タイトルを入力してください')
+      .max(100, 'タイトルは100文字以内で入力してください'),
+    bodyJson: tiptapDocSchema,
+    imagePaths: officialImagePathsSchema,
+    metadata: tipMetadataSchema,
+  }),
+])
+
+export type CreateOfficialPostInput = z.infer<typeof createOfficialPostSchema>

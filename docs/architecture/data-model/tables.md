@@ -581,6 +581,8 @@ body_search tsvector GENERATED ALWAYS AS (
 // tip: 豆知識 — 追加項目なし（title + body_json のみ）
 ```
 
+**`official_format` ごとの `post_type` 割り当て（決定 2026-09-22）:** `tip`（豆知識）は Tiptap 長文本体を持つため `blog`。`today_special` / `new_menu` / `closure` は画像＋短文＋`metadata` 中心の構造化フォーマットなので `short` に寄せる（`lib/constants/posts.ts` の `officialFormatPostType`）。
+
 - `price_yen` は表示専用。価格の比較・アンカリング表示はフェーズ2（[mvp-scope.md](../../product/mvp-scope.md)）
 - `closure` の期間は `cafe_business_hours` を上書きしない。営業時間そのものへの反映は `cafe_special_hours` テーブルの導入後（[pending-items B5](../../product/pending-items.md)）
 

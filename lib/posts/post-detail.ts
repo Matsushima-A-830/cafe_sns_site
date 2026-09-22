@@ -1,4 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { isOfficialFormat, type OfficialFormat } from '@/lib/constants/posts'
+import { type OfficialMetadata, toOfficialMetadata } from '@/lib/posts/official-metadata'
 import { getPostImagePublicUrl } from '@/lib/storage/post-images'
 import { extractPlainText } from '@/lib/validators/posts'
 import type { Database } from '@/types/database'
@@ -35,6 +37,10 @@ export type PostDetail = {
   bookmarkCount: number
   /** 閲覧者自身が保存済みか。未ログインでは常に false */
   bookmarkedByViewer: boolean
+  /** 経営者による公式投稿か（幹C-2）。true のときのみ officialFormat/metadata が意味を持つ */
+  isOfficial: boolean
+  officialFormat: OfficialFormat | null
+  metadata: OfficialMetadata | null
 }
 
 /**
@@ -45,7 +51,7 @@ export type PostDetail = {
  */
 function buildPostDetailSelect(viewerId: string | null): string {
   const parts = [
-    'id, post_type, title, body_json, visibility, published_at, created_at, like_count, comment_count, bookmark_count',
+    'id, post_type, title, body_json, visibility, published_at, created_at, like_count, comment_count, bookmark_count, is_official, official_format, metadata',
     'author:profiles!posts_author_id_fkey (id, username, display_name, avatar_url)',
     'cafe:cafes!posts_cafe_id_fkey (id, name, area_code, areas!cafes_area_code_fkey (label))',
     'post_images (storage_path, alt_text, display_order)',
@@ -69,6 +75,9 @@ type PostDetailRow = {
   like_count: number
   comment_count: number
   bookmark_count: number
+  is_official: boolean
+  official_format: string | null
+  metadata: unknown
   /** viewerId を渡したときだけ付く。空配列＝まだいいねしていない */
   my_like?: { user_id: string }[]
   /** viewerId を渡したときだけ付く。空配列＝まだ保存していない */
@@ -156,6 +165,12 @@ export function toPostDetail(
     commentCount: row.comment_count,
     bookmarkCount: row.bookmark_count,
     bookmarkedByViewer: (row.my_bookmark ?? []).length > 0,
+    isOfficial: row.is_official,
+    officialFormat:
+      row.is_official && row.official_format && isOfficialFormat(row.official_format)
+        ? row.official_format
+        : null,
+    metadata: row.is_official ? toOfficialMetadata(row.official_format, row.metadata) : null,
   }
 }
 

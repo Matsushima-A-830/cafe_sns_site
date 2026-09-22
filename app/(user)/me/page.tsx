@@ -98,7 +98,7 @@ export default async function MyPage() {
     // （lib/profiles/public-profile.ts の PUBLIC_COLUMNS）、他人のプロフィールにまで
     // role を持たせたくないのでここでは増やさない。verified_owner_id を持つのは
     // 実質 owner だけなので、大半のユーザーは0件が返るだけで実害は無い
-    getOwnedCafe(supabase, user.id),
+    getOwnedCafe(supabase),
   ])
 
   // 下書きだけは取得に失敗してもページ全体を落とさない（マイページの主役ではない）。

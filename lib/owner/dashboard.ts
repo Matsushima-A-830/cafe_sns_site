@@ -88,22 +88,22 @@ function weeklyPostsQuery(supabase: Client, cafeId: string, from: Date, to?: Dat
 export type OwnedCafeSummary = { id: string; name: string }
 
 /**
- * マイページの「自分の店舗」導線用。1ユーザーが複数カフェの verified_owner_id を持つことも
- * 制約上は可能だが、MVPでは「1申請=1カフェ」前提のまま先頭1件だけを案内する
- * （複数店舗オーナーの一覧UIは pending-items に送る）
+ * マイページの「自分の店舗」導線・S_POST_OFFICIAL のカフェ解決用。1ユーザーが複数カフェの
+ * verified_owner_id を持つことも制約上は可能だが、MVPでは「1申請=1カフェ」前提のまま
+ * 先頭1件だけを案内する（複数店舗オーナーの一覧UIは pending-items D53 に送る）
+ *
+ * cafes の SELECT RLS（cafes_select_active_authenticated）は status='active' のカフェしか
+ * 見せないため、素朴な select だとカフェが closed/hidden になった瞬間オーナー本人からも
+ * 見えなくなる。「臨時休業を告知したいまさにその状況で告知できない」という本末転倒を防ぐため、
+ * get_owned_cafe（security definer, auth.uid() 基準）で RLS をバイパスして取得する。
+ * 呼び出し元の userId 引数は使わない — セッションと異なる userId を渡しても常に
+ * 自分自身の結果が返るため、混乱を避けて引数自体を持たない
+ *   docs/product/pending-items.md D55（/code-review 指摘で部分解消）
  */
-export async function getOwnedCafe(
-  supabase: Client,
-  userId: string,
-): Promise<OwnedCafeSummary | null> {
-  const { data, error } = await supabase
-    .from('cafes')
-    .select('id, name')
-    .eq('verified_owner_id', userId)
-    .limit(1)
-    .maybeSingle()
+export async function getOwnedCafe(supabase: Client): Promise<OwnedCafeSummary | null> {
+  const { data, error } = await supabase.rpc('get_owned_cafe')
   if (error) throw new Error(`経営しているカフェの取得に失敗しました: ${error.message}`)
-  return data
+  return data?.[0] ?? null
 }
 
 export async function getOwnerDashboard(

@@ -1126,6 +1126,17 @@ export type Database = {
         Returns: boolean
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      finalize_official_post: {
+        Args: {
+          p_body_json: Json
+          p_image_paths: string[]
+          p_metadata: Json
+          p_official_format: string
+          p_post_id: string
+          p_title: string
+        }
+        Returns: undefined
+      }
       finalize_post: {
         Args: {
           p_body_json: Json
@@ -1145,6 +1156,13 @@ export type Database = {
           level_avg: number
           sample_count: number
           source: string
+        }[]
+      }
+      get_owned_cafe: {
+        Args: never
+        Returns: {
+          id: string
+          name: string
         }[]
       }
       get_owner_verification_cafe: {

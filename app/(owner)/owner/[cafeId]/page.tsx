@@ -17,14 +17,8 @@ type PageProps = { params: Promise<{ cafeId: string }> }
 
 export const metadata: Metadata = { title: 'ダッシュボード' }
 
-/** 未実装の画面へのリンクは張らない。ワイヤーの5項目のうち現時点で遷移先があるものは無い */
-const MENU_ITEMS = [
-  '店舗情報を編集',
-  '投稿分析を見る',
-  'ユーザー投稿一覧',
-  '公式投稿を作成',
-  '認証情報',
-] as const
+/** 未実装の画面へのリンクは張らない。ワイヤーの5項目のうち「公式投稿を作成」のみ遷移先がある */
+const MENU_ITEMS = ['店舗情報を編集', '投稿分析を見る', 'ユーザー投稿一覧', '認証情報'] as const
 
 function changeTone(pct: number | null): string {
   if (pct === null || pct === 0) return 'text-muted-foreground'
@@ -104,6 +98,15 @@ export default async function OwnerDashboardPage({ params }: PageProps) {
         <aside className="order-2 flex flex-col gap-4 lg:col-span-1 lg:col-start-3 lg:row-start-1 lg:row-span-2">
           <h2 className="text-lg font-bold text-foreground">メニュー</h2>
           <ul className="flex flex-col gap-2">
+            <li>
+              <Link
+                href="/new/official"
+                className="flex items-center justify-between rounded-lg border border-border-default bg-surface px-4 py-3 text-sm font-bold text-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
+              >
+                公式投稿を作成
+                <span aria-hidden="true">→</span>
+              </Link>
+            </li>
             {MENU_ITEMS.map((label) => (
               <li
                 key={label}

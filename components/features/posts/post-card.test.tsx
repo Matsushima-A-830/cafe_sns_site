@@ -22,6 +22,9 @@ const base: PostListItem = {
   likedByViewer: false,
   bookmarkCount: 0,
   bookmarkedByViewer: false,
+  isOfficial: false,
+  officialFormat: null,
+  metadata: null,
 }
 
 const storageImage = {
