@@ -1,5 +1,6 @@
 'use server'
 
+import { checkAndAwardBadges } from '@/lib/badges/check'
 import {
   POSTGRES_FOREIGN_KEY_VIOLATION,
   POSTGRES_INSUFFICIENT_PRIVILEGE,
@@ -218,6 +219,10 @@ export async function createPost(
     }
     return { ok: false, error: 'INTERNAL_ERROR', details: error.message }
   }
+
+  // POST_*/AREA_*/SCENE_* バッジの判定（docs/seed/badges-initial-set.md #判定タイミング）。
+  // 失敗しても投稿自体は成功として返す（lib/badges/check.ts が個別に握る）
+  await checkAndAwardBadges(supabase, user.id, 'POST_CREATED')
 
   return { ok: true, data: { postId: data.postId } }
 }

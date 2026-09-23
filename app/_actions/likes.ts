@@ -1,5 +1,6 @@
 'use server'
 
+import { checkAndAwardBadges } from '@/lib/badges/check'
 import {
   POSTGRES_FOREIGN_KEY_VIOLATION,
   POSTGRES_INSUFFICIENT_PRIVILEGE,
@@ -96,6 +97,18 @@ async function insertLike(input: LikeEntryInput): Promise<Result<LikeCount, Like
   }
 
   if (!data) return { ok: false, error: 'FORBIDDEN' }
+
+  // COM_FIRST_LIKE_GIVEN（いいねした本人）/ COM_100_LIKES（受け取った投稿者）の判定。
+  // 判定タイミング: docs/seed/badges-initial-set.md #判定タイミング
+  await checkAndAwardBadges(supabase, user.id, 'LIKE_GIVEN')
+  const { data: post } = await supabase
+    .from('posts')
+    .select('author_id')
+    .eq('id', input.postId)
+    .single()
+  if (post) {
+    await checkAndAwardBadges(supabase, post.author_id, 'LIKE_RECEIVED')
+  }
 
   // revalidatePath は呼ばない: フィードも投稿詳細も auth.getUser() で cookie を読む
   // 動的レンダリングで、そもそもキャッシュに載っていない（pending-items D23）

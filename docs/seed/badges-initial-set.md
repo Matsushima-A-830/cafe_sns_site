@@ -134,7 +134,7 @@ seed の20件が上記の型に収まっていることは `tests/integration/se
 | バッジ種別 | `BadgeTrigger` | 呼び出し元 |
 |---|---|---|
 | POST_*, AREA_*, SCENE_* | `POST_CREATED` | `app/_actions/posts.ts`（投稿公開後） |
-| REGULAR_* | `REGULAR_AWARDED` | `app/_actions/owner.ts`（常連認定後） |
+| REGULAR_* | `REGULAR_AWARDED` | `app/_actions/regular-customers.ts`（常連認定後） |
 | COM_100_LIKES | `LIKE_RECEIVED` | `app/_actions/likes.ts`（いいねを受けた側で判定） |
 | COM_FIRST_LIKE_GIVEN | `LIKE_GIVEN` | `app/_actions/likes.ts`（いいねをした側で判定） |
 | COM_10_FOLLOWERS | `FOLLOW_RECEIVED` | `app/_actions/follows.ts`（フォローされた側で判定） |

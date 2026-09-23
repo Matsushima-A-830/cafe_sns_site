@@ -1,5 +1,6 @@
 'use server'
 
+import { checkAndAwardBadges } from '@/lib/badges/check'
 import {
   POSTGRES_CHECK_VIOLATION,
   POSTGRES_INSUFFICIENT_PRIVILEGE,
@@ -61,6 +62,10 @@ export async function followUser(input: unknown): Promise<Result<null, FollowUse
   }
 
   if (!data) return { ok: false, error: 'FORBIDDEN' }
+
+  // COM_10_FOLLOWERS の判定。フォローされた側 (followeeId) に付与される
+  await checkAndAwardBadges(supabase, parsed.data.followeeId, 'FOLLOW_RECEIVED')
+
   return { ok: true, data: null }
 }
 
