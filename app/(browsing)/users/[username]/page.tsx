@@ -6,12 +6,14 @@ import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { PostFeed } from '@/components/features/posts/post-feed'
 import { BlockButton } from '@/components/features/profiles/block-button'
+import { EarnedBadgeRow } from '@/components/features/profiles/earned-badge-row'
 import { FollowButton } from '@/components/features/profiles/follow-button'
 import { ProfileAvatar } from '@/components/features/profiles/profile-avatar'
 import { ProfileCountList } from '@/components/features/profiles/profile-count-list'
 import { PublicProfileTabs } from '@/components/features/profiles/public-profile-tabs'
 import { RegularCafeGrid } from '@/components/features/profiles/regular-cafe-grid'
 import { Button } from '@/components/ui/button'
+import { getUserEarnedBadges } from '@/lib/badges/earned'
 import { getPostList } from '@/lib/posts/post-list'
 import {
   getProfileCounts,
@@ -72,14 +74,14 @@ export default async function UserProfilePage({ params }: PageProps) {
   const isSelf = user?.id === profile.id
 
   // 表示に要る残りは往復を直列にしない（CLAUDE.md パフォーマンス「N+1回避」）
-  const [counts, following, page, regularCafes] = await Promise.all([
+  const [counts, following, page, regularCafes, earnedBadges] = await Promise.all([
     getProfileCounts(supabase, profile.id),
     user && !isSelf ? isFollowing(supabase, user.id, profile.id) : Promise.resolve(false),
     getPostList(supabase, { authorId: profile.id, viewerId: user?.id ?? null }),
     getUserRegularCafes(supabase, profile.id),
+    getUserEarnedBadges(supabase, profile.id),
   ])
 
-  // バッジ（user_badges）は元テーブルが未作成のため出していない（pending-items D28）
   const query: FeedQuery = {
     scope: 'new',
     tagSlug: null,
@@ -160,6 +162,8 @@ export default async function UserProfilePage({ params }: PageProps) {
             </Button>
           ))}
       </header>
+
+      <EarnedBadgeRow badges={earnedBadges} />
 
       {/* 行きつけが0件なら中身1枚しか無いのでタブ自体を出さない（D25・D28と同じ判断） */}
       {regularCafes.length === 0 ? (
