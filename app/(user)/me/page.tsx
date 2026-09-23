@@ -14,6 +14,7 @@ import {
 import { PostFeed } from '@/components/features/posts/post-feed'
 import { ProfileAvatar } from '@/components/features/profiles/profile-avatar'
 import { ProfileCountList } from '@/components/features/profiles/profile-count-list'
+import { RegularCafeGrid } from '@/components/features/profiles/regular-cafe-grid'
 import { Button } from '@/components/ui/button'
 import {
   CAFE_LIST_PREVIEW_LIMIT,
@@ -32,6 +33,11 @@ import {
 } from '@/lib/posts/bookmarks'
 import { getPostList, type PostListItem } from '@/lib/posts/post-list'
 import { getProfileById, getProfileCounts } from '@/lib/profiles/public-profile'
+import {
+  getUserRegularCafeCount,
+  getUserRegularCafes,
+  REGULAR_CAFE_PREVIEW_LIMIT,
+} from '@/lib/profiles/regulars'
 import { createClient } from '@/lib/supabase/server'
 import { formatPostDate } from '@/lib/utils/format-date'
 import type { FeedQuery } from '@/lib/validators/feed'
@@ -83,6 +89,8 @@ export default async function MyPage() {
     bookmarks,
     unreadCount,
     ownedCafe,
+    regularCafes,
+    regularCafeCount,
   ] = await Promise.all([
     getProfileCounts(supabase, profile.id),
     getUserCafeListCounts(supabase),
@@ -99,6 +107,8 @@ export default async function MyPage() {
     // role を持たせたくないのでここでは増やさない。verified_owner_id を持つのは
     // 実質 owner だけなので、大半のユーザーは0件が返るだけで実害は無い
     getOwnedCafe(supabase),
+    getUserRegularCafes(supabase, profile.id, REGULAR_CAFE_PREVIEW_LIMIT),
+    getUserRegularCafeCount(supabase, profile.id),
   ])
 
   // 下書きだけは取得に失敗してもページ全体を落とさない（マイページの主役ではない）。
@@ -179,8 +189,7 @@ export default async function MyPage() {
   ]
 
   // バッジ・制覇マップは /me/badges への導線のみで、マイページ本体にはプレビューを出していない
-  // （4カードショートカットは決定済みの構成のため追加しない）。「私の行きつけ」
-  // （regular_customers）は表示UIが未着手 — pending-items D32
+  // （4カードショートカットは決定済みの構成のため追加しない）
   const query: FeedQuery = {
     scope: 'new',
     tagSlug: null,
@@ -247,6 +256,24 @@ export default async function MyPage() {
           </Button>
         </div>
       </header>
+
+      <section className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-foreground">私の行きつけ ({regularCafeCount})</h2>
+          {regularCafeCount > 0 && (
+            <Link
+              href="/me/regulars"
+              className="text-sm text-link underline focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
+            >
+              すべて見る
+            </Link>
+          )}
+        </div>
+        <RegularCafeGrid
+          entries={regularCafes}
+          emptyMessage="まだ行きつけの認定はありません。カフェのオーナーに常連認定してもらうと、ここに並びます。"
+        />
+      </section>
 
       <ListShortcuts shortcuts={shortcuts} />
 

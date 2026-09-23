@@ -64,9 +64,9 @@ app/
 │   │       └── page.tsx             # /cafes/new (S_CAFE_NEW)
 │   └── users/
 │       └── [username]/
-│           ├── page.tsx             # /users/[username] (S_USER_PROFILE_PUBLIC)
-│           └── posts/
-│               └── page.tsx         # /users/[username]/posts (タブ)
+│           └── page.tsx             # /users/[username] (S_USER_PROFILE_PUBLIC)
+│               # 「投稿 / 行きつけ」はページ内タブ切替。/users/[username]/posts は
+│               # 作らない — pending-items D28（/cafes/[id]/posts と同じ判断）
 │
 ├── (auth)/                          # 認証・オンボーディング
 │   ├── layout.tsx                   # 中央寄せカードレイアウト、ナビ非表示
@@ -102,7 +102,8 @@ app/
 │   │   ├── want-to-go/page.tsx      # /me/want-to-go (S_WANT_TO_GO)
 │   │   ├── bookmarks/page.tsx       # /me/bookmarks (S_BOOKMARKS)
 │   │   ├── drafts/page.tsx          # /me/drafts (S_DRAFTS)
-│   │   └── badges/page.tsx          # /me/badges (S_BADGES)
+│   │   ├── badges/page.tsx          # /me/badges (S_BADGES)
+│   │   └── regulars/page.tsx        # /me/regulars (S_MYPAGE「私の行きつけ」すべて見る)
 │   ├── notifications/
 │   │   └── page.tsx                 # /notifications (S_NOTIFICATIONS)
 │   ├── settings/                    # プライバシー・通知・表示のみを1枚にまとめる（S_SETTINGS）。
@@ -190,6 +191,7 @@ app/
 | S_BOOKMARKS | `/me/bookmarks` | SSR |
 | S_DRAFTS | `/me/drafts` | SSR |
 | S_BADGES | `/me/badges` | SSR |
+| S_MYPAGE「私の行きつけ」すべて見る | `/me/regulars` | SSR |
 | S_NOTIFICATIONS | `/notifications` | SSR |
 | S_SETTINGS | `/settings` | SSR |
 | S_BLOCKED_USERS | `/settings/blocked` | SSR |
