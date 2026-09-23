@@ -118,12 +118,13 @@ async function countFollowers(supabase: Client, userId: string): Promise<number>
   return count ?? 0
 }
 
+// likes は誰からも見えるが posts への JOIN は posts_select の visibility 制限を受けるため、
+// 呼び出しセッション（いいねした側）からは相手の非公開（followers限定）投稿ぶんの
+// いいねが見えず過小評価になる。RLS をバイパスする count_likes_received RPC を使う
+// （`/code-review` で指摘。supabase/migrations/20260923130000 参照）
 async function countLikesReceived(supabase: Client, userId: string): Promise<number> {
-  const { count } = await supabase
-    .from('likes')
-    .select('post_id, posts!inner(author_id)', { count: 'exact', head: true })
-    .eq('posts.author_id', userId)
-  return count ?? 0
+  const { data } = await supabase.rpc('count_likes_received', { p_user_id: userId })
+  return data ?? 0
 }
 
 async function countLikesGiven(supabase: Client, userId: string): Promise<number> {

@@ -61,6 +61,12 @@ async function firstBadgeCode(): Promise<string> {
   return data.code as string
 }
 
+/** POST_FIRST（post_count, threshold:1）が満たされる実データを作ってから返す */
+async function earnPostFirst(userId: string): Promise<void> {
+  const cafeId = await insertCafe(null)
+  await insertPublishedPost(cafeId, userId)
+}
+
 beforeAll(async () => {
   user = await createAuthedProfile({ username: 'badge_user' })
   otherUser = await createAuthedProfile({ username: 'badge_other_user' })
@@ -87,8 +93,8 @@ afterEach(async () => {
 
 describe('user_badges の RLS', () => {
   it('全ユーザーが SELECT できる', async () => {
-    const badgeCode = await firstBadgeCode()
-    await user.client.rpc('award_badge', { p_user_id: user.userId, p_badge_code: badgeCode })
+    await earnPostFirst(user.userId)
+    await user.client.rpc('award_badge', { p_user_id: user.userId, p_badge_code: 'POST_FIRST' })
 
     const { data, error } = await anon
       .from('user_badges')
@@ -111,12 +117,12 @@ describe('user_badges の RLS', () => {
 })
 
 describe('award_badge RPC', () => {
-  it('自分あてに呼ぶとバッジが付与され、通知が1件作られる', async () => {
-    const badgeCode = await firstBadgeCode()
+  it('実データが条件を満たしていれば自分あてに呼べて、通知が1件作られる', async () => {
+    await earnPostFirst(user.userId)
 
     const { error } = await user.client.rpc('award_badge', {
       p_user_id: user.userId,
-      p_badge_code: badgeCode,
+      p_badge_code: 'POST_FIRST',
     })
     expect(error).toBeNull()
 
@@ -130,6 +136,17 @@ describe('award_badge RPC', () => {
       .eq('type', 'badge')
     expect(notifications.data).toHaveLength(1)
     expect(notifications.data?.[0]).toMatchObject({ entity_type: 'badge' })
+  })
+
+  it('自分あてでも実データが条件を満たしていなければ FORBIDDEN（直接RPCを叩く詐称を防ぐ）', async () => {
+    // 投稿を1件も作らないまま POST_FIRST（post_count, threshold:1）を自分に付与しようとする
+    const { error } = await user.client.rpc('award_badge', {
+      p_user_id: user.userId,
+      p_badge_code: 'POST_FIRST',
+    })
+
+    expect(error?.code).toBe(RAISED_BY_TRIGGER)
+    expect(error?.message).toContain('FORBIDDEN')
   })
 
   it('本人操作専用のバッジ(post_count系)を他人あてに呼ぶと FORBIDDEN', async () => {
@@ -190,10 +207,10 @@ describe('award_badge RPC', () => {
   })
 
   it('同じバッジを2回呼んでも冪等（重複行・重複通知を作らない）', async () => {
-    const badgeCode = await firstBadgeCode()
+    await earnPostFirst(user.userId)
 
-    await user.client.rpc('award_badge', { p_user_id: user.userId, p_badge_code: badgeCode })
-    await user.client.rpc('award_badge', { p_user_id: user.userId, p_badge_code: badgeCode })
+    await user.client.rpc('award_badge', { p_user_id: user.userId, p_badge_code: 'POST_FIRST' })
+    await user.client.rpc('award_badge', { p_user_id: user.userId, p_badge_code: 'POST_FIRST' })
 
     const badges = await service.from('user_badges').select('user_id').eq('user_id', user.userId)
     expect(badges.data).toHaveLength(1)

@@ -35,7 +35,7 @@ async function insertCafe(areaCode: string | null = null) {
 
 async function insertPublishedPost(
   authorId: string,
-  overrides: { cafeId?: string; tagSlugs?: string[] } = {},
+  overrides: { cafeId?: string; tagSlugs?: string[]; visibility?: 'public' | 'followers' } = {},
 ) {
   const cafeId = overrides.cafeId ?? (await insertCafe())
   const id = crypto.randomUUID()
@@ -47,6 +47,7 @@ async function insertPublishedPost(
     body_json: bodyJson,
     status: 'published',
     published_at: new Date().toISOString(),
+    visibility: overrides.visibility ?? 'public',
   })
   if (error) throw new Error(`テスト投稿の作成に失敗: ${error.message}`)
   postIds.push(id)
@@ -260,6 +261,25 @@ describe('evaluateCriteria', () => {
     expect(await evaluateCriteria(client, user.userId, { type: 'likes_given', threshold: 1 })).toBe(
       true,
     )
+  })
+
+  it('likes_received: フォロワー限定投稿へのいいねも、非フォロワーのセッションから見て過小評価にならない', async () => {
+    // otherUser の非公開（followers限定）投稿に、フォロワーではない user がいいねする。
+    // posts_select の RLS は非フォロワーに followers 限定投稿を見せないため、
+    // likes → posts の JOIN を user のセッションで行うと本来過小評価になる
+    // （`/code-review` で指摘。count_likes_received RPC で修正済み）
+    const postId = await insertPublishedPost(otherUser.userId, { visibility: 'followers' })
+    await service.from('likes').insert({ user_id: user.userId, post_id: postId })
+
+    const receivedFromNonFollowerSession = await evaluateCriteria(
+      typed(user.client),
+      otherUser.userId,
+      {
+        type: 'likes_received',
+        threshold: 1,
+      },
+    )
+    expect(receivedFromNonFollowerSession).toBe(true)
   })
 })
 

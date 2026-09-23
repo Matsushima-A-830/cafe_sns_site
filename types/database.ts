@@ -1248,11 +1248,16 @@ export type Database = {
         Args: { p_badge_code: string; p_user_id: string }
         Returns: undefined
       }
+      badge_criteria_met: {
+        Args: { p_criteria: Json; p_user_id: string }
+        Returns: boolean
+      }
       check_ng_words: { Args: { p_text: string }; Returns: string }
       comment_has_live_replies: {
         Args: { p_comment_id: string }
         Returns: boolean
       }
+      count_likes_received: { Args: { p_user_id: string }; Returns: number }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
       finalize_official_post: {
         Args: {
