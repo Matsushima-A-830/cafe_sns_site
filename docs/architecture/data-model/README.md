@@ -122,45 +122,51 @@ erDiagram
 
 ```
 // トリガーごとに呼び出し元が異なる
-app/_actions/posts.ts  → checkAndAwardBadges(userId, 'POST_CREATED')
-app/_actions/likes.ts  → checkAndAwardBadges(userId, 'LIKE_RECEIVED')
-app/_actions/owner.ts  → checkAndAwardBadges(userId, 'REGULAR_AWARDED')
-// など
+app/_actions/posts.ts              → checkAndAwardBadges(userId, 'POST_CREATED')
+app/_actions/likes.ts              → checkAndAwardBadges(userId, 'LIKE_GIVEN' / 'LIKE_RECEIVED')
+app/_actions/follows.ts            → checkAndAwardBadges(followeeId, 'FOLLOW_RECEIVED')
+app/_actions/regular-customers.ts  → checkAndAwardBadges(userId, 'REGULAR_AWARDED')
 ```
 
 `checkAndAwardBadges` は `lib/badges/check.ts` に配置し、`trigger` の種別に応じて対象バッジを絞って判定する（全バッジを毎回評価しない）。付与済みバッジは `user_badges` にUPSERTして重複しない。
 
-### 実装例（概略）
+### 実装例（確定・2026-09-23）
 
-`BadgeTrigger` 型は `types/badges.ts` に定義する。
+`BadgeTrigger` 型は `types/badges.ts`、判定ルールは `lib/badges/rules.ts` に定義する。
+
+**擬似コード（下記）はユーザークライアントで直接 `user_badges` / `notifications` に
+INSERT する想定だったが、両テーブルともユーザー向け INSERT ポリシーが無いため RLS で
+弾かれ、実装できなかった（[tables.md #user_badges](./tables.md#user_badges):
+「INSERT はシステム（admin）のみ」）。実際は `notify_on_like` 等と同じ security definer
+の Postgres 関数 `award_badge`（[supabase/migrations/20260923130000_create_user_badges_and_area_visits.sql](../../../supabase/migrations/20260923130000_create_user_badges_and_area_visits.sql)）
+経由で書き込む。**
 
 ```typescript
-// lib/badges/check.ts
+// lib/badges/check.ts（概略。呼び出し元の処理を巻き込まないよう全体を try/catch する）
 export async function checkAndAwardBadges(
   supabase: SupabaseClient,
   userId: string,
-  trigger: BadgeTrigger,  // 'POST_CREATED' | 'LIKE_RECEIVED' | ...
+  trigger: BadgeTrigger,  // 'POST_CREATED' | 'LIKE_GIVEN' | 'LIKE_RECEIVED' | ...
 ): Promise<void> {
-  const candidates = BADGE_RULES.filter(r => r.triggers.includes(trigger))
-  // check() は独立しているので並列実行してよい
-  const results = await Promise.all(candidates.map(r => r.check(supabase, userId)))
-  for (const [rule, earned] of candidates.map((r, i) => [r, results[i]] as const)) {
-    if (earned) {
-      await supabase.from('user_badges').upsert(
-        { user_id: userId, badge_id: rule.id },
-        { onConflict: 'user_id,badge_id' },
-      )
-      await supabase.from('notifications').insert({
-        recipient_id: userId, type: 'badge', entity_type: 'badge',
-        entity_id: rule.id, payload: {},
-      })
-    }
+  const candidates = badges.filter(b => TRIGGER_CRITERIA_TYPES[trigger].includes(b.criteria.type))
+  const unearned = candidates.filter(b => !alreadyAwarded.has(b.id))
+  const earned = await Promise.all(unearned.map(b => evaluateCriteria(supabase, userId, b.criteria)))
+  for (const badge of unearned.filter((_, i) => earned[i])) {
+    await supabase.rpc('award_badge', { p_user_id: userId, p_badge_code: badge.code })
   }
 }
 ```
 
+**`award_badge` の認可:** `p_user_id` は必ずしも呼び出しセッション（`auth.uid()`）と
+一致しない。`REGULAR_AWARDED`（認定するのはオーナー）・`LIKE_RECEIVED`（いいねするのは
+別人）・`FOLLOW_RECEIVED`（フォローするのは別人）はバッジの受取人と呼び出しセッションが
+別人になる。この3種（`regular_customer_count` / `likes_received` / `follower_count`）に
+限り、`award_badge` 関数内で実データを再集計して閾値を満たすかを検証してから書き込む
+（他人に未達のバッジを付与できないようにするため）。それ以外の type は
+`auth.uid() = p_user_id` を要求し、本人操作のみ許可する。
+
 **注意 — `'REGULAR_AWARDED'` トリガーについて:**
-`owner.ts` は常連認定時に `notifications.type = 'regular_awarded'` を送信する（[tables.md regular_customers 参照](./tables.md#regular_customers)）。
+`app/_actions/regular-customers.ts` は常連認定時に `notifications.type = 'regular_awarded'` を送信する（[tables.md regular_customers 参照](./tables.md#regular_customers)）。
 `checkAndAwardBadges(userId, 'REGULAR_AWARDED')` はバッジ付与（`type: 'badge'`）のみを担当する。
 `'regular_awarded'` 通知と `'badge'` 通知は別物であり、二重送信ではない。
 
