@@ -806,7 +806,9 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   `/me/favorites` `/me/want-to-go` `/me/drafts` `/me/bookmarks` の4画面
   （`post_bookmarks` 実装により「保存」カードと `/me/bookmarks` は復活済み — feature/post-bookmarks）
 - **出していないものと理由:**
-  - **バッジ枠・「制覇マップを見る」・`/me/badges`** — `user_badges` / `area_visits` が未作成（D28 と同じ判断）
+  - **バッジ枠・「制覇マップを見る」・`/me/badges`** — `/me/badges`（S_BADGES）は実装済み
+    （feature/badges-ui）。マイページ本体には件数プレビューは出さず、ボタン1つの導線のみ
+    （4枚のショートカットカードは決定済みの構成のため増やさない）
   - **「私の行きつけ」枠** — `regular_customers` は作成済み（2026-09-23）だが表示UIは未着手（D28と同じ判断）
   - **アバター差し替え** — `/me/edit`（表示名・bio・ホームエリア編集）は実装済み（feature/profile-edit）。
     アバター変更は Storage 導線が別途必要なため未実装のまま（D45）

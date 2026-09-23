@@ -20,7 +20,9 @@ export const TRIGGER_CRITERIA_TYPES: Record<BadgeTrigger, BadgeCriteria['type'][
   FOLLOW_RECEIVED: ['follower_count'],
 }
 
-async function countPublishedPosts(supabase: Client, userId: string): Promise<number> {
+// 進捗表示 (lib/badges/progress.ts) からも呼ぶため export する。
+// likes_received の RPC 経由など、RLS絡みの注意点を二重実装しないための共有点
+export async function countPublishedPosts(supabase: Client, userId: string): Promise<number> {
   const { count } = await supabase
     .from('posts')
     .select('id', { count: 'exact', head: true })
@@ -32,7 +34,7 @@ async function countPublishedPosts(supabase: Client, userId: string): Promise<nu
 
 // area_visits は「自エリア+親エリア」の2行が入りうるため、scope.level で絞ってから数える
 // （docs/architecture/data-model/README.md #エリアコードの一貫性）
-async function countDistinctAreas(
+export async function countDistinctAreas(
   supabase: Client,
   userId: string,
   scope: { level: string; prefecture_code?: string },
@@ -49,7 +51,7 @@ async function countDistinctAreas(
   return data?.length ?? 0
 }
 
-async function countPublishedPostsWithTag(
+export async function countPublishedPostsWithTag(
   supabase: Client,
   userId: string,
   tagSlug: string,
@@ -67,7 +69,7 @@ async function countPublishedPostsWithTag(
   return count ?? 0
 }
 
-async function countPublishedPostsWithAnyTag(
+export async function countPublishedPostsWithAnyTag(
   supabase: Client,
   userId: string,
   tagSlugs: string[],
@@ -84,7 +86,7 @@ async function countPublishedPostsWithAnyTag(
   return distinctPostIds.size
 }
 
-async function countDistinctSceneTags(
+export async function countDistinctSceneTags(
   supabase: Client,
   userId: string,
   category: string,
@@ -101,7 +103,10 @@ async function countDistinctSceneTags(
 }
 
 // revoked_at is null の現役認定のみ数える（取消済みはカウントしない）
-async function countActiveRegularCustomers(supabase: Client, userId: string): Promise<number> {
+export async function countActiveRegularCustomers(
+  supabase: Client,
+  userId: string,
+): Promise<number> {
   const { count } = await supabase
     .from('regular_customers')
     .select('cafe_id', { count: 'exact', head: true })
@@ -110,7 +115,7 @@ async function countActiveRegularCustomers(supabase: Client, userId: string): Pr
   return count ?? 0
 }
 
-async function countFollowers(supabase: Client, userId: string): Promise<number> {
+export async function countFollowers(supabase: Client, userId: string): Promise<number> {
   const { count } = await supabase
     .from('follows')
     .select('follower_id', { count: 'exact', head: true })
@@ -122,12 +127,12 @@ async function countFollowers(supabase: Client, userId: string): Promise<number>
 // 呼び出しセッション（いいねした側）からは相手の非公開（followers限定）投稿ぶんの
 // いいねが見えず過小評価になる。RLS をバイパスする count_likes_received RPC を使う
 // （`/code-review` で指摘。supabase/migrations/20260923130000 参照）
-async function countLikesReceived(supabase: Client, userId: string): Promise<number> {
+export async function countLikesReceived(supabase: Client, userId: string): Promise<number> {
   const { data } = await supabase.rpc('count_likes_received', { p_user_id: userId })
   return data ?? 0
 }
 
-async function countLikesGiven(supabase: Client, userId: string): Promise<number> {
+export async function countLikesGiven(supabase: Client, userId: string): Promise<number> {
   const { count } = await supabase
     .from('likes')
     .select('post_id', { count: 'exact', head: true })

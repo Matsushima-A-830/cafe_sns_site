@@ -178,8 +178,9 @@ export default async function MyPage() {
     },
   ]
 
-  // バッジ（user_badges）・「私の行きつけ」（regular_customers）・制覇マップ（area_visits）は
-  // 元テーブルが未整備のため出していない — pending-items D32
+  // バッジ・制覇マップは /me/badges への導線のみで、マイページ本体にはプレビューを出していない
+  // （4カードショートカットは決定済みの構成のため追加しない）。「私の行きつけ」
+  // （regular_customers）は表示UIが未着手 — pending-items D32
   const query: FeedQuery = {
     scope: 'new',
     tagSlug: null,
@@ -234,6 +235,10 @@ export default async function MyPage() {
 
           <Button asChild variant="outline" size="lg">
             <Link href="/me/edit">プロフィール編集</Link>
+          </Button>
+
+          <Button asChild variant="outline" size="lg">
+            <Link href="/me/badges">バッジ・制覇マップ</Link>
           </Button>
 
           {/* 他人から見た自分の見え方を確認する導線 */}

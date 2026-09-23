@@ -102,7 +102,7 @@ app/
 │   │   ├── want-to-go/page.tsx      # /me/want-to-go (S_WANT_TO_GO)
 │   │   ├── bookmarks/page.tsx       # /me/bookmarks (S_BOOKMARKS)
 │   │   ├── drafts/page.tsx          # /me/drafts (S_DRAFTS)
-│   │   └── badges/page.tsx          # /me/badges (S_BADGES) ※未実装: user_badges / area_visits が無い
+│   │   └── badges/page.tsx          # /me/badges (S_BADGES)
 │   ├── notifications/
 │   │   └── page.tsx                 # /notifications (S_NOTIFICATIONS)
 │   ├── settings/                    # プライバシー・通知・表示のみを1枚にまとめる（S_SETTINGS）。
