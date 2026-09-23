@@ -17,8 +17,9 @@ type PageProps = { params: Promise<{ cafeId: string }> }
 
 export const metadata: Metadata = { title: 'ダッシュボード' }
 
-/** 未実装の画面へのリンクは張らない。ワイヤーの5項目のうち「公式投稿を作成」のみ遷移先がある */
-const MENU_ITEMS = ['店舗情報を編集', '投稿分析を見る', 'ユーザー投稿一覧', '認証情報'] as const
+/** 未実装の画面へのリンクは張らない。ワイヤーの5項目のうち「公式投稿を作成」「店舗情報を編集」に遷移先がある
+ *   docs/product/pending-items.md D52 */
+const MENU_ITEMS = ['投稿分析を見る', 'ユーザー投稿一覧', '認証情報'] as const
 
 function changeTone(pct: number | null): string {
   if (pct === null || pct === 0) return 'text-muted-foreground'
@@ -104,6 +105,15 @@ export default async function OwnerDashboardPage({ params }: PageProps) {
                 className="flex items-center justify-between rounded-lg border border-border-default bg-surface px-4 py-3 text-sm font-bold text-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
               >
                 公式投稿を作成
+                <span aria-hidden="true">→</span>
+              </Link>
+            </li>
+            <li>
+              <Link
+                href={`/owner/${cafeId}/edit`}
+                className="flex items-center justify-between rounded-lg border border-border-default bg-surface px-4 py-3 text-sm font-bold text-foreground hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
+              >
+                店舗情報を編集
                 <span aria-hidden="true">→</span>
               </Link>
             </li>
