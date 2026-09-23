@@ -52,6 +52,7 @@ const messages: Partial<Record<ErrorCode, string>> = {
   VERIFICATION_REJECTED: '前回の申請は却下されています。内容を確認のうえ再申請してください',
   VERIFICATION_ALREADY_RESOLVED: 'この申請は既に他の管理者が対応済みです',
   NOT_OWNER: 'オーナー権限がありません',
+  ALREADY_REGULAR: 'このユーザーは既に常連認定されています',
 }
 
 export function errorMessage(code: ErrorCode): string {

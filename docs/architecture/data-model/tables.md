@@ -407,8 +407,9 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 
 **RLS:**
 - SELECT: 全ユーザー（プロフィール表示用）— `revoked_at IS NULL` のみ
+- SELECT（オーナー追加分）: 対象カフェの `verified_owner_id = auth.uid()` は `revoked_at` を問わず全行閲覧可（S_OWNER_REGULARS の認定履歴タブが取消済みも表示するため。`is_cafe_owner()` 使用）
 - INSERT: `awarded_by = auth.uid()` かつ 対象カフェの `verified_owner_id = auth.uid()`
-- UPDATE: 認定オーナーのみ（`revoked_at` 設定で取消）
+- UPDATE: 認定オーナーかつ `is_active_user()`（`revoked_at` 設定で取消。停止中オーナーは書き込めない — cafe_business_hours と同じ方針）
 - DELETE: 不可（履歴保持）
 
 **運用:**
