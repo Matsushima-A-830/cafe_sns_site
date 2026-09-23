@@ -842,33 +842,32 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **対応判断:** 各テーブル・ルートの実装時に戻る
 - 参照: S_MYPAGE 実装時にスコープ外と判断（2026-09-18）／私の行きつけ枠解消（2026-09-23）
 
-### D33. 送信中に `disabled` にするボタンがフォーカスを失う
+### D33. ～~送信中に `disabled` にするボタンがフォーカスを失う~~（解消）
 
-- **課題:** 楽観更新するボタンを送信中 `disabled={isPending}` にすると、無効化された瞬間に
+- **課題（起票時）:** 楽観更新するボタンを送信中 `disabled={isPending}` にすると、無効化された瞬間に
   フォーカスが `<body>` に落ちる。キーボード／スクリーンリーダーのユーザーは、1回押すたびに
-  ページ先頭から辿り直すことになる（WCAG 2.4.3 の観点で実害がある）。
-  さらにコンポーネントごと作り直す `key` を併用していると `aria-live` 領域まで
-  描画前に消え、操作結果が一切アナウンスされない
-- **決定（2026-09-18）:** `CafeListButtons` では `disabled` をやめ、`aria-busy={isPending}` +
-  ハンドラ冒頭の `if (isPending) return` ガードに置き換えた。実ブラウザで
-  「Enter で押した後もフォーカスがボタンに残り、読み上げも出る」ことを確認済み
-- **未対応（2026-09-19 に再計測して2件追加）:** 同じ `disabled={isPending}` が残っているのは
-  **4コンポーネント**。起票時は2つとしていたが数え漏れがあった
-
-| コンポーネント | 該当行 | 備考 |
-|---|---|---|
-| `CongestionSection` | 132 | 混雑度の報告ボタン5個 |
-| `FollowButton` | 54 | `key={`${profile.id}:${following}`}` で毎回作り直すため、フォーカス喪失とアナウンス消失の両方を踏む |
-| `DraftList` | 95 / 148 | 削除・続きを書くの2種 |
-| `CafeListView` | 92 | 一覧からの解除ボタン |
-
-- **対応済み:** `CafeListButtons`（2026-09-18）と `LikeButton`（2026-09-19）。
-  どちらも実ブラウザでフォーカスが残ることを確認済み
-- **対応案:** a) 4つを同じ方式に揃える（小さい差分。次に触るときでよい）
-  b) `aria-busy` + ガードを共通の Button ラッパーに寄せる
-- **D37 と併せて直すほうがよい** — あちらを直すと `isPending` が真の時間そのものが
-  短くなり、この問題の実害も小さくなる
-- 参照: S_MYPAGE 実装のレビューで判明（2026-09-18）／対象の数え漏れを訂正（2026-09-19）
+  ページ先頭から辿り直すことになる（WCAG 2.4.3 の観点で実害がある）
+- **解消（2026-09-23）:** 残っていた4コンポーネント（`CongestionSection` / `FollowButton` /
+  `DraftList` / `CafeListView`）すべてで `disabled` をやめ、`aria-busy={isPending}` +
+  ハンドラ冒頭の `if (isPending) return` ガードに揃えた。`CafeListButtons` / `LikeButton` と
+  同じ方式（対応案 a）。共通ラッパー化（案b）は見送り — 4件とも文脈が違う
+  （生button / `<Button>` / ダイアログ内 / 一覧内で `isPending` 共有）ため、無理に共通化しない
+- **FollowButton は追加で `key` remount も解消した:**
+  `app/(browsing)/users/[username]/page.tsx` の `FollowButton` に付けていた
+  `key={`${profile.id}:${following}`}` を削除した。フォロー成功後の `router.refresh()` で
+  `following` が変わるたびにコンポーネントごと作り直され、`aria-busy` に置き換えても
+  remount 自体でフォーカスが落ちる別種の原因だったため。副作用として、別タブでのフォロー
+  解除など外部要因による `initialFollowing` のズレは次のページ遷移まで反映されなくなるが、
+  同一セッション内の自己操作は楽観更新でカバーされるため実害は小さいと判断
+  （検証: 実ブラウザで対象ユーザーをフォロー→ `router.refresh()` 完了後もボタンに
+  フォーカスが残ることを確認済み）
+- **DraftList の削除確認ダイアログ（:148）は実機確認が未完了のまま:** ローカルの下書き作成
+  フローが今回のセッションでは動かず（既存の不具合の可能性、D33のスコープ外につき未調査）、
+  Radix Dialog の FocusScope との相互作用は単体テストでのみ確認した
+  （他の下書きの「削除」ボタンが無効化されず `aria-busy` になることは実ブラウザ不要でテスト済み）
+- D37（`refresh()` が `startTransition` の中）は今回のスコープ外のまま。関連性は D37 側参照
+- 参照: S_MYPAGE 実装のレビューで判明（2026-09-18）／対象の数え漏れを訂正（2026-09-19）／
+  残り4件を解消（2026-09-23）
 
 ### D34. 実機（ブラウザ）で一度も確認していない画面が残っている
 
@@ -1334,6 +1333,38 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **再検討条件:** 実SVG地図が別途必要になった場合（座標データA3の解消等）に、この画面の表示部分だけ
   差し替える。データ取得ロジック（訪問済みエリアの判定）は変更不要
 - 参照: S_BADGES データ層実装（PR #69）のあとの引き継ぎで記録（2026-09-23）
+
+### D60. D33で直した「送信中disabledがフォーカスを奪う」問題が、対象外の18箇所以上に残っている
+
+- **課題:** D33は「楽観更新 + `startTransition` の中で `router.refresh()` を呼ぶ」6コンポーネントに
+  絞って起票・解消したが、`/code-review` で `disabled={isPending}` を素通しにしている箇所を
+  網羅的に grep したところ、対象外の実装にも同じ症状（送信中に無効化 → フォーカスが `<body>` へ落ちる）
+  が残っていることが分かった。BlockButton は D33 で直した FollowButton と同じ
+  `app/(browsing)/users/[username]/page.tsx` に並んで表示されるため、特に体感の差が出やすい
+- **確認できた該当箇所（2026-09-23 grep、`disabled={isPending}` で検索）:**
+  `components/features/profiles/block-button.tsx` / `components/features/settings/settings-form.tsx`
+  （6箇所） / `components/features/blocks/blocked-user-list.tsx`（2箇所） /
+  `components/features/search/search-result-feed.tsx` / `components/features/reports/report-form.tsx`
+  （3箇所） / `components/features/admin/owner-verification-review-actions.tsx` /
+  `components/features/admin/report-review-actions.tsx`（2箇所） /
+  `components/features/admin/ng-word-manager.tsx`（5箇所） / `components/features/posts/post-feed.tsx`
+  （もっと見る） / `components/features/posts/comment-list.tsx`（もっと見る） /
+  `components/features/notifications/notification-list.tsx`（もっと見る） /
+  `components/features/owner/owner-pending-view.tsx` / `components/features/owner/owner-claim-form.tsx`
+  （4箇所） / `app/(owner)/owner/[cafeId]/analytics/export-csv-button.tsx` /
+  `app/(owner)/owner/[cafeId]/regulars/regulars-view.tsx`（3箇所）
+- **対応方針（未検討）:** すべてが同じ深刻度ではない。「もっと見る」系（ページ送り）は連打してもズレが
+  起きにくく実害が小さい一方、フォーム送信・削除・承認/却下系のボタンは D33 と同じ実害がある。
+  管理画面（admin/owner）はメインターゲットの10〜20代ユーザーが触らないため優先度は下げてよいかもしれない
+- **対応案:** a) 実害の大きいもの（フォーム送信・削除系）から個別に D33 と同じ方式へ揃える
+  b) 一括で `aria-busy` + ガードへ機械的に置換する（ただし1関数1目的のガード追加は手で見る必要があり、
+  全自動化は難しい） c) 共通の送信ボタンコンポーネントを作り、新規実装はそちらを使う運用に倒す
+  （既存分はマイグレーションしない）
+- **注意:** `aria-busy` に切り替えても `disabled:opacity-50` 相当の視覚的な送信中表示は付かない
+  （`components/ui/button.tsx` の `buttonVariants` が `disabled:` にしかスタイルを定義していないため）。
+  D33対応済みの6コンポーネントも同じ状態で、これは新規に持ち込む問題ではないが、対応の範囲を
+  広げるなら「送信中」の視覚表現も合わせて検討する余地がある
+- 参照: D33（送信中disabledのフォーカス喪失、4コンポーネント分解消）の `/code-review` で判明（2026-09-23）
 
 ## 削除・アーカイブ判断待ち
 
