@@ -906,6 +906,55 @@ export type Database = {
           },
         ]
       }
+      regular_customers: {
+        Row: {
+          awarded_at: string
+          awarded_by: string
+          cafe_id: string
+          note: string | null
+          revoked_at: string | null
+          user_id: string
+        }
+        Insert: {
+          awarded_at?: string
+          awarded_by: string
+          cafe_id: string
+          note?: string | null
+          revoked_at?: string | null
+          user_id: string
+        }
+        Update: {
+          awarded_at?: string
+          awarded_by?: string
+          cafe_id?: string
+          note?: string | null
+          revoked_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'regular_customers_awarded_by_fkey'
+            columns: ['awarded_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'regular_customers_cafe_id_fkey'
+            columns: ['cafe_id']
+            isOneToOne: false
+            referencedRelation: 'cafes'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'regular_customers_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       reports: {
         Row: {
           created_at: string
@@ -1187,6 +1236,19 @@ export type Database = {
           area_label: string
           id: string
           name: string
+        }[]
+      }
+      get_regular_candidates: {
+        Args: { p_cafe_id: string }
+        Returns: {
+          avatar_url: string
+          bookmark_count: number
+          comment_count: number
+          display_name: string
+          last_activity_at: string
+          post_count: number
+          user_id: string
+          username: string
         }[]
       }
       is_active_user: { Args: never; Returns: boolean }
