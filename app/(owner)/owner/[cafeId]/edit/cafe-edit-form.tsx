@@ -302,7 +302,9 @@ export function CafeEditForm({ cafe, areas }: { cafe: CafeEditData; areas: Area[
               return (
                 // biome-ignore lint/suspicious/noArrayIndexKey: dayOfWeek は0〜6固定の曜日そのもの（並び替え無し）
                 <div key={dayOfWeek} className="flex flex-col gap-1">
-                  <div className="flex items-center gap-3">
+                  {/* flex-wrap: 曜日+開閉時刻(約324px)は390px幅に収まるが、休業スイッチまで
+                      1行に収めると416px前後になり横溢れする。折り返して2行目に落とす */}
+                  <div className="flex flex-wrap items-center gap-3">
                     <span className="w-6 text-sm text-foreground">{DAY_LABELS[dayOfWeek]}</span>
                     <Input
                       type="time"

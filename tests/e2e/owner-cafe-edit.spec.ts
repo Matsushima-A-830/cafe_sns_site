@@ -102,4 +102,11 @@ test('status=closed のカフェでも本人は編集画面を開ける', async 
 
   await expect(page.getByRole('heading', { name: '店舗情報編集' })).toBeVisible()
   await expect(page.getByLabel('店名')).toHaveValue(cafe.name)
+
+  // 営業時間の1行が曜日+開閉時刻+休業スイッチで幅を食う（cafe-edit-form.tsx の flex-wrap コメント参照）。
+  // 390px前後のモバイル幅で横スクロールが発生していないかは実機でしか気づけない
+  const hasHorizontalOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  )
+  expect(hasHorizontalOverflow).toBe(false)
 })
