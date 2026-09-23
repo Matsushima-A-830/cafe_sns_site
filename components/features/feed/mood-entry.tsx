@@ -27,6 +27,14 @@ export function MoodEntry({ tags }: { tags: PostListTag[] }) {
           </li>
         ))}
       </ul>
+
+      {/* エリア・雰囲気・利用機会を組み合わせた検索への入り口。S_SEARCH 実装前は遷移先が無く出していなかった（pending-items D27） */}
+      <Link
+        href="/search"
+        className="self-end text-sm text-link underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
+      >
+        もっと見る ▶
+      </Link>
     </section>
   )
 }

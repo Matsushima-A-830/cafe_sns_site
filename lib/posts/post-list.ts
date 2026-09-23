@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { isOfficialFormat, type OfficialFormat } from '@/lib/constants/posts'
 import { type OfficialMetadata, toOfficialMetadata } from '@/lib/posts/official-metadata'
 import { getPostImagePublicUrl } from '@/lib/storage/post-images'
+import { escapeIlikePattern, quoteOrFilterValue } from '@/lib/utils/postgrest'
 import type { Database } from '@/types/database'
 
 /**
@@ -54,6 +55,16 @@ export type PostListOptions = {
   tagIds?: string[]
   /** カフェ経由のエリア絞り込み。タグではなく areas が正（pending-items D20） */
   areaCode?: string | null
+  /**
+   * 雰囲気タグ（category='mood'）1件で絞り込む。tagIds とは別名で埋め込むため、
+   * occasionTagId と同時に指定すると両方を満たす投稿だけになる（AND）。
+   * S_SEARCH 用。tagIds（OR）とは意味が違うので混同しないこと
+   */
+  moodTagId?: string | null
+  /** 利用機会タグ（category='occasion'）1件で絞り込む。moodTagId 参照 */
+  occasionTagId?: string | null
+  /** キーワード検索。body_text/title への ILIKE（pg_trgm が主役 — tables.md #全文検索の方式） */
+  keyword?: string
   /** 指定するとこのユーザーがフォローしている作者の投稿だけになる */
   followerId?: string | null
   /** プロフィール（S_USER_PROFILE_PUBLIC）の投稿グリッド。1人の作者に絞る */
@@ -127,6 +138,14 @@ function buildSelect(options: PostListOptions): string {
   ]
   if (options.tagIds && options.tagIds.length > 0) {
     parts.push('filter_tags:post_tags!inner (tag_id)')
+  }
+  // moodTagId/occasionTagId も同じ理由で別名。かつ互いに別名にすることで
+  // 「両方持っている投稿だけ」の AND になる（同じ埋め込みだと1件目のタグで満たされてしまう）
+  if (options.moodTagId) {
+    parts.push('filter_mood_tag:post_tags!inner (tag_id)')
+  }
+  if (options.occasionTagId) {
+    parts.push('filter_occasion_tag:post_tags!inner (tag_id)')
   }
   if (options.followerId) {
     parts.push(
@@ -235,6 +254,16 @@ export async function getPostList(
   }
   if (options.areaCode) {
     query = query.eq('cafe.area_code', options.areaCode)
+  }
+  if (options.moodTagId) {
+    query = query.eq('filter_mood_tag.tag_id', options.moodTagId)
+  }
+  if (options.occasionTagId) {
+    query = query.eq('filter_occasion_tag.tag_id', options.occasionTagId)
+  }
+  if (options.keyword) {
+    const pattern = quoteOrFilterValue(`%${escapeIlikePattern(options.keyword)}%`)
+    query = query.or(`body_text.ilike.${pattern},title.ilike.${pattern}`)
   }
   if (options.followerId) {
     query = query.eq('following.follows.follower_id', options.followerId)
