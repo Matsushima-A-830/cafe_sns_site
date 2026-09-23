@@ -336,16 +336,16 @@
     "eyebrow": "CAFE SNS / IMPLEMENTATION BOARD",
     "headline": "気分で見つかる、<br>行きつけと繋がる",
     "sub": "いま立っているもの と これから立てるもの",
-    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローして、その店に行けるか確かめて、自分の店リストに貯める」までの一本。ここに<strong>いいね・コメント（返信1階層、オーナー公式返信、投稿主モデレーション）・保存（post_bookmarks）</strong>が加わり、投稿への反応が一通り揃った。さらに <strong>S_CAFE_NEW（カフェ新規登録）</strong>が開通し、composer の中だけだった「見つからないカフェを登録する」が専用画面になった。マイページは4カードに戻り、S_BOOKMARKS も開通した。<strong>S_SETTINGS（設定）と S_BLOCKED_USERS（ブロック管理）</strong>・<strong>S_NOTIFICATIONS（通知）</strong>・<strong>S_PROFILE_EDIT（プロフィール編集）</strong>・<strong>S_REPORT_FORM（通報フォーム）</strong>に続き、S_ADMIN_REPORTS / S_ADMIN_REVIEW（通報審査キュー）に続き、ng_words（NGワード辞書・自動検出）と S_ADMIN_NG_WORDS（NGワード管理）が加わり、投稿・コメント作成時に block ワードを自動検出して保存拒否するところまで一気通貫で動くようになった。「安全ラインを引く」はこれで完了。続けて S_OWNER_CLAIM / S_OWNER_PENDING（オーナー認証申請）と S_ADMIN_OWNER_REVIEW（オーナー認証審査）が加わり、書類提出→審査→承認（verified_owner_id・profiles.role=owner 付与）まで幹Cの入口〜認証が一気通貫で動くようになったのに続き、S_OWNER_DASHBOARD（カフェ経営者ダッシュボード）が開通し、承認後にオーナーが実際にたどり着ける画面ができた。今回 <strong>S_POST_OFFICIAL（公式投稿）</strong>が開通し、認証済みオーナーが今日のおすすめ / 豆知識 / 臨時休業 / 新メニューの4フォーマットで投稿でき、favorite/want_to_go ユーザーへの通知・S_CAFE_DETAIL の「オーナーから」・投稿カード/詳細の「✓公式」バッジまで一本通った。幹Cは入口〜認証〜投稿まで動くようになり、残るは店舗編集・投稿分析・常連認定の3画面（ダッシュボードのメニューは4項目「準備中」のまま、D52）。「自分の面」の残りは S_BADGES のみ。地図は、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
-    "updatedAt": "2026-09-22",
-    "ref": "branch: feature/post-official (PR #63)"
+    "intro": "いま動くのは「登録して、気分で探して、書いて、人をフォローして、その店に行けるか確かめて、自分の店リストに貯める」までの一本。ここに<strong>いいね・コメント（返信1階層、オーナー公式返信、投稿主モデレーション）・保存（post_bookmarks）</strong>が加わり、投稿への反応が一通り揃った。さらに <strong>S_CAFE_NEW（カフェ新規登録）</strong>が開通し、composer の中だけだった「見つからないカフェを登録する」が専用画面になった。マイページは4カードに戻り、S_BOOKMARKS も開通した。<strong>S_SETTINGS（設定）と S_BLOCKED_USERS（ブロック管理）</strong>・<strong>S_NOTIFICATIONS（通知）</strong>・<strong>S_PROFILE_EDIT（プロフィール編集）</strong>・<strong>S_REPORT_FORM（通報フォーム）</strong>に続き、S_ADMIN_REPORTS / S_ADMIN_REVIEW（通報審査キュー）に続き、ng_words（NGワード辞書・自動検出）と S_ADMIN_NG_WORDS（NGワード管理）が加わり、投稿・コメント作成時に block ワードを自動検出して保存拒否するところまで一気通貫で動くようになった。「安全ラインを引く」はこれで完了。続けて S_OWNER_CLAIM / S_OWNER_PENDING（オーナー認証申請）と S_ADMIN_OWNER_REVIEW（オーナー認証審査）が加わり、書類提出→審査→承認（verified_owner_id・profiles.role=owner 付与）まで幹Cの入口〜認証が一気通貫で動くようになったのに続き、S_OWNER_DASHBOARD（カフェ経営者ダッシュボード）が開通し、承認後にオーナーが実際にたどり着ける画面ができた。続けて <strong>S_POST_OFFICIAL（公式投稿）</strong>が開通し、認証済みオーナーが今日のおすすめ / 豆知識 / 臨時休業 / 新メニューの4フォーマットで投稿でき、favorite/want_to_go ユーザーへの通知・S_CAFE_DETAIL の「オーナーから」・投稿カード/詳細の「✓公式」バッジまで一本通った。今回 <strong>S_OWNER_CAFE_EDIT（店舗情報編集）</strong>が開通し、認証済みオーナーが店名・住所・連絡先・説明・外部連携ID・営業時間を編集し、保存前に変更差分を確認するモーダルを経て保存できるようになった（メイン画像アップロードは cafe-images バケット未作成のため見送り、D31）。幹Cは入口〜認証〜投稿〜店舗編集まで動くようになり、残るは投稿分析・常連認定の2画面（ダッシュボードのメニューは3項目「準備中」のまま、D52）。「自分の面」の残りは S_BADGES のみ。地図は、まだ1行も存在しない。このボードは実装コードと <code>docs/</code> の設計を突き合わせた現在地。",
+    "updatedAt": "2026-09-23",
+    "ref": "branch: feature/owner-cafe-edit"
   },
   "metrics": [
     {
       "k": "SCREENS",
-      "v": "31",
+      "v": "32",
       "unit": "/ 37",
-      "note": "ワイヤー37画面のうち、画面IDコメント付きの page.tsx があるもの（S_POST_OFFICIAL 5画面 追加）。S_CAFE_NEW / S_ADMIN_* はワイヤー自体が無いためこの分母に入らない",
+      "note": "ワイヤー37画面のうち、画面IDコメント付きの page.tsx があるもの（S_OWNER_CAFE_EDIT 追加）。S_CAFE_NEW / S_ADMIN_* はワイヤー自体が無いためこの分母に入らない",
       "ratio": 85
     },
     {
@@ -357,16 +357,16 @@
     },
     {
       "k": "MIGRATIONS",
-      "v": "49",
+      "v": "50",
       "unit": "",
-      "note": "RLSポリシー込み。forward-only 運用（finalize_official_post/notify_on_official_post・get_owned_cafe を追加）",
+      "note": "RLSポリシー込み。forward-only 運用（get_owned_cafe_for_edit を追加。cafe-images バケットは未作成のまま、D31）",
       "ratio": null
     },
     {
       "k": "TESTS",
-      "v": "108",
+      "v": "111",
       "unit": " files",
-      "note": "unit / RLS統合35本 / E2E 10本。統合・E2EともCIで実行",
+      "note": "unit / RLS統合36本 / E2E 11本。統合・E2EともCIで実行",
       "ratio": null
     }
   ],
@@ -609,8 +609,15 @@
           "status": "partial",
           "tag": "S_OWNER_DASHBOARD",
           "title": "カフェ経営者ダッシュボード",
-          "body": "今週の投稿数・いいね・保存の前週比（JST月曜起点）、混雑度平均、最新の投稿6件を表示。verified_owner_id が呼び出し元本人かをアプリ層で検証し、他人のカフェの経営情報が見えないことを統合テスト・E2Eで確認。マイページに「自分の店舗」導線も追加。「公式投稿を作成」から S_POST_OFFICIAL へ遷移できるようになった。",
-          "why": "メニュー4項目（店舗編集・投稿分析・ユーザー投稿一覧・認証情報）は遷移先が無く「準備中」表示のまま（D52 一部解消）。PC版の週別推移グラフも未実装（D54）"
+          "body": "今週の投稿数・いいね・保存の前週比（JST月曜起点）、混雑度平均、最新の投稿6件を表示。verified_owner_id が呼び出し元本人かをアプリ層で検証し、他人のカフェの経営情報が見えないことを統合テスト・E2Eで確認。マイページに「自分の店舗」導線も追加。「公式投稿を作成」「店舗情報を編集」から遷移できるようになった。",
+          "why": "残る2項目（投稿分析・ユーザー投稿一覧/認証情報）は遷移先が無く「準備中」表示のまま（D52 一部解消）。PC版の週別推移グラフも未実装（D54）"
+        },
+        {
+          "status": "partial",
+          "tag": "S_OWNER_CAFE_EDIT",
+          "title": "店舗情報編集",
+          "body": "店名・フリガナ・所在地・連絡先・説明・外部連携ID（Google Places ID・食べログURL）・曜日別営業時間を編集。保存前に変更差分を一覧表示するモーダルを経由する。get_owned_cafe_for_edit（security definer）でカフェが closed/hidden でも本人が編集画面を開ける（D55と同じ罠を再現しないことをRLS統合テスト・E2Eで確認）。",
+          "why": "メイン画像アップロードは cafe-images バケット未作成のため見送り（D31、引き続き未解消）。特別営業日・地図調整・郵便番号自動入力は対象外（B5・A3）"
         },
         {
           "status": "partial",
@@ -706,7 +713,7 @@
       "x": 2980,
       "w": 1340,
       "title": "③ まだ存在しない画面",
-      "tally": "SCREENS 6 / TABLES 3",
+      "tally": "SCREENS 5 / TABLES 3",
       "lede": "未実装の大半は「テーブルが無いから画面も無い」。逆に言えば、テーブルを1つ足すたびに複数画面が開く。",
       "notes": [
         {
@@ -723,9 +730,9 @@
         },
         {
           "status": "todo",
-          "tag": "owner 3画面",
+          "tag": "owner 2画面",
           "title": "オーナーの面",
-          "body": "認証申請 / 審査中 / 運営の審査 / ダッシュボード / 公式投稿は開通済み。残るは店舗編集 / 投稿分析 / 常連認定。ダッシュボードのメニューはこの3画面へのリンクを準備中のまま持っている（D52）。"
+          "body": "認証申請 / 審査中 / 運営の審査 / ダッシュボード / 公式投稿 / 店舗編集は開通済み。残るは投稿分析 / 常連認定。ダッシュボードのメニューはこの2画面へのリンクを準備中のまま持っている（D52）。"
         },
         {
           "status": "todo",
@@ -875,8 +882,8 @@
         {
           "status": "risk",
           "tag": "D31",
-          "title": "cafe-images バケットが無い",
-          "body": "cafes.main_image_path の定義先バケットが存在せず、オーナーのアップロード導線も無い。ヒーロー画像は最新投稿の1枚目で代用中。"
+          "title": "cafe-images バケットが無い（S_OWNER_CAFE_EDIT でも見送り）",
+          "body": "cafes.main_image_path の定義先バケットが存在せず、オーナーのアップロード導線も無い。ヒーロー画像は最新投稿の1枚目で代用中。S_OWNER_CAFE_EDIT はバケット新設・署名ルート・EXIF処理を含めるとPRが倍近くに膨らむため、基本情報・外部連携・営業時間の編集のみに留めた。"
         },
         {
           "status": "risk",
@@ -972,13 +979,13 @@
           "status": "risk",
           "tag": "D55",
           "title": "オーナー自身が closed/hidden カフェを見られない（一部解消）",
-          "body": "cafes の SELECT RLS は status='active' のみで verified_owner_id を見ない。get_owned_cafe（security definer）で getOwnedCafe（マイページ「自分の店舗」・S_POST_OFFICIAL）は解消した — 「臨時休業を告知したい状況で告知できない」という本末転倒を防ぐため（/code-review 指摘）。getOwnerDashboard / S_CAFE_DETAIL は未解消のまま、カフェを closed/hidden にした瞬間 本人ごと404になる。"
+          "body": "cafes の SELECT RLS は status='active' のみで verified_owner_id を見ない。get_owned_cafe（マイページ「自分の店舗」・S_POST_OFFICIAL）・get_owned_cafe_for_edit（S_OWNER_CAFE_EDIT のプリフィル）の2関数で解消済み — 「臨時休業を告知/編集したい状況でできない」という本末転倒を防ぐため。getOwnerDashboard / S_CAFE_DETAIL は未解消のまま、カフェを closed/hidden にした瞬間 本人ごと404になる。"
         },
         {
           "status": "risk",
           "tag": "D52",
           "title": "ダッシュボードのメニュー4項目に遷移先が無い（一部解消）",
-          "body": "「公式投稿を作成」は /new/official へのリンクを開放した。残る店舗編集・投稿分析・ユーザー投稿一覧・認証情報のうち、routing.md にルートがあるのは edit/analytics のみ。「ユーザー投稿一覧」「認証情報」は画面設計自体が無い。すべて「準備中」表示でリンクは張っていない。"
+          "body": "「公式投稿を作成」は /new/official、「店舗情報を編集」は /owner/[cafeId]/edit へのリンクを開放した。残る投稿分析・ユーザー投稿一覧・認証情報のうち、routing.md にルートがあるのは analytics のみ。「ユーザー投稿一覧」「認証情報」は画面設計自体が無い。すべて「準備中」表示でリンクは張っていない。"
         },
         {
           "status": "risk",
@@ -1055,7 +1062,7 @@
               "status": "future",
               "tag": "2nd",
               "title": "店の面を開く（完了）",
-              "body": "S_CAFE_NEW（登録）・登録者本人による未認証期間中の編集（B8）・カフェ詳細・user_cafe_lists まで実装済み。残るのは地図（6th）とオーナー側の情報編集（幹C側、5th）。"
+              "body": "S_CAFE_NEW（登録）・登録者本人による未認証期間中の編集（B8）・S_OWNER_CAFE_EDIT（認証済みオーナーによる編集）・カフェ詳細・user_cafe_lists まで実装済み。残るのは地図（6th）のみ。"
             },
             {
               "status": "future",
@@ -1073,7 +1080,7 @@
               "status": "future",
               "tag": "5th",
               "title": "幹Cを起こす（着手中）",
-              "body": "オーナー認証申請〜運営審査〜ダッシュボード〜公式投稿（S_OWNER_CLAIM/S_OWNER_PENDING/S_ADMIN_OWNER_REVIEW/S_OWNER_DASHBOARD/S_POST_OFFICIAL）が開通し、承認後にオーナーが実際に自分のカフェの経営データを見て公式投稿できるところまで一本通った。次は店舗編集 → 投稿分析 → 常連認定（ダッシュボードのメニューは4つとも「準備中」のまま、D52）。"
+              "body": "オーナー認証申請〜運営審査〜ダッシュボード〜公式投稿〜店舗編集（S_OWNER_CLAIM/S_OWNER_PENDING/S_ADMIN_OWNER_REVIEW/S_OWNER_DASHBOARD/S_POST_OFFICIAL/S_OWNER_CAFE_EDIT）が開通し、承認後にオーナーが実際に自分のカフェの経営データを見て公式投稿・店舗情報編集できるところまで一本通った。次は投稿分析 → 常連認定（ダッシュボードのメニューは3つとも「準備中」のまま、D52）。"
             },
             {
               "status": "future",
