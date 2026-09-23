@@ -132,12 +132,13 @@ export async function countLikesReceived(supabase: Client, userId: string): Prom
   return data ?? 0
 }
 
+// likes_select_all が投稿の可視性（posts_select）を継承したため、いいねした投稿が後から
+// hidden/archived/削除/フォロー外れで見えなくなると呼び出しセッション（いいねした側）から
+// 数えられなくなり過小評価になる。RLS をバイパスする count_likes_given RPC を使う
+// （countLikesReceived と同じ理由。supabase/migrations/20260923150000 参照）
 export async function countLikesGiven(supabase: Client, userId: string): Promise<number> {
-  const { count } = await supabase
-    .from('likes')
-    .select('post_id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-  return count ?? 0
+  const { data } = await supabase.rpc('count_likes_given', { p_user_id: userId })
+  return data ?? 0
 }
 
 /** badges.criteria の内容に応じて、渡された userId が条件を満たすかを判定する */
