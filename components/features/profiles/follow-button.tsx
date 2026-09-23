@@ -24,6 +24,9 @@ export function FollowButton({
   const router = useRouter()
 
   function handleClick() {
+    // disabled にせず自前で弾く（下の aria-busy のコメント参照）
+    if (isPending) return
+
     // 楽観更新: 失敗時に元に戻すため直前の値を保持
     const previous = following
     setFollowing(!previous)
@@ -51,7 +54,10 @@ export function FollowButton({
         variant={following ? 'outline' : 'default'}
         size="lg"
         onClick={handleClick}
-        disabled={isPending}
+        // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ち、
+        // キーボードで押したユーザーは毎回ページ先頭から辿り直すことになる。
+        // 連打は handleClick 側の isPending ガードで止める
+        aria-busy={isPending}
         className="focus-visible:ring-2 focus-visible:ring-ring-focus"
       >
         {following ? 'フォロー中' : 'フォロー'}

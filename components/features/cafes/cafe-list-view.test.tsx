@@ -68,6 +68,21 @@ describe('CafeListView', () => {
     })
   })
 
+  // isPending は一覧全体で共有される。解除した行のボタンは楽観更新で即座に
+  // 消えるが、他の行のボタンを disabled にするとその行のフォーカスが
+  // 突然奪われてしまうため、無効化せず aria-busy で送信中を示すだけにする
+  it('1件を解除している間、他の行のボタンは無効化せず送信中を示す', async () => {
+    removeCafeFromList.mockReturnValue(new Promise(() => {}))
+    const user = userEvent.setup()
+
+    render(<CafeListView listType="favorite" initialEntries={entries} />)
+    await user.click(screen.getByRole('button', { name: '表参道ロースタリーをお気に入りから外す' }))
+
+    const button = screen.getByRole('button', { name: '二番目の店をお気に入りから外す' })
+    expect(button).toBeEnabled()
+    expect(button).toHaveAttribute('aria-busy', 'true')
+  })
+
   it('失敗したら一覧を元に戻し、理由を伝える', async () => {
     removeCafeFromList.mockResolvedValue({ ok: false, error: 'INTERNAL_ERROR' })
     const user = userEvent.setup()
