@@ -9,6 +9,8 @@ import { BlockButton } from '@/components/features/profiles/block-button'
 import { FollowButton } from '@/components/features/profiles/follow-button'
 import { ProfileAvatar } from '@/components/features/profiles/profile-avatar'
 import { ProfileCountList } from '@/components/features/profiles/profile-count-list'
+import { PublicProfileTabs } from '@/components/features/profiles/public-profile-tabs'
+import { RegularCafeGrid } from '@/components/features/profiles/regular-cafe-grid'
 import { Button } from '@/components/ui/button'
 import { getPostList } from '@/lib/posts/post-list'
 import {
@@ -18,6 +20,7 @@ import {
   isFollowing,
   type PublicProfile,
 } from '@/lib/profiles/public-profile'
+import { getUserRegularCafes } from '@/lib/profiles/regulars'
 import { createClient } from '@/lib/supabase/server'
 import type { FeedQuery } from '@/lib/validators/feed'
 
@@ -69,14 +72,14 @@ export default async function UserProfilePage({ params }: PageProps) {
   const isSelf = user?.id === profile.id
 
   // 表示に要る残りは往復を直列にしない（CLAUDE.md パフォーマンス「N+1回避」）
-  const [counts, following, page] = await Promise.all([
+  const [counts, following, page, regularCafes] = await Promise.all([
     getProfileCounts(supabase, profile.id),
     user && !isSelf ? isFollowing(supabase, user.id, profile.id) : Promise.resolve(false),
     getPostList(supabase, { authorId: profile.id, viewerId: user?.id ?? null }),
+    getUserRegularCafes(supabase, profile.id),
   ])
 
-  // バッジ（user_badges）・「行きつけ」タブ（regular_customers）は
-  // 元テーブルが未作成のため出していない（pending-items D28）
+  // バッジ（user_badges）は元テーブルが未作成のため出していない（pending-items D28）
   const query: FeedQuery = {
     scope: 'new',
     tagSlug: null,
@@ -84,6 +87,23 @@ export default async function UserProfilePage({ params }: PageProps) {
     authorUsername: profile.username,
     cafeId: null,
   }
+
+  const postsPanel = (
+    <PostFeed
+      // フォロー状態が変われば visibility='followers' の投稿の見え方も変わる。
+      // PostFeed は initialPage を useState の初期値にしか使わないため、
+      // router.refresh() だけではフォロー前の一覧が残り続ける
+      key={`${profile.id}:${following}`}
+      initialPage={page}
+      query={query}
+      isAuthenticated={user != null}
+      emptyMessage={
+        isSelf
+          ? 'まだ投稿がありません。最初の1件を投稿してみましょう。'
+          : `${profile.displayName}さんはまだ投稿していません。`
+      }
+    />
+  )
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 py-8">
@@ -141,23 +161,27 @@ export default async function UserProfilePage({ params }: PageProps) {
           ))}
       </header>
 
-      <section className="flex flex-col gap-4">
-        <h2 className="sr-only">投稿</h2>
-        <PostFeed
-          // フォロー状態が変われば visibility='followers' の投稿の見え方も変わる。
-          // PostFeed は initialPage を useState の初期値にしか使わないため、
-          // router.refresh() だけではフォロー前の一覧が残り続ける
-          key={`${profile.id}:${following}`}
-          initialPage={page}
-          query={query}
-          isAuthenticated={user != null}
-          emptyMessage={
-            isSelf
-              ? 'まだ投稿がありません。最初の1件を投稿してみましょう。'
-              : `${profile.displayName}さんはまだ投稿していません。`
+      {/* 行きつけが0件なら中身1枚しか無いのでタブ自体を出さない（D25・D28と同じ判断） */}
+      {regularCafes.length === 0 ? (
+        <section className="flex flex-col gap-4">
+          <h2 className="sr-only">投稿</h2>
+          {postsPanel}
+        </section>
+      ) : (
+        <PublicProfileTabs
+          postsPanel={postsPanel}
+          regularsPanel={
+            <RegularCafeGrid
+              entries={regularCafes}
+              emptyMessage={
+                isSelf
+                  ? 'まだ行きつけの認定はありません。'
+                  : `${profile.displayName}さんの行きつけはまだありません。`
+              }
+            />
           }
         />
-      </section>
+      )}
     </div>
   )
 }
