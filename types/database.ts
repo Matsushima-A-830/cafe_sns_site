@@ -1165,6 +1165,22 @@ export type Database = {
           name: string
         }[]
       }
+      get_owned_cafe_for_edit: {
+        Args: { p_cafe_id: string }
+        Returns: {
+          address: string
+          area_code: string
+          city: string
+          description: string
+          external_ids: Json
+          id: string
+          name: string
+          name_kana: string
+          phone: string
+          prefecture: string
+          website: string
+        }[]
+      }
       get_owner_verification_cafe: {
         Args: { p_cafe_id: string }
         Returns: {

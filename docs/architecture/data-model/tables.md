@@ -192,7 +192,7 @@ RLS の `WITH CHECK` は OLD 行を参照できず「どの列が変わったか
 | phone | text | | |
 | website | text | | |
 | description | text | | 店舗説明 |
-| external_ids | jsonb | NOT NULL, DEFAULT '{}' | 食べログ/Google Places 等 |
+| external_ids | jsonb | NOT NULL, DEFAULT '{}' | `{ google_place_id?: string, tabelog_url?: string }`。キー名は S_OWNER_CAFE_EDIT 実装時に固定（lib/validators/cafes.ts の externalIdsSchema） |
 | verified_owner_id | uuid | FK → profiles(id) | 認証済みオーナー |
 | status | text | NOT NULL, DEFAULT 'active' | active / closed / hidden |
 | created_by | uuid | FK → profiles(id) | 登録者 |

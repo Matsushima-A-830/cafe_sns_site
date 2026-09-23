@@ -40,3 +40,56 @@ export const createCafeSchema = z.object({
 })
 
 export type CreateCafeInput = z.infer<typeof createCafeSchema>
+
+// S_OWNER_CAFE_EDIT。createCafeSchema に cafeId・externalIds を足したもの。
+// main_image_path・location は含めない（cafe-images バケット未作成のため今回もスコープ外。
+//   docs/product/pending-items.md D31）
+export const externalIdsSchema = z.object({
+  googlePlaceId: z.string().trim().max(200, 'Place IDは200文字以内で入力してください').optional(),
+  tabelogUrl: z.string().trim().url('URLの形式が正しくありません').optional().or(z.literal('')),
+})
+
+export const updateCafeSchema = createCafeSchema.extend({
+  cafeId: z.string().uuid('カフェIDの形式が正しくありません'),
+  externalIds: externalIdsSchema.optional(),
+})
+
+export type UpdateCafeInput = z.infer<typeof updateCafeSchema>
+
+// S_OWNER_CAFE_EDIT の営業時間編集。cafe_business_hours の1曜日ぶん。
+// opensAt/closesAt は disabled な <input type="time"> が値なしで送るとき undefined ではなく
+// 空文字になる（ネイティブ input の仕様）ため、website と同じく `.or(z.literal(''))` で許容する
+const timeFieldSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{2}:\d{2}$/, '時刻の形式が正しくありません')
+  .optional()
+  .or(z.literal(''))
+
+export const businessHourSchema = z
+  .object({
+    dayOfWeek: z.number().int().min(0).max(6),
+    isClosed: z.boolean(),
+    opensAt: timeFieldSchema,
+    closesAt: timeFieldSchema,
+  })
+  .refine((hour) => hour.isClosed || (hour.opensAt && hour.closesAt), {
+    message: '定休日でない場合は開店・閉店時刻を入力してください',
+    path: ['opensAt'],
+  })
+
+export const updateCafeBusinessHoursSchema = z.object({
+  cafeId: z.string().uuid('カフェIDの形式が正しくありません'),
+  hours: z.array(businessHourSchema).length(7, '7曜日ぶんのデータが必要です'),
+})
+
+export type UpdateCafeBusinessHoursInput = z.infer<typeof updateCafeBusinessHoursSchema>
+
+// CafeEditForm（S_OWNER_CAFE_EDIT）1画面ぶんのクライアント側バリデーション。
+// 基本情報と営業時間は別々の Server Action（updateCafe / updateCafeBusinessHours）に
+// 送るが、フォーム自体は1つなので zodResolver 用にまとめる
+export const cafeEditFormSchema = updateCafeSchema.extend({
+  hours: z.array(businessHourSchema).length(7, '7曜日ぶんのデータが必要です'),
+})
+
+export type CafeEditFormValues = z.infer<typeof cafeEditFormSchema>

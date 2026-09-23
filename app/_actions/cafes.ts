@@ -11,6 +11,8 @@ import {
   cafeIdSchema,
   createCafeSchema,
   searchCafesSchema,
+  type UpdateCafeInput,
+  updateCafeSchema,
 } from '@/lib/validators/cafes'
 import type { ComposerCafe } from '@/types/composer'
 import type { Result } from '@/types/result'
@@ -22,10 +24,20 @@ type CreateCafeError =
   | 'FORBIDDEN'
   | 'AREA_CODE_UNKNOWN'
   | 'INTERNAL_ERROR'
+type UpdateCafeError =
+  | 'INVALID_INPUT'
+  | 'UNAUTHENTICATED'
+  | 'NOT_OWNER'
+  | 'AREA_CODE_UNKNOWN'
+  | 'INTERNAL_ERROR'
 
 const RESULT_LIMIT = 20
 // area_code の FK 名。将来 cafes に他の FK が増えても誤判定しないための目印
 const AREA_CODE_FK_CONSTRAINT = 'cafes_area_code_fkey'
+// PostgREST が .single() で0行返ってきたときのエラーコード（SQLSTATEではない）。
+// cafes_update_owner の USING 句に弾かれた行は 42501 ではなく単に0件として返るため、
+// これで「他人のカフェ」を判定する
+const POSTGREST_NO_ROWS = 'PGRST116'
 
 type CafeRow = {
   id: string
@@ -209,6 +221,85 @@ async function insertCafe(
   }
 
   if (!data) return { ok: false, error: 'FORBIDDEN' }
+
+  return { ok: true, data: { cafeId: data.id } }
+}
+
+// external_ids のキー名はここで固定する（B9: 将来 google_place_id への部分一意
+// インデックスを検討する前提。docs/product/pending-items.md B9）
+function toExternalIds(input: NonNullable<UpdateCafeInput['externalIds']>): Record<string, string> {
+  const result: Record<string, string> = {}
+  if (input.googlePlaceId) result.google_place_id = input.googlePlaceId
+  if (input.tabelogUrl) result.tabelog_url = input.tabelogUrl
+  return result
+}
+
+/**
+ * カフェ情報の編集（S_OWNER_CAFE_EDIT）。認可は cafes_update_owner に委譲する
+ * （アプリ層で verified_owner_id を再チェックしない。CLAUDE.md「RLSに認可を委譲」）。
+ * USING 句に弾かれた行は0件で返る（42501にはならない）ため、.single() の
+ * PGRST116（0行）を NOT_OWNER として扱う
+ *   supabase/migrations/20260920140000_allow_cafe_creator_update.sql
+ */
+export async function updateCafe(
+  input: unknown,
+): Promise<Result<{ cafeId: string }, UpdateCafeError>> {
+  const parsed = updateCafeSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, error: 'INVALID_INPUT', details: parsed.error.flatten() }
+
+  try {
+    return await updateCafeRow(parsed.data)
+  } catch (cause) {
+    console.error('[cafes] カフェの更新に失敗:', cause)
+    return { ok: false, error: 'INTERNAL_ERROR' }
+  }
+}
+
+async function updateCafeRow(
+  input: UpdateCafeInput,
+): Promise<Result<{ cafeId: string }, UpdateCafeError>> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
+
+  const { data, error } = await supabase
+    .from('cafes')
+    .update({
+      name: input.name,
+      // createCafe と同じ理由（223行目付近のコメント）で空文字は null にする
+      name_kana: input.nameKana || null,
+      prefecture: input.prefecture,
+      city: input.city,
+      area_code: input.areaCode ?? null,
+      address: input.address || null,
+      phone: input.phone || null,
+      website: input.website || null,
+      description: input.description || null,
+      // externalIds が省略された呼び出し（将来の他画面からの再利用を想定）では
+      // 既存の external_ids を触らない。常に toExternalIds(...) で上書きすると
+      // 呼び出し側がキーを送り忘れただけで既存の連携IDが消える
+      ...(input.externalIds !== undefined
+        ? { external_ids: toExternalIds(input.externalIds) }
+        : {}),
+    })
+    .eq('id', input.cafeId)
+    .select('id')
+    .single()
+
+  if (error) {
+    if (error.code === POSTGREST_NO_ROWS) return { ok: false, error: 'NOT_OWNER' }
+    if (
+      error.code === POSTGRES_FOREIGN_KEY_VIOLATION &&
+      error.message.includes(AREA_CODE_FK_CONSTRAINT)
+    ) {
+      return { ok: false, error: 'AREA_CODE_UNKNOWN' }
+    }
+    console.error('[cafes] カフェの更新に失敗:', error)
+    return { ok: false, error: 'INTERNAL_ERROR' }
+  }
+  if (!data) return { ok: false, error: 'NOT_OWNER' }
 
   return { ok: true, data: { cafeId: data.id } }
 }

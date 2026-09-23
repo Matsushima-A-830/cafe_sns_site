@@ -72,8 +72,9 @@ test('承認済みオーナーはダッシュボードで今週のサマリー�
   await expect(page.getByText('✓ 公式認証済み')).toBeVisible()
   await expect(page.getByText('今週のサマリー')).toBeVisible()
   await expect(page.getByRole('link', { name: 'ダッシュボードへ進む' })).toHaveCount(0)
-  // 未実装メニューはリンクを張らない（準備中ラベルのみ）
-  await expect(page.getByRole('link', { name: '店舗情報を編集' })).toHaveCount(0)
+  // 「店舗情報を編集」は S_OWNER_CAFE_EDIT 実装（D52）でリンクが開通した
+  await expect(page.getByRole('link', { name: '店舗情報を編集' })).toBeVisible()
+  // 未実装の残りメニューはリンクを張らない（準備中ラベルのみ）
   await expect(page.getByText('準備中').first()).toBeVisible()
 })
 
