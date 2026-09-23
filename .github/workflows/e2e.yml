@@ -3,6 +3,8 @@ name: E2E
 # paths-ignore は付けない（理由は integration.yml と同じ）
 on:
   pull_request:
+  push:
+    branches: [main]
 
 concurrency:
   group: e2e-${{ github.ref }}
@@ -22,28 +24,45 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
+      # Safari は MVP 開発期間中は非対応（CLAUDE.md）。4 project 全部を毎PRで回すと
+      # 実行時間がちょうど倍になるため、PR は Chromium 系のみ。webkit 系は
+      # main へのマージ後と、`safari` ラベルを付けた PR で検証する
+      - name: Decide browser set
+        id: browsers
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] || ${{ contains(github.event.pull_request.labels.*.name, 'safari') }}; then
+            echo "install=chromium webkit" >> "$GITHUB_OUTPUT"
+            echo "projects=--project=chromium --project=webkit --project=mobile-chrome --project=mobile-safari" >> "$GITHUB_OUTPUT"
+            echo "set=full" >> "$GITHUB_OUTPUT"
+          else
+            echo "install=chromium" >> "$GITHUB_OUTPUT"
+            echo "projects=--project=chromium --project=mobile-chrome" >> "$GITHUB_OUTPUT"
+            echo "set=chromium" >> "$GITHUB_OUTPUT"
+          fi
+
+      # キャッシュキーにブラウザセットを含める。含めないと chromium のみのキャッシュを
+      # webkit 実行時に hit させてしまい、webkit が未インストールのまま走る
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-playwright-${{ steps.browsers.outputs.set }}-${{ hashFiles('pnpm-lock.yaml') }}
 
       - name: Install Playwright browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium webkit
+        run: pnpm exec playwright install --with-deps ${{ steps.browsers.outputs.install }}
 
       - name: Install Playwright system deps only
         if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: pnpm exec playwright install-deps chromium webkit
+        run: pnpm exec playwright install-deps ${{ steps.browsers.outputs.install }}
 
       # サインアップ〜オンボーディングの E2E は実際の Auth (OTPメール送信含む) を要るため、
-      # dummy 値ではなくローカル Supabase を使う (integration.yml と同じ構成)
+      # dummy 値ではなくローカル Supabase を使う (integration.yml と同じ構成)。
+      # E2E が触るのは db / kong / gotrue / postgrest / storage-api / mailpit だけなので
+      # それ以外は除外する。start が migrations と seed.sql を適用するため db reset は不要
       - name: Start local Supabase
-        run: pnpm exec supabase start
-
-      - name: Apply migrations
-        run: pnpm exec supabase db reset
+        run: pnpm exec supabase start -x studio,postgres-meta,edge-runtime,logflare,vector,supavisor,realtime,imgproxy
 
       # NEXT_PUBLIC_* はビルド時に静的に埋め込まれるため、build より前に $GITHUB_ENV へ出す。
       # eval で丸ごと展開すると鍵の値に &, ;, 空白等が混ざった場合にコマンド実行されうるため、
@@ -74,7 +93,7 @@ jobs:
         run: pnpm build
 
       - name: Run Playwright tests
-        run: pnpm test:e2e
+        run: pnpm test:e2e ${{ steps.browsers.outputs.projects }}
 
       - name: Upload report
         if: always()

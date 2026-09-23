@@ -30,13 +30,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # 統合テストが触るのは db / kong / gotrue / postgrest / storage-api だけ。
+      # studio・analytics(logflare+vector)・edge-runtime は重いイメージを pull して
+      # health 待ちするだけなので除外する。realtime と imgproxy はアプリ側に利用箇所が無い。
+      # start が migrations と seed.sql を適用するため、db reset は不要
       - name: Start local Supabase
-        run: pnpm exec supabase start
-
-      # start でも適用されるが、クリーンな状態を明示的に作り直す
-      # （マスタデータもマイグレーションに入っている）
-      - name: Apply migrations
-        run: pnpm exec supabase db reset
+        run: pnpm exec supabase start -x studio,postgres-meta,edge-runtime,logflare,vector,supavisor,realtime,imgproxy
 
       # 接続情報は tests/helpers/supabase.ts が supabase status から読む
       - name: Integration tests
