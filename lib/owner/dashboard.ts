@@ -50,6 +50,12 @@ export function pctChange(current: number, previous: number): number | null {
   return Math.round(((current - previous) / previous) * 100)
 }
 
+/** 前週比の色調。0/nullは中立色にする（S_OWNER_DASHBOARD・S_OWNER_ANALYTICS 共通） */
+export function changeTone(pct: number | null): string {
+  if (pct === null || pct === 0) return 'text-muted-foreground'
+  return pct > 0 ? 'text-success' : 'text-danger'
+}
+
 /** 前週比の表示テキスト。符号を明示し、色だけに依存しない（CLAUDE.md アクセシビリティ） */
 export function formatChangePct(pct: number | null): string {
   if (pct === null) return '—'

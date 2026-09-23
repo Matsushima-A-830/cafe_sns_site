@@ -318,6 +318,8 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 
 **RLS（2026-09-06 修正）:** SELECT は「本人 + admin」のみ（`reports` と同じ方針）。生の行は `user_id`・`cafe_id`・`reported_at` が並び、突き合わせれば「誰が今どのカフェにいるか」が割れる位置情報に近い個人情報のため、全ユーザー公開にはしない。集計値は `get_cafe_congestion_current()` 経由で全ユーザーに公開する（関数は `security definer` でこの制限を回避）。INSERT は認証済み本人かつ `profiles.status='active'`。UPDATE・DELETE 不可。
 
+**`get_cafe_weekday_congestion(p_cafe_id)`（2026-09-23 追加）:** `S_OWNER_ANALYTICS` の曜日別混雑度平均。`get_cafe_congestion_current()` と同じ理由で `security definer`。曜日は `reported_at` を `Asia/Tokyo` に変換して算出する（JST 0〜8時台の投稿が前日のUTC曜日に数えられてしまう罠を避けるため、`get_cafe_congestion_current()` のUTCバケット照合とは意図的に異なる）。集計値のみで生の行を含まないため anon/authenticated どちらも呼べる。
+
 ### 表示ロジック（決定 2026-09-03）
 
 `S_CAFE_DETAIL` の混雑度セクションで、以下の3段階の表示切替を実装:

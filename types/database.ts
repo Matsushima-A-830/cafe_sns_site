@@ -1207,6 +1207,24 @@ export type Database = {
           source: string
         }[]
       }
+      get_cafe_top_posters: {
+        Args: { p_cafe_id: string; p_from: string; p_to: string }
+        Returns: {
+          avatar_url: string
+          display_name: string
+          post_count: number
+          user_id: string
+          username: string
+        }[]
+      }
+      get_cafe_weekday_congestion: {
+        Args: { p_cafe_id: string }
+        Returns: {
+          day_of_week: number
+          level_avg: number
+          sample_count: number
+        }[]
+      }
       get_owned_cafe: {
         Args: never
         Returns: {
