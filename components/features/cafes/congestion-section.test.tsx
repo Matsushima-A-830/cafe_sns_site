@@ -48,6 +48,33 @@ describe('CongestionSection', () => {
     expect(screen.getByText('直近30分のレポート 3件')).toBeInTheDocument()
   })
 
+  // disabled にするとその瞬間にフォーカスが body へ落ち、キーボードのユーザーは
+  // 押すたびにページ先頭から辿り直すことになる
+  it('送信中もボタンを無効化せず、フォーカスを保つ', async () => {
+    reportCongestion.mockReturnValue(new Promise(() => {}))
+    const user = userEvent.setup()
+
+    render(<CongestionSection cafeId={cafeId} initialSummary={recent} isAuthenticated={true} />)
+    await user.click(screen.getByRole('button', { name: '空いている' }))
+
+    const button = screen.getByRole('button', { name: '空いている' })
+    expect(button).toBeEnabled()
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    expect(button).toHaveFocus()
+  })
+
+  it('送信中の連打は追加のリクエストを起こさない', async () => {
+    reportCongestion.mockReturnValue(new Promise(() => {}))
+    const user = userEvent.setup()
+
+    render(<CongestionSection cafeId={cafeId} initialSummary={recent} isAuthenticated={true} />)
+    await user.click(screen.getByRole('button', { name: '空いている' }))
+    await user.click(screen.getByRole('button', { name: '混んでいる' }))
+    await user.click(screen.getByRole('button', { name: '普通' }))
+
+    expect(reportCongestion).toHaveBeenCalledTimes(1)
+  })
+
   it('失敗したら元の集計に戻し、エラーを伝える', async () => {
     reportCongestion.mockResolvedValue({ ok: false, error: 'FORBIDDEN' })
     const user = userEvent.setup()

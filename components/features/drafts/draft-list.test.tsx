@@ -43,6 +43,23 @@ const stale: DraftSummary = {
   stale: true,
 }
 
+const loadedTwo: DraftSummary = {
+  clientDraftKey: 'draft-cccccccc',
+  lastSavedAt: '2026-03-01T00:00:00.000Z',
+  stale: false,
+  payload: {
+    v: DRAFT_PAYLOAD_VERSION,
+    post_id: '22222222-2222-4222-8222-222222222222',
+    post_type: 'blog',
+    title: '2件目のタイトル',
+    body_json: bodyJson,
+    tag_ids: [],
+    image_paths: [],
+    cafe_id: null,
+    visibility: 'public',
+  },
+}
+
 beforeEach(() => {
   deleteDraft.mockReset()
 })
@@ -91,6 +108,22 @@ describe('DraftList', () => {
       expect(deleteDraft).toHaveBeenCalledWith({ clientDraftKey: 'draft-aaaaaaaa' }),
     )
     expect(screen.queryByText('下書きのタイトル')).not.toBeInTheDocument()
+  })
+
+  // isPending は一覧全体で共有される。削除中の1件のダイアログは楽観更新で即座に
+  // 閉じるが、他の下書きの「削除」ボタンを disabled にするとそこへのフォーカスが
+  // 突然奪われてしまうため、無効化せず aria-busy で送信中を示すだけにする
+  it('1件を削除している間、他の下書きの削除ボタンは無効化せず送信中を示す', async () => {
+    deleteDraft.mockReturnValue(new Promise(() => {}))
+    const user = userEvent.setup()
+    render(<DraftList initialDrafts={[loaded, loadedTwo]} />)
+
+    await user.click(screen.getAllByRole('button', { name: '削除' })[0] as HTMLElement)
+    await user.click(screen.getByRole('button', { name: '削除する' }))
+
+    const otherDeleteButton = screen.getByRole('button', { name: '削除' })
+    expect(otherDeleteButton).toBeEnabled()
+    expect(otherDeleteButton).toHaveAttribute('aria-busy', 'true')
   })
 
   it('削除に失敗したら一覧を元に戻す', async () => {

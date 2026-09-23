@@ -139,9 +139,10 @@ export default async function UserProfilePage({ params }: PageProps) {
           (user ? (
             <div className="flex flex-col items-center gap-2 md:items-start">
               <FollowButton
-                // initialFollowing は useState の初期値にしかならない。別タブでの
-                // フォロー解除などでサーバー側の値がずれたら state ごと作り直す
-                key={`${profile.id}:${following}`}
+                // key で following ごとに再マウントしていたのは廃止した。フォロー成功後の
+                // router.refresh() で following が変わるたびに再マウントされ、送信中に
+                // aria-busy へ移していてもフォーカスが body へ落ちてしまうため（D33）。
+                // 別タブでの操作によるズレは次のページ遷移まで残るが、実害は小さい
                 followeeId={profile.id}
                 initialFollowing={following}
               />

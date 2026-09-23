@@ -34,6 +34,9 @@ export function CafeListView({
   const label = CAFE_LIST_LABELS[listType]
 
   function handleRemove(entry: CafeListEntry) {
+    // disabled にせず自前で弾く（下の aria-busy のコメント参照）
+    if (isPending) return
+
     // 楽観更新: 失敗時に元に戻すため直前の一覧を保持
     const previous = entries
     setEntries((current) => current.filter((item) => item.cafeId !== entry.cafeId))
@@ -89,7 +92,10 @@ export function CafeListView({
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={isPending}
+                // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ち、
+                // キーボードで押したユーザーは毎回ページ先頭から辿り直すことになる。
+                // 連打は handleRemove 側の isPending ガードで止める
+                aria-busy={isPending}
                 onClick={() => handleRemove(entry)}
                 className="focus-visible:ring-2 focus-visible:ring-ring-focus"
               >
