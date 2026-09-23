@@ -41,6 +41,9 @@ function buildSupabaseStub(options: {
 
   const tables: Record<string, unknown> = {
     posts: { insert: postsInsert },
+    // checkAndAwardBadges は createPost 成功後に必ず呼ばれる。badges を空にして
+    // 早期リターンさせ、finalize_post の呼び出し検証に影響を与えないようにする
+    badges: { select: vi.fn().mockResolvedValue({ data: [] }) },
   }
 
   const from = vi.fn((table: string) => tables[table])

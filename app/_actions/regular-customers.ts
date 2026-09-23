@@ -1,5 +1,6 @@
 'use server'
 
+import { checkAndAwardBadges } from '@/lib/badges/check'
 import {
   POSTGRES_INSUFFICIENT_PRIVILEGE,
   POSTGRES_UNIQUE_VIOLATION,
@@ -60,6 +61,10 @@ export async function awardRegular(input: unknown): Promise<Result<null, AwardRe
   }
   if (!data) return { ok: false, error: 'FORBIDDEN' }
 
+  // REGULAR_* バッジの判定（docs/seed/badges-initial-set.md #判定タイミング）。
+  // 呼び出しセッションはオーナー、バッジは認定された顧客(parsed.data.userId)側に付与される
+  await checkAndAwardBadges(supabase, parsed.data.userId, 'REGULAR_AWARDED')
+
   return { ok: true, data: null }
 }
 
@@ -94,6 +99,8 @@ async function reAwardRevokedRegular(
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
   if (!data) return { ok: false, error: 'ALREADY_REGULAR' }
+
+  await checkAndAwardBadges(supabase, input.userId, 'REGULAR_AWARDED')
 
   return { ok: true, data: null }
 }

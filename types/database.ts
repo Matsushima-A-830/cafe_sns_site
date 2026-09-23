@@ -28,6 +28,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      area_visits: {
+        Row: {
+          area_code: string
+          first_visited_at: string
+          last_visited_at: string
+          user_id: string
+          visit_count: number
+        }
+        Insert: {
+          area_code: string
+          first_visited_at: string
+          last_visited_at: string
+          user_id: string
+          visit_count?: number
+        }
+        Update: {
+          area_code?: string
+          first_visited_at?: string
+          last_visited_at?: string
+          user_id?: string
+          visit_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'area_visits_area_code_fkey'
+            columns: ['area_code']
+            isOneToOne: false
+            referencedRelation: 'areas'
+            referencedColumns: ['code']
+          },
+          {
+            foreignKeyName: 'area_visits_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       areas: {
         Row: {
           center_location: unknown
@@ -1048,6 +1087,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_badges: {
+        Row: {
+          awarded_at: string
+          badge_id: string
+          context: Json | null
+          user_id: string
+        }
+        Insert: {
+          awarded_at?: string
+          badge_id: string
+          context?: Json | null
+          user_id: string
+        }
+        Update: {
+          awarded_at?: string
+          badge_id?: string
+          context?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'user_badges_badge_id_fkey'
+            columns: ['badge_id']
+            isOneToOne: false
+            referencedRelation: 'badges'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'user_badges_user_id_fkey'
+            columns: ['user_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
+      }
       user_cafe_lists: {
         Row: {
           cafe_id: string
@@ -1169,6 +1244,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      award_badge: {
+        Args: { p_badge_code: string; p_user_id: string }
+        Returns: undefined
+      }
       check_ng_words: { Args: { p_text: string }; Returns: string }
       comment_has_live_replies: {
         Args: { p_comment_id: string }
