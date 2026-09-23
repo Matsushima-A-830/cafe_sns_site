@@ -10,18 +10,19 @@ type Client = SupabaseClient<Database>
 /** 気分入り口（幹A）に出すチップの数。選択のパラドックス回避で絞る */
 export const MOOD_TAG_LIMIT = 12
 
+/** S_SEARCH の「よく使うタグ」チップは、押した先で mood/occasion どちらの絞り込みかを出し分ける */
+export type MoodTag = PostListTag & { category: 'mood' | 'occasion' }
+
 /**
  * 「今、どんなカフェ気分？」のチップ。厳選タグの occasion / mood だけを priority 順に出す。
  * area カテゴリの行は存在しない（エリアの正は areas マスタ — pending-items D20）
+ * lib/posts/search.ts の「よく使うタグ」チップも同じ絞り込みなのでこれを再利用する
  *   docs/seed/curated-tags-initial-set.md
  */
-export async function getMoodTags(
-  supabase: Client,
-  limit = MOOD_TAG_LIMIT,
-): Promise<PostListTag[]> {
+export async function getMoodTags(supabase: Client, limit = MOOD_TAG_LIMIT): Promise<MoodTag[]> {
   const { data, error } = await supabase
     .from('tags')
-    .select('id, slug, label')
+    .select('id, slug, label, category')
     .eq('is_curated', true)
     .in('category', ['occasion', 'mood'])
     .order('priority', { ascending: false })
@@ -33,7 +34,7 @@ export async function getMoodTags(
     console.error('[feed] 気分タグの取得に失敗:', error.message)
     return []
   }
-  return data ?? []
+  return (data ?? []) as MoodTag[]
 }
 
 /** tag は絞り込み中のタグ（見出しに出す）。slug しか無いと表示が英語のままになる */

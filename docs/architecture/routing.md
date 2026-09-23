@@ -47,7 +47,7 @@ app/
 │   ├── map/
 │   │   └── page.tsx                 # /map (S_MAP)
 │   ├── search/
-│   │   └── page.tsx                 # /search (S_SEARCH) — S_FILTER_*はDrawerで内包
+│   │   └── page.tsx                 # /search (S_SEARCH) — S_FILTER_*はインラインSSRフォームで内包（Drawerなし）
 │   ├── posts/
 │   │   └── [id]/
 │   │       ├── page.tsx             # /posts/[id] (S_POST_DETAIL)
@@ -206,7 +206,7 @@ app/
 | S_POST_OFFICIAL | `/new/official` (+ サブルート4種) | SSR（要オーナー権限） |
 | S_CAFE_NEW | `/cafes/new` | SSR（要ログイン） |
 | S_ACCOUNT_DELETE | `/settings/account/delete` | SSR |
-| S_FILTER_AREA / _MOOD / _OCCASION / _KEYWORD | `/search`（Drawer内包） | SSR |
+| S_FILTER_AREA / _MOOD / _OCCASION / _KEYWORD | `/search`（インラインSSRフォームで内包、Drawerなし） | SSR |
 | S_SEARCH_RESULT | `/search?...`（クエリで結果） | SSR |
 | S_ADMIN_REPORTS | `/admin/reports` | SSR |
 | S_ADMIN_REVIEW | `/admin/reports/[id]` | SSR |
