@@ -31,7 +31,8 @@ export function PostFeed({
   const [isPending, startTransition] = useTransition()
 
   function handleLoadMore() {
-    if (!cursor) return
+    // disabled にせず自前で弾く（下の aria-busy のコメント参照）
+    if (isPending || !cursor) return
     setError(null)
     startTransition(async () => {
       const result = await loadMoreFeed({ query, cursor })
@@ -75,7 +76,14 @@ export function PostFeed({
 
       {cursor && (
         <div className="flex justify-center">
-          <Button type="button" variant="outline" onClick={handleLoadMore} disabled={isPending}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleLoadMore}
+            // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。
+            // 連打は handleLoadMore 側の isPending ガードで止める
+            aria-busy={isPending}
+          >
             {isPending ? '読み込み中…' : 'もっと見る'}
           </Button>
         </div>

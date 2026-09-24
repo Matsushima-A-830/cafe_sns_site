@@ -214,7 +214,14 @@ export function CommentList({
 
       {cursor && (
         <div className="flex justify-center">
-          <Button type="button" variant="outline" onClick={handleLoadMore} disabled={isPending}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleLoadMore}
+            // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。
+            // 連打は handleLoadMore 側の isPending ガードで止める
+            aria-busy={isPending}
+          >
             {isPending ? '読み込み中…' : 'もっと見る'}
           </Button>
         </div>

@@ -80,6 +80,10 @@ export function OwnerClaimForm({ cafeId, cafeName, rejectedReason }: Props) {
   }
 
   function handleRemove(index: number) {
+    // 送信中の削除を禁止する。isPending 中は documents が既に claimCafe に渡っており、
+    // ここでストレージ実削除すると DB 側だけ書類パスが残って不整合になる
+    if (isPending) return
+
     const target = documents[index]
     setDocuments((current) => current.filter((_, i) => i !== index))
     // 孤立ファイルを増やさないためのベストエフォート削除。失敗してもフォームの選択状態は
@@ -89,7 +93,8 @@ export function OwnerClaimForm({ cafeId, cafeName, rejectedReason }: Props) {
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
-    if (!canSubmit) return
+    // disabled にせず自前で弾く（下の aria-busy のコメント参照）
+    if (!canSubmit || isPending) return
     setError(null)
 
     startTransition(async () => {
@@ -161,7 +166,9 @@ export function OwnerClaimForm({ cafeId, cafeName, rejectedReason }: Props) {
                       <button
                         type="button"
                         onClick={() => handleRemove(doc.index)}
-                        disabled={isPending}
+                        // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。
+                        // 連打・送信中の削除は handleRemove 側の isPending ガードで止める
+                        aria-busy={isPending}
                         className="shrink-0 text-sm text-danger underline focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
                       >
                         削除
@@ -188,7 +195,10 @@ export function OwnerClaimForm({ cafeId, cafeName, rejectedReason }: Props) {
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={uploadingType !== null || isPending}
+                disabled={uploadingType !== null}
+                // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。
+                // 追加アップロードはクロージャで確定済みの送信には影響しない
+                aria-busy={isPending}
                 onClick={() => fileInputRefs.current[option.value]?.click()}
                 className="self-start"
               >
@@ -210,7 +220,9 @@ export function OwnerClaimForm({ cafeId, cafeName, rejectedReason }: Props) {
           type="email"
           required
           value={contactEmail}
-          disabled={isPending}
+          // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。
+          // 二重送信は handleSubmit 側の isPending ガードで止める
+          aria-busy={isPending}
           onChange={(event) => setContactEmail(event.target.value)}
         />
       </div>
@@ -220,7 +232,9 @@ export function OwnerClaimForm({ cafeId, cafeName, rejectedReason }: Props) {
         <Textarea
           id="owner-claim-note"
           value={applicantNote}
-          disabled={isPending}
+          // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。
+          // 二重送信は handleSubmit 側の isPending ガードで止める
+          aria-busy={isPending}
           maxLength={1000}
           placeholder="例: 屋号と本人氏名が異なる場合の説明等"
           onChange={(event) => setApplicantNote(event.target.value)}
@@ -234,7 +248,9 @@ export function OwnerClaimForm({ cafeId, cafeName, rejectedReason }: Props) {
             <Checkbox
               id={`owner-claim-consent-${item.key}`}
               checked={consents[item.key]}
-              disabled={isPending}
+              // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。
+              // 二重送信は handleSubmit 側の isPending ガードで止める
+              aria-busy={isPending}
               onCheckedChange={(checked) =>
                 setConsents((current) => ({ ...current, [item.key]: checked === true }))
               }
@@ -250,7 +266,8 @@ export function OwnerClaimForm({ cafeId, cafeName, rejectedReason }: Props) {
         </p>
       )}
 
-      <Button type="submit" size="lg" disabled={!canSubmit || isPending}>
+      {/* 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。二重送信は handleSubmit 側の isPending ガードで止める */}
+      <Button type="submit" size="lg" disabled={!canSubmit} aria-busy={isPending}>
         申請を送信する
       </Button>
       {documents.length < OWNER_DOCUMENT_MIN_COUNT && (
