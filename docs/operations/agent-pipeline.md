@@ -158,7 +158,34 @@ issue (agent:auto)
 | Settings → Actions → Allow GitHub Actions to create and approve pull requests | 有効化が必要 |
 | ラベル `agent:auto` `agent:automerge` `agent:needs-review` `agent:blocked` | 事前作成 |
 
-## 6. 無人化しないもの
+## 6. 踏んだ罠
+
+### OIDC トークンが取れずに落ちる（2026-09-25 実測）
+
+```
+Error message: Unable to get ACTIONS_ID_TOKEN_REQUEST_URL env variable
+Could not fetch an OIDC token. Did you remember to add `id-token: write` ...
+```
+
+`claude-code-action` は `github_token` を省略すると OIDC でトークンを交換しようとする。
+`anthropic_api_key` を渡していても関係なく起こる。対処は両方入れてある:
+
+- ワークフローの `permissions` に `id-token: write`
+- action に `github_token: ${{ secrets.GITHUB_TOKEN }}` を明示（OIDC 経路を使わせない）
+
+### gh pr edit が使えない（2026-09-25 実測）
+
+```
+GraphQL: Projects (classic) is being deprecated ... (repository.pullRequest.projectCards)
+```
+
+`gh pr edit` は Projects classic の廃止で失敗する。PR 本文の更新は REST API を使う。
+
+```bash
+gh api -X PATCH repos/OWNER/REPO/pulls/NUMBER -F body=@body.md
+```
+
+## 7. 無人化しないもの
 
 `deploy-migration.yml` の `environment: production` 承認ゲートは**維持する**。
 DB は forward-only でロールバック SQL を書かない方針なので、本番適用は人が承認する。

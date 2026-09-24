@@ -21,6 +21,10 @@ concurrency:
 permissions:
   contents: read
   pull-requests: write
+  # claude-code-action は github_token 未指定だと OIDC でトークンを取りに行き、
+  # この権限が無いと ACTIONS_ID_TOKEN_REQUEST_URL が無いと言って落ちる。
+  # 下で github_token を明示しているが、フォールバック経路のために付けておく
+  id-token: write
 
 env:
   # ここに収まる PR だけが落とされる。広げるときはこの1行だけを変える
@@ -65,6 +69,9 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # 明示しないと OIDC 経由でトークンを交換しようとする。
+          # このワークフローに必要なのは PR コメントだけなので GITHUB_TOKEN で足りる
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: |
             --max-turns 30
             --allowedTools Read,Glob,Grep,Write,Bash

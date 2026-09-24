@@ -20,6 +20,9 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
+  # claude-code-action が github_token 未指定のとき OIDC を使うため必要。
+  # 下で明示しているが、フォールバック経路のために付けておく
+  id-token: write
 
 jobs:
   implement:
@@ -69,6 +72,9 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # PR 作成・push は後続の自前ステップが AGENT_GITHUB_TOKEN で行う。
+          # action 自身の API 呼び出しは GITHUB_TOKEN で足りる
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           claude_args: |
             --max-turns 60
             --allowedTools Read,Write,Edit,Glob,Grep,Bash
