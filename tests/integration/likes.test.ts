@@ -395,6 +395,142 @@ describe('RLS（ブロック関係）', () => {
   })
 })
 
+describe('RLS（投稿の可視性継承・D38）', () => {
+  // likes_select_all は posts_select（status/visibility/ブロック）を継承する。
+  // comments_select_visible と同じパターンの横展開
+  let postAuthor: AuthedUser
+  let follower: AuthedUser
+  let stranger: AuthedUser
+
+  beforeAll(async () => {
+    postAuthor = await createAuthedProfile({ username: 'visibility_author_likes' })
+    follower = await createAuthedProfile({ username: 'visibility_follower_likes' })
+    stranger = await createAuthedProfile({ username: 'visibility_stranger_likes' })
+    await service
+      .from('follows')
+      .insert({ follower_id: follower.userId, followee_id: postAuthor.userId })
+  })
+
+  afterAll(async () => {
+    await service.from('follows').delete().eq('follower_id', follower.userId)
+    await postAuthor?.cleanup()
+    await follower?.cleanup()
+    await stranger?.cleanup()
+  })
+
+  it('hidden な投稿へのいいねは第三者から見えない', async () => {
+    const postId = await insertPost(postAuthor.userId, { status: 'hidden' })
+    await service.from('likes').insert({ user_id: stranger.userId, post_id: postId })
+
+    const { data } = await stranger.client.from('likes').select('user_id').eq('post_id', postId)
+    expect(data ?? []).toEqual([])
+  })
+
+  it('hidden な投稿へのいいねは投稿主本人からは見える（is_post_author の OR）', async () => {
+    const postId = await insertPost(postAuthor.userId, { status: 'hidden' })
+    await service.from('likes').insert({ user_id: stranger.userId, post_id: postId })
+
+    const { data } = await postAuthor.client.from('likes').select('user_id').eq('post_id', postId)
+    expect(data?.map((row) => row.user_id)).toEqual([stranger.userId])
+  })
+
+  it('archived な投稿へのいいねは第三者から見えない', async () => {
+    const postId = await insertPost(postAuthor.userId, { status: 'archived' })
+    await service.from('likes').insert({ user_id: stranger.userId, post_id: postId })
+
+    const { data } = await stranger.client.from('likes').select('user_id').eq('post_id', postId)
+    expect(data ?? []).toEqual([])
+  })
+
+  it('論理削除済みの投稿へのいいねも第三者からは見えない', async () => {
+    const postId = await insertPost(postAuthor.userId, { deleted_at: '2026-02-05T00:00:00Z' })
+    await service.from('likes').insert({ user_id: stranger.userId, post_id: postId })
+
+    const { data } = await stranger.client.from('likes').select('user_id').eq('post_id', postId)
+    expect(data ?? []).toEqual([])
+  })
+
+  // is_post_author は author_id 一致のみを見て deleted_at を考慮しない
+  // （comments_select_visible の is_post_author OR も同じ）。投稿主が自分の削除済み
+  // 投稿へのいいねを読める状態は既存パターンと一貫しているため許容する
+  it('論理削除済みの投稿へのいいねは投稿主本人からは見える（is_post_author は deleted_at を見ない）', async () => {
+    const postId = await insertPost(postAuthor.userId, { deleted_at: '2026-02-05T00:00:00Z' })
+    await service.from('likes').insert({ user_id: stranger.userId, post_id: postId })
+
+    const { data } = await postAuthor.client.from('likes').select('user_id').eq('post_id', postId)
+    expect(data?.map((row) => row.user_id)).toEqual([stranger.userId])
+  })
+
+  it('visibility=followers はフォロワーでない第三者からは見えない', async () => {
+    const postId = await insertPost(postAuthor.userId, { visibility: 'followers' })
+    await service.from('likes').insert({ user_id: follower.userId, post_id: postId })
+
+    const { data } = await stranger.client.from('likes').select('user_id').eq('post_id', postId)
+    expect(data ?? []).toEqual([])
+  })
+
+  it('visibility=followers はフォロワーから見える', async () => {
+    const postId = await insertPost(postAuthor.userId, { visibility: 'followers' })
+    await service.from('likes').insert({ user_id: follower.userId, post_id: postId })
+
+    const { data } = await follower.client.from('likes').select('user_id').eq('post_id', postId)
+    expect(data?.map((row) => row.user_id)).toEqual([follower.userId])
+  })
+
+  it('未ログインからは非公開（followers限定）投稿へのいいねが見えない', async () => {
+    const postId = await insertPost(postAuthor.userId, { visibility: 'followers' })
+    await service.from('likes').insert({ user_id: follower.userId, post_id: postId })
+
+    const { data } = await anon.from('likes').select('user_id').eq('post_id', postId)
+    expect(data ?? []).toEqual([])
+  })
+})
+
+describe('countLikesGiven（RPCでRLSをバイパスする集計）', () => {
+  // フォロワー限定投稿へのいいねが、非フォロワーになったいいねした本人のセッションから見て
+  // 過小評価にならないことを確認する。likes → posts の JOIN を素の SELECT で行うと
+  // posts_select（visibility='followers' は作者本人・フォロワーのみ）に阻まれて
+  // 見えなくなる（count_likes_received と対になる、likes_given 側の過小評価シナリオ。
+  // badges-check.test.ts の「likes_received: フォロワー限定投稿へのいいねも...」と対称）
+  it('フォロワー限定投稿へのいいねは、フォロワーでないセッションから見ても過小評価にならない', async () => {
+    const givenAuthor = await createAuthedProfile({ username: 'given_author_likes' })
+    const givenLiker = await createAuthedProfile({ username: 'given_liker_likes' })
+    try {
+      const postId = await insertPost(givenAuthor.userId, { visibility: 'followers' })
+      // service で直接挿入し、givenLiker がフォロワーでない状態を保ったまま
+      // 「本来は見えているはずのいいねが JOIN 越しに落ちる」状況を再現する
+      await service.from('likes').insert({ user_id: givenLiker.userId, post_id: postId })
+
+      const { data } = await givenLiker.client.rpc('count_likes_given', {
+        p_user_id: givenLiker.userId,
+      })
+      expect(data).toBe(1)
+    } finally {
+      await givenAuthor.cleanup()
+      await givenLiker.cleanup()
+    }
+  })
+
+  // status/deleted_at は count_likes_received と同じ絞り込み。hidden/archived/削除済みの
+  // 投稿へのいいねはバッジ集計の対象から意図的に除く
+  it('hidden な投稿へのいいねは数えない', async () => {
+    const givenAuthor = await createAuthedProfile({ username: 'given_author_hidden_likes' })
+    const givenLiker = await createAuthedProfile({ username: 'given_liker_hidden_likes' })
+    try {
+      const postId = await insertPost(givenAuthor.userId, { status: 'hidden' })
+      await service.from('likes').insert({ user_id: givenLiker.userId, post_id: postId })
+
+      const { data } = await givenLiker.client.rpc('count_likes_given', {
+        p_user_id: givenLiker.userId,
+      })
+      expect(data).toBe(0)
+    } finally {
+      await givenAuthor.cleanup()
+      await givenLiker.cleanup()
+    }
+  })
+})
+
 describe('getPostLikeCount', () => {
   it('トリガーが維持している確定件数を返す', async () => {
     expect(await getPostLikeCount(typed(liker.client), likedPostId)).toBe(2)

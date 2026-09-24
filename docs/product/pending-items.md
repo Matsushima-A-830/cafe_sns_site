@@ -984,18 +984,23 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   リロード前の待機が足りるかは直すときに確認が要る
 - 参照: `likes` 実装後の `/code-review` で指摘され、実機確認でも再現（2026-09-19）
 
-### D38. `likes_select_all` が投稿の可視性を継承していない
+### D38. `likes_select_all` が投稿の可視性を継承していない ✅ 解消済（2026-09-23）
 
-- **課題:** `likes` の SELECT ポリシー（`likes_select_all`）は
-  `not is_blocked_either_way(user_id)` のみで、`post_id` が指す投稿が
-  hidden・論理削除済み・非公開（`visibility='followers'` で非フォロワー）・
-  作者がブロック済みのいずれであっても、その投稿への「いいね」の存在（誰が
-  いいねしたか）は `post_id` さえ分かれば誰でも読める
-- **実害は限定的:** 漏れるのは `user_id` の羅列のみで、本文などは含まれない
-- **対応方針:** `comments` 実装（[docs/architecture/data-model/tables.md#comments](../architecture/data-model/tables.md#comments)）で
-  固めた「`exists (select 1 from posts p where p.id = ...) or is_post_author(post_id)` を
-  SELECT ポリシーに足す」パターンを `likes` にも横展開する。`comments` とは
-  別PRで対応する（`comments` の RLS パターンを先に固めてから展開する判断）
+- **対応済み:** `20260923150000_likes_select_visibility.sql` で
+  `comments_select_visible`（[docs/architecture/data-model/tables.md#likes](../architecture/data-model/tables.md#likes)）
+  と同じパターンを横展開した。`exists (select 1 from posts p where p.id = likes.post_id)
+  or is_post_author(likes.post_id)` を既存の `not is_blocked_either_way` と AND 結合。
+- **副作用の修正も同時に対応:** 可視性継承により `lib/badges/rules.ts` の
+  `countLikesGiven`（RLSバインドの通常クライアント）が、いいねした投稿が後で
+  非公開になった場合に過小評価になる問題（`count_likes_received` で一度発生した問題と同型）
+  が新たに生じるため、`count_likes_given` RPC（`security definer`）を新設して切り替えた。
+  さらに `/code-review` の指摘で、権威ある判定 `badge_criteria_met` の `likes_given` 分岐が
+  無絞り込みの `count(*)` のままだと lib 側の事前フィルタと食い違う（`checkAndAwardBadges`
+  が false を返して `award_badge` へ辿り着けなくなる）ことが判明し、`likes_received` 分岐と
+  同じく `count_likes_given` を呼ぶよう `badge_criteria_met` も同マイグレーションで更新した。
+- テスト: `tests/integration/likes.test.ts` の `RLS（投稿の可視性継承・D38）` /
+  `countLikesGiven（RPCでRLSをバイパスする集計）`、
+  `tests/integration/badges-check.test.ts` の `likes_given: フォロワー限定投稿へのいいねも...`
 - 参照: `comments` 実装の引き継ぎ調査で発見（2026-09-20）
 
 ### D39. コメントUI（comment-list / comment-form）が実機未確認のまま
