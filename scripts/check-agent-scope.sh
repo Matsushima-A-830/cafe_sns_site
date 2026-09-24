@@ -3,8 +3,10 @@
 # 無人マージの唯一の安全弁なので、ここを緩める前に docs/operations/agent-pipeline.md を読むこと。
 #
 # 使い方:
+#   git diff --cached --name-only | bash scripts/check-agent-scope.sh --stdin
+#       ↑ CI (agent-implement.yml) が使う形。空白入りパスとリネームで壊れない
 #   bash scripts/check-agent-scope.sh --base origin/main   # base との差分を見る
-#   bash scripts/check-agent-scope.sh --files a.ts b.md     # ファイルを直接渡す
+#   bash scripts/check-agent-scope.sh --files a.ts b.md    # ファイルを直接渡す
 #
 # 終了コード: 0 = 現在のステージで無人マージ可 / 1 = 不可（人がマージする）
 set -uo pipefail

@@ -158,11 +158,13 @@ jobs:
           IN_SCOPE: ${{ steps.scope.outputs.allowed }}
           SCOPE_REASON: ${{ steps.scope.outputs.reason }}
         run: |
-          # docs だけの変更なら docs/、それ以外は feature/（git-workflow.md のブランチ規約）
+          # docs だけの変更なら docs/、それ以外は feature/（git-workflow.md のブランチ規約）。
+          # run_id を付けるのは、同じ issue に agent:auto を再度付けたときに
+          # 前回の残骸ブランチと push が衝突するのを避けるため
           if [ -z "$(git status --porcelain -- . ':!docs' | head -1)" ]; then
-            BRANCH="docs/agent-${ISSUE_NUMBER}"
+            BRANCH="docs/agent-${ISSUE_NUMBER}-${GITHUB_RUN_ID}"
           else
-            BRANCH="feature/agent-${ISSUE_NUMBER}"
+            BRANCH="feature/agent-${ISSUE_NUMBER}-${GITHUB_RUN_ID}"
           fi
 
           git config user.name 'github-actions[bot]'
@@ -204,3 +206,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.AGENT_GITHUB_TOKEN }}
         run: gh pr edit --add-label 'agent:needs-review'
+
+      # どのステップで落ちても issue に書き戻す。無人実行が無言で止まると、
+      # 止まったこと自体に誰も気づけず、agent:auto が付いたまま放置される。
+      # ブランチ名の衝突・push 失敗・エージェント自身の異常終了すべてをここで拾う
+      - name: Report an unexpected failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.AGENT_GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "実装エージェントが異常終了しました。再度試すには原因を潰してから \`agent:auto\` を付け直してください。
+
+          ログ: $RUN_URL"
+          gh issue edit "$ISSUE_NUMBER" --add-label 'agent:blocked' --remove-label 'agent:auto'

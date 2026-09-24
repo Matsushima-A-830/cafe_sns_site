@@ -21,7 +21,11 @@ pull_request ────────────┬─→ ci.yml / integration.
 |---|---|---|
 | Safari E2E | `e2e.yml` を `full: true` で呼び、webkit / mobile-safari も含めて回す | Safari 固有のリグレッション。Safari 対応方針の判断材料になる |
 | Schema Drift | Supabase を起動して `supabase db diff --schema public` | マイグレーションを通さない変更が入った、かマイグレーションが壊れている |
-| Board Drift | `scripts/board-stats.sh` の実測値が `docs/implementation-board.html` に反映されているか | ボードが古い。`/board-update` を回す合図 |
+| Board Drift | `scripts/board-stats.sh` の実測値をサマリに出す（**判定はしない**） | ズレていたら `/board-update` を回す合図 |
+
+Board Drift が判定しないのは、ボードの集計値が HTML 内の JSON から JS で算出され静的に読めず、
+画面IDの突き合わせも1カードが複数画面を兼ねる（`S_HOME` が `S_MY_HOME` を含む等）ため
+誤検知が避けられないから。**落ちない検査に意味は無いが、嘘の警告を出す検査はもっと悪い。**
 
 ### 運用上の注意
 

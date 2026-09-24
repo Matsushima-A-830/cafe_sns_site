@@ -78,18 +78,14 @@ jobs:
           cat "$RUNNER_TEMP/stats.txt" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
 
-      # 画面数・テーブル数がボード HTML に現れなければ、ボードが古い
-      - name: Compare with the board
+      # このジョブは判定せず報告だけする。ボードの集計値は HTML 内の JSON から
+      # JS が算出するため静的には読めず、画面IDの突き合わせも 1カードが複数画面を
+      # 兼ねる（例: S_HOME が S_MY_HOME を含む）ため誤検知が出る。
+      # 落ちない検査に意味は無いが、嘘の警告を出す検査はもっと悪い。
+      # 実測値をサマリに出し、ズレの判断と修正は /board-update に任せる
+      - name: Note how to act on the numbers
         run: |
-          SCREENS=$(grep -oE '^SCREENS +[0-9]+ / [0-9]+' "$RUNNER_TEMP/stats.txt" | grep -oE '[0-9]+ / [0-9]+')
-          TABLES=$(grep -oE '^TABLES +[0-9]+ / [0-9]+' "$RUNNER_TEMP/stats.txt" | grep -oE '[0-9]+ / [0-9]+')
-          stale=0
-          for pair in "$SCREENS" "$TABLES"; do
-            done_n=${pair%% /*}
-            if ! grep -qF ">$done_n<" docs/implementation-board.html; then
-              echo "::warning::ボードに $pair が見当たらない"
-              stale=1
-            fi
-          done
-          [ "$stale" -eq 0 ] && echo "ボードは実装と整合している"
-          exit "$stale"
+          {
+            echo
+            echo 'ズレていたら `/board-update` で `docs/implementation-board.html` を更新する。'
+          } >> "$GITHUB_STEP_SUMMARY"
