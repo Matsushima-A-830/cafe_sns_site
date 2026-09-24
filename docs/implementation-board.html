@@ -510,7 +510,7 @@
           "tag": "S_PROFILE_EDIT",
           "title": "プロフィール編集",
           "body": "表示名・自己紹介・ホームエリアを編集。ユーザーネームは disabled 表示のみで、Server Action のスキーマにも含めず構造的に変更不可にしている。変更検知で保存ボタンを disabled、離脱時は beforeunload のみで確認する。",
-          "why": "アバター差し替えは Storage 導線が丸ごと無く別スコープ（D45）／username の変更不可は RLS/トリガーでは守られていない（D46）"
+          "why": "アバター差し替えは Storage 導線が丸ごと無く別スコープ（D45）／username の変更不可は RLS/トリガーで担保済み（D46, 2026-09-23解消）"
         },
         {
           "status": "partial",
@@ -918,12 +918,6 @@
           "tag": "D45",
           "title": "アバター差し替えが未実装",
           "body": "S_PROFILE_EDIT で表示名・bio・ホームエリアは編集できるが、avatars バケット・署名URLエンドポイント・アップロードUIが丸ごと無い。EXIF除去+WebP変換ロジックは post-images 用のものをそのまま流用できる。"
-        },
-        {
-          "status": "risk",
-          "tag": "D46",
-          "title": "username の変更不可がRLSで守られていない",
-          "body": "guard_privileged_profile_columns は role/status しか弾かず、username はガード対象外。PostgREST を直接叩けば書き換え可能で、S_PROFILE_EDIT の「変更不可」表示はアプリ層（Zodスキーマに含めない）だけで担保している状態。RLS統合テストで固定して記録した。"
         },
         {
           "status": "risk",

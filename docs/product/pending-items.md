@@ -1083,7 +1083,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   `processPostImage` がそのまま流用できる（投稿画像専用ロジックではない）
 - 参照: S_PROFILE_EDIT 実装時の着手判断（2026-09-21）
 
-### D46. `profiles.username` の「変更不可」が RLS/トリガーで守られていない
+### D46. `profiles.username` の「変更不可」が RLS/トリガーで守られていない（解消済み・2026-09-23）
 
 - **課題:** `guard_privileged_profile_columns`（`20260905130000_create_profiles.sql`）は
   `role` / `status` の変更だけを弾く。`username` はガード対象外のため、`profiles_update_self`
@@ -1091,11 +1091,14 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   S_PROFILE_EDIT の「ユーザーネームは変更できません」は `app/_actions/profiles.ts` の
   `profileEditSchema` に `username` を含めないことでしか担保していない
   — CLAUDE.md の「RLSに認可を委譲」からは外れた状態
-- **現状の扱い:** この PR では直さず、ギャップを
-  `tests/integration/profiles-rls.test.ts`「username は RLS では守られていない」で固定して記録した
-- **対応案（未検討）:** `guard_privileged_profile_columns` に `username` の変更検知を追加する
-  （`role`/`status` と同じ RAISE EXCEPTION 方式）。`profiles` テーブル全体に影響するマイグレーションになるため、
-  S_PROFILE_EDIT とは別 PR で対応する
+- **対応内容:** `20260923140000_guard_profile_username.sql` で `guard_privileged_profile_columns` に
+  `username` の変更検知を追加（`role`/`status` と同じ RAISE EXCEPTION 方式）。
+  **admin 例外は設けない** — ワイヤー（[mypage.md](../design/wireframes/mypage.md)）に例外の記述が無く、
+  管理画面にも username 変更UIが存在しないため。将来モデレーション目的で強制変更が必要になれば、
+  その時に専用の Server Action + `is_admin()` チェックとして別途設計する
+  （RLS層で先回りして使われない権限を開けない判断）
+- `tests/integration/profiles-rls.test.ts` の該当テストを「守られていない」から
+  「本人・admin ともに変更不可」を検証する形に反転済み
 - 参照: S_PROFILE_EDIT の `/code-review`（2026-09-21）
 
 ### D47. S_REPORT_FORM で見送ったもの

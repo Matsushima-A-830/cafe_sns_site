@@ -79,11 +79,13 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 **RLS:**
 - SELECT: 全ユーザー可（ただし `guardian_email`, `metadata` は View で除外して公開）
 - INSERT: `auth.uid() = id`
-- UPDATE: `auth.uid() = id`（`role`, `status` は admin のみ変更可）
+- UPDATE: `auth.uid() = id`（`role`, `status` は admin のみ変更可。`username` は本人・admin ともに変更不可）
 - DELETE: 不可（`status='deleted'` で無効化）
 
-**`role` / `status` の保護は BEFORE UPDATE トリガー（`guard_privileged_profile_columns`）で行う。**
+**`role` / `status` / `username` の保護は BEFORE UPDATE トリガー（`guard_privileged_profile_columns`）で行う。**
 RLS の `WITH CHECK` は OLD 行を参照できず「どの列が変わったか」を判定できないため。
+`username` は admin にも例外を設けない（管理画面に変更UIが存在しないため。将来モデレーション目的で
+必要になれば専用の Server Action として別途設計する）。
 このトリガーは **`auth.uid()` が NULL のとき素通りする** — service_role と直接接続を巻き込むと、
 本番に最初の admin を作る手段が消えるため（[pending-items A9](../../product/pending-items.md)）。
 

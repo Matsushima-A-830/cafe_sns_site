@@ -168,6 +168,9 @@ feat: 気分入り口をS_HOMEに追加
 - [ ] マイグレーション含む場合 `pnpm db:reset` が通る
 ```
 
+> ⏳ **2026-10-01 まで:** GitHub Actions が予算切れでCIが起動しない。この間は通常運用ではなく
+> [ci-outage-stacked-prs.md](./ci-outage-stacked-prs.md) のスタックPR運用に従う（PR #75 が起点）。
+
 ## PR 運用（個人開発でも実施）
 
 - **必ずブランチを切って PR 作成** — 直接 main に push しない
