@@ -39,8 +39,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      # レビュー役は差分を読むだけで git の認証を使わない。
+      # Bash を持つエージェントに認証情報を残さない方針を agent-implement.yml と揃える
+      # （このジョブは contents: read なので push はできないが、例外を作らない）
       - uses: actions/checkout@v5
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Collect changed files

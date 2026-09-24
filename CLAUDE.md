@@ -316,9 +316,28 @@ bg-danger           (危険操作)
 ### Claude Code と作業する際のGit運用
 
 - **ブランチ切り替え、PR作成、コミットは必ずユーザー確認を経る**
+  （例外は CI 上の `agent-implement.yml` のみ。下記「無人パイプラインの例外」参照）
 - **破壊的操作**（force push, hard reset, branch削除等）は指示なしにやらない
 - pre-commit hook 失敗時は `--no-verify` で回避せず、根本を直す
 - コミットメッセージには `Co-Authored-By: Claude ...` を付与
+
+#### 無人パイプラインの例外
+
+`agent-implement.yml` は issue への `agent:auto` ラベルを起点に、人の逐次確認なしで
+コミット・ブランチ作成・PR作成を行い、範囲内なら auto-merge まで予約する。
+上の「必ずユーザー確認を経る」はこのワークフローには適用されない。
+
+代わりに次で担保する。詳細と段階の上げ方は
+[docs/operations/agent-pipeline.md](docs/operations/agent-pipeline.md)。
+
+- 起動できるのは OWNER / MEMBER / COLLABORATOR がラベルを付けた issue だけ
+- 無人マージの範囲は `scripts/check-agent-scope.sh` のステージで制限（現在は `docs/` のみ）
+- `.github/` `lefthook.yml` `scripts/check-*` `supabase/migrations/` `package.json`
+  `CLAUDE.md` は常時禁止。**エージェントが自分を止める仕組みと本ファイルを変更することはない**
+- 実際のマージは必須ステータスチェックが全緑のときだけ
+
+**対話セッションの Claude Code（このファイルを読んでいる側）にこの例外は適用されない。**
+手元での commit / push / PR 作成は、これまでどおり毎回ユーザー確認を経ること。
 
 ## アクセシビリティとパフォーマンス
 

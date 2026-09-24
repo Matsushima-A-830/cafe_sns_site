@@ -37,11 +37,14 @@ jobs:
       # 無人マージを許す範囲。1 = docs のみ / 2 = + テスト / 3 = + アプリコード
       AGENT_AUTOMERGE_STAGE: '1'
     steps:
-      # PR に CI を走らせるには PAT が必要。GITHUB_TOKEN が作った PR は
-      # 他のワークフローをトリガーしない仕様で、必須チェックが永久に pending になる
+      # persist-credentials: false が無いと checkout が PAT を .git/config に
+      # 焼き込み、次のステップのエージェント（Bash 付き）がそのまま git push できる。
+      # そうなると Check merge scope を迂回でき、無人マージの関門が
+      # 「エージェントが手順を守ること」に依存した見せかけの防御になる。
+      # push は Open a pull request ステップで改めて認証情報を注入して行う
       - uses: actions/checkout@v5
         with:
-          token: ${{ secrets.AGENT_GITHUB_TOKEN }}
+          persist-credentials: false
           fetch-depth: 0
 
       - uses: pnpm/action-setup@v6
@@ -153,6 +156,7 @@ jobs:
         id: pr
         env:
           GH_TOKEN: ${{ secrets.AGENT_GITHUB_TOKEN }}
+          AGENT_TOKEN: ${{ secrets.AGENT_GITHUB_TOKEN }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           IN_SCOPE: ${{ steps.scope.outputs.allowed }}
@@ -174,6 +178,11 @@ jobs:
           # issue タイトルは Conventional Commits 前提のテンプレート由来。
           # 規約違反なら ci.yml の commitlint ジョブが PR で落とす
           git commit -m "$ISSUE_TITLE" -m "Closes #${ISSUE_NUMBER}"
+
+          # ここで初めて push 権限を与える。エージェントの turn は既に終わっており、
+          # スコープ判定も済んでいるので、この時点なら関門を飛ばされる余地がない
+          git remote set-url origin \
+            "https://x-access-token:${AGENT_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git push -u origin "$BRANCH"
 
           {
