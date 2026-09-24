@@ -7,9 +7,9 @@ import type { Result } from '@/types/result'
 /**
  * S_PROFILE_EDIT の保存。display_name / bio のみを更新する。
  *
- * username はここで絶対に受け取らない・書かない — アプリ層の「変更不可」はDB制約ではなく
- * このスキーマ（profileEditSchema）に username フィールドが無いことだけで担保している
- *   supabase/migrations/20260905130000_create_profiles.sql profiles_update_self
+ * username はここで絶対に受け取らない・書かない — DB側も guard_privileged_profile_columns
+ * トリガーで変更を拒否するが、ここではその手前で弾く（早期リターンの二重防御）
+ *   supabase/migrations/20260923140000_guard_profile_username.sql
  */
 type UpdateProfileError = 'INVALID_INPUT' | 'UNAUTHENTICATED' | 'INTERNAL_ERROR'
 

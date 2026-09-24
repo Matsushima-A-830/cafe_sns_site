@@ -281,6 +281,21 @@ describe('evaluateCriteria', () => {
     )
     expect(receivedFromNonFollowerSession).toBe(true)
   })
+
+  it('likes_given: フォロワー限定投稿へのいいねも、フォロワーでないセッションから見て過小評価にならない', async () => {
+    // user が otherUser の非公開（followers限定）投稿にいいねした後、フォロワーでなくなった
+    // 状態を想定。likes → posts の JOIN を user 自身のセッションで行っても、
+    // posts_select がフォロワー限定投稿を隠すため本来過小評価になる（D38, count_likes_given RPC で修正済み）
+    const postId = await insertPublishedPost(otherUser.userId, { visibility: 'followers' })
+    await service.from('likes').insert({ user_id: user.userId, post_id: postId })
+    postIds.push(postId)
+
+    const givenFromNonFollowerSession = await evaluateCriteria(typed(user.client), user.userId, {
+      type: 'likes_given',
+      threshold: 1,
+    })
+    expect(givenFromNonFollowerSession).toBe(true)
+  })
 })
 
 describe('checkAndAwardBadges', () => {
