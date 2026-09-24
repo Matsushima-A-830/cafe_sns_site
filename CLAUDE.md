@@ -31,6 +31,7 @@
 | **operations / 開発サイクル** | [docs/operations/development-cycle.md](docs/operations/development-cycle.md) | **スキルを使った1周の順序と理由（着手判断→実装→レビュー→実機確認→出荷→引き継ぎ）** |
 | **operations / Git** | [docs/operations/git-workflow.md](docs/operations/git-workflow.md) | **ブランチ・コミット・PR規約（実装時必読）** |
 | **operations / デプロイ** | [docs/operations/deployment.md](docs/operations/deployment.md) | **環境・CI/CD・監視（実装時必読）** |
+| operations / エージェント | [docs/operations/agent-pipeline.md](docs/operations/agent-pipeline.md) | 無人実行（nightly）・自動レビュー・無人マージのステージと安全弁 |
 | seed / バッジ | [docs/seed/badges-initial-set.md](docs/seed/badges-initial-set.md) | 20バッジの条件定義 |
 | seed / タグ | [docs/seed/curated-tags-initial-set.md](docs/seed/curated-tags-initial-set.md) | 厳選タグ30個 |
 | seed / エリア | [docs/seed/areas-initial-set.md](docs/seed/areas-initial-set.md) | 東京45エリア |
