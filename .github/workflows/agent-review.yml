@@ -68,12 +68,19 @@ jobs:
 
       - uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # 従量課金の API キーではなく Claude サブスクの利用枠を使う。
+          # トークンは `claude setup-token` で発行する。期限が明示されていないため、
+          # 認証エラーで落ちたらまず再発行して Secret を更新すること
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # 明示しないと OIDC 経由でトークンを交換しようとする。
           # このワークフローに必要なのは PR コメントだけなので GITHUB_TOKEN で足りる
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          # サブスクの利用枠を消費するので、レビューは安く済ませる。
+          # やっているのは規約違反の検出で、Opus の推論力は要らない
           claude_args: |
-            --max-turns 30
+            --model claude-sonnet-5
+            --effort medium
+            --max-turns 15
             --allowedTools Read,Glob,Grep,Write,Bash
           # PR 本文やタイトルは任意入力なのでプロンプトに埋め込まない。
           # 差分はエージェント自身に git で読ませる

@@ -151,12 +151,46 @@ issue (agent:auto)
 
 | 項目 | 内容 |
 |---|---|
-| `ANTHROPIC_API_KEY` secret | **未設定だと agent-review / agent-implement がどちらも動かない** |
+| `CLAUDE_CODE_OAUTH_TOKEN` secret | **未設定だと agent-review / agent-implement がどちらも動かない。**発行は下記 |
 | `AGENT_GITHUB_TOKEN`（PAT または GitHub App トークン） | `GITHUB_TOKEN` が作った PR は他のワークフローをトリガーしない。**これがないと必須チェックが永久に pending になり auto-merge が完了しない** |
 | ブランチ保護の必須ステータスチェックに `Agent Review` を登録 | 登録しないと「通知だけ」で止める仕組みにならない |
 | ブランチ保護の必須 approve 人数 = 0 | **Actions は自分の PR を approve できない。**1人以上だと auto-merge が永久に止まる |
 | Settings → Actions → Allow GitHub Actions to create and approve pull requests | 有効化が必要 |
 | ラベル `agent:auto` `agent:automerge` `agent:needs-review` `agent:blocked` | 事前作成 |
+
+### CLAUDE_CODE_OAUTH_TOKEN の発行
+
+従量課金の API キー（`ANTHROPIC_API_KEY`）ではなく、Claude サブスクの利用枠を使う。
+
+```bash
+claude setup-token   # 要 Claude サブスクリプション
+```
+
+出力されたトークンを `Settings → Secrets and variables → Actions` に
+`CLAUDE_CODE_OAUTH_TOKEN` として登録する。`ANTHROPIC_API_KEY` は登録しない
+（両方あるとどちらが使われるか分からなくなる）。
+
+- **有効期限は公式に明示されていない。** 認証エラーで落ちたら、まず再発行して Secret を更新する
+- action の `classify_inline_comments`（インラインコメント分類）だけは `anthropic_api_key` を要求する。
+  `agent-review.yml` は `gh pr comment` で1本にまとめて投げるため影響しない
+- 課金は発生しないが、**CI がサブスクの利用枠を消費する**。下の費用制御はそのための設定
+
+### 費用制御
+
+利用枠の消費を抑えるため、`claude_args` でモデルと上限を固定している。
+
+| ワークフロー | モデル | effort | max-turns | 理由 |
+|---|---|---|---|---|
+| `agent-review.yml` | `claude-sonnet-5` | `medium` | 15 | 規約違反の検出が仕事で、上位モデルの推論力は要らない |
+| `agent-implement.yml` | `claude-opus-5` | `high` | 60 | 実装の質はそのままコードに残る。ここはケチらない |
+
+`agent-implement` を安くしたいときに下げるのは effort ではなく、
+**無人マージのステージ**（§3）のほう。品質を落としたまま自動でマージする状態を作らない。
+
+そのほかの消費を抑える仕掛け:
+
+- `agent-review.yml` は draft PR を skip する（§1-b）
+- `--allowedTools` を必要最小限に絞り、余計な探索をさせない
 
 ## 6. 踏んだ罠
 
