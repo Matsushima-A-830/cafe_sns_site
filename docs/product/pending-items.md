@@ -1409,7 +1409,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   そのStorageオブジェクトは `document_urls` から永久に参照されない孤立ファイルになる
 - **対応方針（未着手）:** 同ファイルの `handleRemove`（削除側）に既にある
   `if (isPending) return` ガードと同じものを `handleFilesSelected` の冒頭にも追加し、
-  併せて誤ったコメント（:199-200）を修正する。`fix/disabled-focus-loss-remaining`（PR #77）側で対応する
+  併せて誤ったコメント（:199-200）を修正する。別PRで対応する
 - 参照: D60 管理画面分（`fix/disabled-focus-loss-admin`）の `/code-review` で発見（2026-09-25）
 
 ## 削除・アーカイブ判断待ち
