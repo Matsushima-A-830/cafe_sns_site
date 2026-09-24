@@ -1,0 +1,60 @@
+name: エージェント実装タスク
+description: 実装エージェントに自動で着手させるタスク。agent:auto ラベルが起動トリガーになる
+title: 'feat: '
+labels: ['agent:auto']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        この issue に `agent:auto` ラベルが付くと実装エージェントが起動します。
+
+        エージェントが無人マージできるのは `scripts/check-agent-scope.sh` のステージ範囲内だけです。
+        範囲外の変更を含む場合は PR が立つところまでで止まり、マージは人が行います。
+        詳細は [docs/operations/agent-pipeline.md](../../docs/operations/agent-pipeline.md) を参照。
+
+  - type: input
+    id: screen-id
+    attributes:
+      label: 画面ID / 対象
+      description: 該当する `S_*` の画面ID、または対象モジュール
+      placeholder: S_CAFE_DETAIL / lib/validators/cafe.ts
+    validations:
+      required: false
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: 達成したいこと
+      description: 1〜3行。実装方針ではなく「何が満たされたら完了か」を書く
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 完了条件
+      description: エージェントがテストに落とし込める粒度で書く。TDD の Red に相当する
+      placeholder: |
+        - 未ログインで開くと /login へリダイレクトされる
+        - 存在しない cafe_id では NOT_FOUND を返す
+    validations:
+      required: true
+
+  - type: textarea
+    id: docs
+    attributes:
+      label: 参照すべき設計ドキュメント
+      description: 齟齬が出たらドキュメント優先で判断させるため、起点を明示する
+      placeholder: docs/design/wireframes/README.md の S_CAFE_DETAIL
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: out-of-scope
+    attributes:
+      label: 無人マージの対象外になる要素
+      description: いずれかに該当する場合、PR は立つがマージは人が行う
+      options:
+        - label: マイグレーション（supabase/migrations/）の追加が必要
+        - label: 新しい依存の追加が必要
+        - label: ワークフロー・検査スクリプトの変更が必要

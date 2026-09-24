@@ -79,11 +79,13 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 **RLS:**
 - SELECT: 全ユーザー可（ただし `guardian_email`, `metadata` は View で除外して公開）
 - INSERT: `auth.uid() = id`
-- UPDATE: `auth.uid() = id`（`role`, `status` は admin のみ変更可）
+- UPDATE: `auth.uid() = id`（`role`, `status` は admin のみ変更可。`username` は本人・admin ともに変更不可）
 - DELETE: 不可（`status='deleted'` で無効化）
 
-**`role` / `status` の保護は BEFORE UPDATE トリガー（`guard_privileged_profile_columns`）で行う。**
+**`role` / `status` / `username` の保護は BEFORE UPDATE トリガー（`guard_privileged_profile_columns`）で行う。**
 RLS の `WITH CHECK` は OLD 行を参照できず「どの列が変わったか」を判定できないため。
+`username` は admin にも例外を設けない（管理画面に変更UIが存在しないため。将来モデレーション目的で
+必要になれば専用の Server Action として別途設計する）。
 このトリガーは **`auth.uid()` が NULL のとき素通りする** — service_role と直接接続を巻き込むと、
 本番に最初の admin を作る手段が消えるため（[pending-items A9](../../product/pending-items.md)）。
 
@@ -756,9 +758,9 @@ body_search tsvector GENERATED ALWAYS AS (
   （`20260920150000_create_notifications.sql`）が別トリガーとして発火する。自己いいね・
   ブロック関係・`user_settings.notify_like=false` は通知を作らない（[notifications](#notifications)）
 
-**RLS:** SELECT は**ブロックしていない相手のぶんだけ**全ユーザー
-（`using (not is_blocked_either_way(user_id))`）/ INSERT・DELETE は本人。
-INSERT のみ `is_active_user()` を要求し、DELETE は停止中でも通す
+**RLS:** SELECT は**投稿の可視性を継承したうえで、ブロックしていない相手のぶんだけ**全ユーザー
+（`using ((exists(select 1 from posts p where p.id = likes.post_id) or is_post_author(likes.post_id)) and not is_blocked_either_way(user_id))`）
+/ INSERT・DELETE は本人。INSERT のみ `is_active_user()` を要求し、DELETE は停止中でも通す
 （自分のいいねを外せない状態に閉じ込めない）。**UPDATE ポリシーは置かない**（＝拒否。
 更新できる列が無く、付け外しは INSERT / DELETE で行う）。
 
@@ -768,6 +770,32 @@ SELECT を原則公開にするのは `user_cafe_lists`（本人のみ）とは�
 ブロックされた側が `likes` を `user_id` で絞るだけで相手のいいねした投稿を列挙でき、
 `posts_select` が隠しているはずの投稿の存在まで ID として漏れる。
 未ログインでは `auth.uid()` が null になり全件見える。
+
+**投稿の可視性継承（D38, `20260923150000_likes_select_visibility.sql`）:**
+当初 SELECT は投稿側の状態を見ておらず、`post_id` さえ分かれば hidden・archived・論理削除済み・
+非公開（`visibility='followers'` で非フォロワー）の投稿へのいいねも誰でも読めていた。
+`comments_select_visible`（[comments](#comments)）と同じパターンで
+`exists(select 1 from posts p where p.id = likes.post_id) or is_post_author(likes.post_id)` を
+既存条件と AND 結合し、`posts_select` をそのまま継承させた。`is_post_author` は `author_id` 一致
+のみを見て `deleted_at` を考慮しないため、投稿主本人は自分の論理削除済み投稿へのいいねも読める
+（`comments_select_visible` の `is_post_author` OR と同じ制約）。
+
+**`count_likes_given` RPC（同マイグレーション）:** 上の可視性継承により、`likes` への
+plain SELECT はすべて `posts_select` 経由で暗黙にフィルタされるようになった。
+`lib/badges/rules.ts` の `countLikesGiven`（呼び出しセッション＝いいねした本人で
+`user_id` を絞るだけ）は、対象の投稿が後から非公開（フォロワー外）になった時点で
+過小評価になる（`count_likes_received` で一度起きた問題と同型）。`security definer` で
+`status='published' and deleted_at is null` のみを条件に集計する RPC に切り出して回避した。
+`count_likes_received` と同様、`p_user_id` は任意に指定できるため「誰が誰に何件いいねを
+送ったか」の集計値自体は認証済みユーザーなら誰でも引ける（既存の受け取り側と同じトレードオフ）。
+
+**`badge_criteria_met` の `likes_given` 分岐も同時に揃える。** `award_badge`
+（[user_badges](#user_badges)）の唯一の権威ある判定である `badge_criteria_met` は、
+このマイグレーション以前は `likes_given` を無絞り込みの `count(*)` で判定しており、
+`count_likes_given` を導入すると lib 側の事前フィルタ（`evaluateCriteria`）だけが
+hidden/archived/削除済みぶんを除外し、`badge_criteria_met` はそれを含めて判定するという
+食い違いが生まれる。`likes_received` 分岐が `count_likes_received` を使っているのと同じ形に
+揃え、`badge_criteria_met` の `likes_given` 分岐も `count_likes_given` を呼ぶように変更した。
 
 `follows_select_all` が `using (true)` のままなのは、フォロー数・フォロワー数が
 ワイヤーで公開表示される設計だから（[wireframes/browsing.md](../../design/wireframes/browsing.md)
