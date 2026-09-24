@@ -1,0 +1,91 @@
+name: Nightly
+
+# 人が見ていない時間に走らせる唯一のワークフロー。
+# 1回あたり約 17 分（Safari E2E 11 + Schema Drift 5 + Board 1）を課金分として使う。
+# Actions の予算が $5（= Linux 約 625 分）なので、まず週1回から始める。
+# GitHub は 60 日間リポジトリに活動がないと schedule を自動停止するので、
+# 長期の中断明けは workflow_dispatch で一度手動起動して再開させること。
+on:
+  schedule:
+    - cron: '0 18 * * 1'  # UTC 月 18:00 = JST 火 03:00
+  workflow_dispatch:
+
+concurrency:
+  group: nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # PR では Chromium 系しか回していない webkit / mobile-safari を夜間に回す。
+  # CLAUDE.md の「Safari はリリース前に集中検証」を毎晩に前倒しする
+  safari-e2e:
+    name: Safari E2E
+    uses: ./.github/workflows/e2e.yml
+    with:
+      full: true
+
+  # tables.md とマイグレーションのズレを検出する。
+  # migration-check.yml は PR 時のみ動くため、main に入った後のドリフトは拾えない
+  schema-drift:
+    name: Schema Drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Start local Supabase
+        run: pnpm exec supabase start -x studio,postgres-meta,edge-runtime,logflare,vector,supavisor,realtime,imgproxy
+
+      # migrations を適用した状態と実スキーマの差分。差分が出る = マイグレーションを
+      # 通さない変更が入ったか、マイグレーション自体が壊れている
+      - name: Diff schema
+        run: |
+          DIFF=$(pnpm exec supabase db diff --schema public)
+          if [ -n "$DIFF" ]; then
+            echo "::error::マイグレーションと実スキーマに差分があります"
+            echo "$DIFF"
+            exit 1
+          fi
+          echo "差分なし"
+
+      - name: Dump Supabase container logs
+        if: failure()
+        run: docker ps -a --filter name=supabase --format '{{.Names}}' | xargs -r -I{} sh -c 'echo "===== {} ====="; docker logs --tail 200 {} 2>&1'
+
+  # 実装状況ボードの指標が実装とズレていないかを見る。
+  # 検出だけで自動修正はしない。ボードの更新は /board-update か、
+  # issue に agent:auto を付けて agent-implement.yml に任せる
+  board-drift:
+    name: Board Drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Collect board stats
+        run: |
+          bash scripts/board-stats.sh | tee "$RUNNER_TEMP/stats.txt"
+          echo '## ボード実測値' >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/stats.txt" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      # このジョブは判定せず報告だけする。ボードの集計値は HTML 内の JSON から
+      # JS が算出するため静的には読めず、画面IDの突き合わせも 1カードが複数画面を
+      # 兼ねる（例: S_HOME が S_MY_HOME を含む）ため誤検知が出る。
+      # 落ちない検査に意味は無いが、嘘の警告を出す検査はもっと悪い。
+      # 実測値をサマリに出し、ズレの判断と修正は /board-update に任せる
+      - name: Note how to act on the numbers
+        run: |
+          {
+            echo
+            echo 'ズレていたら `/board-update` で `docs/implementation-board.html` を更新する。'
+          } >> "$GITHUB_STEP_SUMMARY"
