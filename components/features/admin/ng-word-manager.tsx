@@ -42,6 +42,9 @@ export function NgWordManager({ initialItems }: { initialItems: NgWordListItem[]
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
+    // disabled にせず自前で弾く（下の aria-busy のコメント参照）。追加フォームと
+    // 削除は isPending を共有しているため、削除中の連続追加もここで止まる
+    if (isPending) return
     setFormError(null)
     const trimmedWord = word.trim()
     const selectedCategory = category || undefined
@@ -72,6 +75,9 @@ export function NgWordManager({ initialItems }: { initialItems: NgWordListItem[]
   }
 
   function handleConfirmDelete() {
+    // disabled にせず自前で弾く（下の aria-busy のコメント参照）。追加フォームと
+    // 削除は isPending を共有しているため、追加中の連続削除もここで止まる
+    if (isPending) return
     const target = pendingDelete
     if (!target) return
 
@@ -105,7 +111,9 @@ export function NgWordManager({ initialItems }: { initialItems: NgWordListItem[]
           <Input
             id={wordId}
             value={word}
-            disabled={isPending}
+            // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。
+            // 二重送信は handleSubmit 側の isPending ガードで止める
+            aria-busy={isPending}
             maxLength={100}
             required
             onChange={(event) => setWord(event.target.value)}
@@ -118,7 +126,9 @@ export function NgWordManager({ initialItems }: { initialItems: NgWordListItem[]
             <select
               id={severityId}
               value={severity}
-              disabled={isPending}
+              // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。
+              // 二重送信は handleSubmit 側の isPending ガードで止める
+              aria-busy={isPending}
               onChange={(event) => setSeverity(event.target.value as Severity)}
               className={selectClassName}
             >
@@ -135,7 +145,9 @@ export function NgWordManager({ initialItems }: { initialItems: NgWordListItem[]
             <select
               id={categoryId}
               value={category}
-              disabled={isPending}
+              // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。
+              // 二重送信は handleSubmit 側の isPending ガードで止める
+              aria-busy={isPending}
               onChange={(event) => setCategory(event.target.value as Category | '')}
               className={selectClassName}
             >
@@ -155,7 +167,8 @@ export function NgWordManager({ initialItems }: { initialItems: NgWordListItem[]
           </p>
         )}
 
-        <Button type="submit" disabled={isPending || word.trim().length === 0}>
+        {/* 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。二重送信は handleSubmit 側の isPending ガードで止める */}
+        <Button type="submit" disabled={word.trim().length === 0} aria-busy={isPending}>
           追加する
         </Button>
       </form>
@@ -186,7 +199,10 @@ export function NgWordManager({ initialItems }: { initialItems: NgWordListItem[]
                 type="button"
                 variant="outline"
                 size="sm"
-                disabled={isPending}
+                // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ち、
+                // キーボードで押したユーザーは毎回ページ先頭から辿り直すことになる。
+                // 連打は handleConfirmDelete 側の isPending ガードで止める
+                aria-busy={isPending}
                 onClick={() => setPendingDelete(item)}
                 className="focus-visible:ring-2 focus-visible:ring-ring-focus"
               >
@@ -226,7 +242,10 @@ export function NgWordManager({ initialItems }: { initialItems: NgWordListItem[]
               type="button"
               variant="destructive"
               size="lg"
-              disabled={isPending}
+              // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ち、
+              // キーボードで押したユーザーは毎回ページ先頭から辿り直すことになる。
+              // 連打は handleConfirmDelete 側の isPending ガードで止める
+              aria-busy={isPending}
               onClick={handleConfirmDelete}
             >
               削除する
