@@ -10,7 +10,9 @@ name: Agent Review
 # プライベート個人リポジトリなので現状は問題にならない
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    # ready_for_review を入れているのは、draft 中は skip するため。
+    # これが無いと draft を外したときにレビューが走らず、必須チェックが埋まらない
+    types: [opened, synchronize, reopened, ready_for_review]
 
 concurrency:
   group: agent-review-${{ github.ref }}
@@ -27,6 +29,9 @@ env:
 jobs:
   review:
     name: Agent Review
+    # draft のうちはレビューしない。push ごとに約3分の課金分を使うため、
+    # 書きかけの差分に対して回すのは無駄になる
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

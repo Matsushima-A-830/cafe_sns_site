@@ -19,15 +19,41 @@ pull_request ────────────┬─→ ci.yml / integration.
 
 | ジョブ | 内容 | 落ちたときの意味 |
 |---|---|---|
-| Safari E2E | `e2e.yml` を `full: true` で呼び、webkit / mobile-safari も含めて回す | Safari 固有のリグレッション。`project-safari-pending` の判断材料になる |
+| Safari E2E | `e2e.yml` を `full: true` で呼び、webkit / mobile-safari も含めて回す | Safari 固有のリグレッション。Safari 対応方針の判断材料になる |
 | Schema Drift | Supabase を起動して `supabase db diff --schema public` | マイグレーションを通さない変更が入った、かマイグレーションが壊れている |
 | Board Drift | `scripts/board-stats.sh` の実測値が `docs/implementation-board.html` に反映されているか | ボードが古い。`/board-update` を回す合図 |
 
 ### 運用上の注意
 
-- **週2回（月・木 JST 03:00）から始めている。** full E2E は timeout 30分で Actions 分を食うため、毎晩に上げるのは消費量を見てから
+- **週1回（月 UTC 18:00 = 火 JST 03:00）から始めている。** 1回あたり約17分の課金分を使う。頻度を上げるのは消費量を見てから
 - **GitHub は 60 日間リポジトリに活動がないと schedule を自動停止する。** 長期中断明けは `workflow_dispatch` で一度手動起動して復帰させる
-- `e2e.yml` には `workflow_call` の入口を足しただけで既存トリガーは変えていない。**必須ステータスチェック名には影響しない**
+- `e2e.yml` から **`push: main` トリガーを外した。** webkit 検証をこの夜間ジョブに移したため、マージ直後の full E2E は冗長になった。PR 時のトリガーは変えていないので必須ステータスチェック名には影響しない
+
+## 1-b. Actions の課金分（実測）
+
+予算は **$5 = Linux 2-core 約 625 分**（$0.008/分）。無料枠を使い切った後にここから引かれる。
+
+| ジョブ | 1回あたり（切り上げ後） |
+|---|---|
+| E2E / Playwright（Chromium のみ） | 8.2 分 |
+| E2E / Playwright（webkit 込み） | 11 分 |
+| Integration / Supabase Integration | 4.9 分 |
+| CI / Lint・Typecheck・Test | 2.8 分 |
+| CI / Build | 1.9 分 |
+| Agent Review | 約 3 分 |
+
+| タイミング | 合計 |
+|---|---|
+| PR に1回 push（draft 以外） | 約 22 分 |
+| main へマージ | 約 10 分（E2E を外したため） |
+| Nightly 1回 | 約 17 分 |
+
+節約のために入れてある仕掛け:
+
+- `e2e.yml` の `push: main` を外した（マージごと −11 分）
+- Nightly を週1回にした
+- `agent-review.yml` は draft PR を skip する（`ready_for_review` で draft 解除時に走る）
+- CI / E2E は `cancel-in-progress: true` で、連続 push 時の古い run を積み上げない
 
 ## 2. 落とせるレビュー役: agent-review.yml
 
