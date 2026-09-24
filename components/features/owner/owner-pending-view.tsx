@@ -29,6 +29,9 @@ export function OwnerPendingView({ verification }: Props) {
   const [isPending, startTransition] = useTransition()
 
   function handleWithdraw() {
+    // disabled にせず自前で弾く（下の aria-busy のコメント参照）
+    if (isPending) return
+
     setError(null)
     setConfirmingWithdraw(false)
 
@@ -96,7 +99,10 @@ export function OwnerPendingView({ verification }: Props) {
             type="button"
             variant="outline"
             size="lg"
-            disabled={isPending}
+            // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ち、
+            // キーボードで押したユーザーは毎回ページ先頭から辿り直すことになる。
+            // 連打は handleWithdraw 側の isPending ガードで止める
+            aria-busy={isPending}
             onClick={() => setConfirmingWithdraw(true)}
           >
             申請を取り下げる

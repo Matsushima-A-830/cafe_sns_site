@@ -25,10 +25,13 @@ export function SettingsForm({ initialSettings }: { initialSettings: UserSetting
   const [isPending, startTransition] = useTransition()
   const fontScaleLabelId = useId()
 
-  // isPending は全項目で共有し、保存中は全入力を disabled にする。項目ごとに
-  // 分けると、A保存中にBを変更してAが失敗した際の setSettings(previous) がBの
+  // isPending は全項目で共有し、保存中の変更は saveToggle/saveFontScale 冒頭のガードで弾く。
+  // 項目ごとに分けると、A保存中にBを変更してAが失敗した際の setSettings(previous) がBの
   // 変更を巻き戻してしまう（previous がクロージャに古いまま残るため）
   function saveToggle(key: keyof Omit<UserSettings, 'fontScale'>, value: boolean) {
+    // disabled にせず自前で弾く（下の aria-busy のコメント参照）
+    if (isPending) return
+
     const previous = settings
     setSettings((current) => ({ ...current, [key]: value }))
     setError(null)
@@ -43,6 +46,8 @@ export function SettingsForm({ initialSettings }: { initialSettings: UserSetting
   }
 
   function saveFontScale(value: FontScale) {
+    if (isPending) return
+
     const previous = settings
     setSettings((current) => ({ ...current, fontScale: value }))
     setError(null)
@@ -64,13 +69,13 @@ export function SettingsForm({ initialSettings }: { initialSettings: UserSetting
           <ToggleRow
             label="位置情報の使用"
             checked={settings.useLocation}
-            disabled={isPending}
+            busy={isPending}
             onCheckedChange={(value) => saveToggle('useLocation', value)}
           />
           <ToggleRow
             label="おすすめ表示に活用"
             checked={settings.allowRecommendation}
-            disabled={isPending}
+            busy={isPending}
             onCheckedChange={(value) => saveToggle('allowRecommendation', value)}
           />
           <Link
@@ -91,19 +96,19 @@ export function SettingsForm({ initialSettings }: { initialSettings: UserSetting
           <ToggleRow
             label="いいね"
             checked={settings.notifyLike}
-            disabled={isPending}
+            busy={isPending}
             onCheckedChange={(value) => saveToggle('notifyLike', value)}
           />
           <ToggleRow
             label="コメント"
             checked={settings.notifyComment}
-            disabled={isPending}
+            busy={isPending}
             onCheckedChange={(value) => saveToggle('notifyComment', value)}
           />
           <ToggleRow
             label="フォロー"
             checked={settings.notifyFollow}
-            disabled={isPending}
+            busy={isPending}
             onCheckedChange={(value) => saveToggle('notifyFollow', value)}
           />
         </div>
@@ -130,7 +135,9 @@ export function SettingsForm({ initialSettings }: { initialSettings: UserSetting
                   name="font-scale"
                   className="sr-only"
                   checked={settings.fontScale === option.value}
-                  disabled={isPending}
+                  // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。
+                  // 連打は saveFontScale 側の isPending ガードで止める
+                  aria-busy={isPending}
                   onChange={() => saveFontScale(option.value)}
                 />
                 {option.label}
@@ -156,12 +163,12 @@ export function SettingsForm({ initialSettings }: { initialSettings: UserSetting
 function ToggleRow({
   label,
   checked,
-  disabled,
+  busy,
   onCheckedChange,
 }: {
   label: string
   checked: boolean
-  disabled: boolean
+  busy: boolean
   onCheckedChange: (value: boolean) => void
 }) {
   const id = useId()
@@ -174,7 +181,9 @@ function ToggleRow({
       <Switch
         id={id}
         checked={checked}
-        disabled={disabled}
+        // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。
+        // 連打は saveToggle 側の isPending ガードで止める
+        aria-busy={busy}
         onCheckedChange={onCheckedChange}
         className="focus-visible:ring-2 focus-visible:ring-ring-focus"
       />

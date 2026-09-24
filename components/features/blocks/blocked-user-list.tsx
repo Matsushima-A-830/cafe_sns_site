@@ -21,6 +21,9 @@ export function BlockedUserList({ initialUsers }: { initialUsers: BlockedUser[] 
   const [isPending, startTransition] = useTransition()
 
   function handleConfirmUnblock() {
+    // disabled にせず自前で弾く（下の aria-busy のコメント参照）
+    if (isPending) return
+
     const target = pendingUnblock
     if (!target) return
 
@@ -86,7 +89,10 @@ export function BlockedUserList({ initialUsers }: { initialUsers: BlockedUser[] 
                   type="button"
                   variant="outline"
                   size="sm"
-                  disabled={isPending}
+                  // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ち、
+                  // キーボードで押したユーザーは毎回ページ先頭から辿り直すことになる。
+                  // 連打は handleConfirmUnblock 側の isPending ガードで止める
+                  aria-busy={isPending}
                   onClick={() => setPendingUnblock(user)}
                   className="focus-visible:ring-2 focus-visible:ring-ring-focus"
                 >
@@ -137,7 +143,10 @@ export function BlockedUserList({ initialUsers }: { initialUsers: BlockedUser[] 
               type="button"
               variant="destructive"
               size="lg"
-              disabled={isPending}
+              // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ち、
+              // キーボードで押したユーザーは毎回ページ先頭から辿り直すことになる。
+              // 連打は handleConfirmUnblock 側の isPending ガードで止める
+              aria-busy={isPending}
               onClick={handleConfirmUnblock}
             >
               解除する
