@@ -1364,7 +1364,23 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   （`components/ui/button.tsx` の `buttonVariants` が `disabled:` にしかスタイルを定義していないため）。
   D33対応済みの6コンポーネントも同じ状態で、これは新規に持ち込む問題ではないが、対応の範囲を
   広げるなら「送信中」の視覚表現も合わせて検討する余地がある
-- 参照: D33（送信中disabledのフォーカス喪失、4コンポーネント分解消）の `/code-review` で判明（2026-09-23）
+- **ユーザー影響大の10ファイルを解消（2026-09-24）:** 対応案 a）を採用し、`block-button.tsx` /
+  `settings-form.tsx` / `blocked-user-list.tsx` / `search-result-feed.tsx` / `report-form.tsx` /
+  `post-feed.tsx` / `comment-list.tsx` / `notification-list.tsx` / `owner-pending-view.tsx` /
+  `owner-claim-form.tsx` の計21箇所を `aria-busy` + ハンドラ冒頭の `isPending` ガードに揃えた。
+  `report-form.tsx` / `block-button.tsx` / `blocked-user-list.tsx` / `owner-claim-form.tsx` /
+  `owner-pending-view.tsx` には D33 (`like-button.test.tsx`) と同型の「連打で2回目を送らない」
+  回帰テストを追加した
+- **`/code-review` で見つけたバグ（修正済み）:** `owner-claim-form.tsx` の書類「削除」ボタンに
+  `isPending` ガードが無く、`claimCafe` 送信中に送信済み書類をStorageから実削除できてしまい、
+  DB側の `document_urls` だけ壊れたパスが残る不整合が起き得た。`handleRemove` 冒頭に
+  `if (isPending) return` を追加して防止した
+- **管理画面（admin/owner）は別対応のまま:** `owner-verification-review-actions.tsx` /
+  `report-review-actions.tsx` / `ng-word-manager.tsx` / `regulars-view.tsx` /
+  `export-csv-button.tsx` は優先度を下げて未対応。メインターゲットの10〜20代ユーザーが
+  触らない画面のため
+- 参照: D33（送信中disabledのフォーカス喪失、4コンポーネント分解消）の `/code-review` で判明
+  （2026-09-23）／ユーザー影響大の10ファイルを解消（2026-09-24、`fix/disabled-focus-loss-remaining`）
 
 ## 削除・アーカイブ判断待ち
 

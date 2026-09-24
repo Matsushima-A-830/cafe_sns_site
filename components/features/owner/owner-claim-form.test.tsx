@@ -159,4 +159,70 @@ describe('OwnerClaimForm', () => {
     expect(screen.getByText('前回の申請は却下されています')).toBeInTheDocument()
     expect(screen.getByText('理由: 書類の氏名が一致しません')).toBeInTheDocument()
   })
+
+  it('送信中も disabled にしない（フォーカスを body へ落とさない — D60）', async () => {
+    const user = userEvent.setup()
+    claimCafe.mockImplementation(() => new Promise(() => {}))
+    setup()
+
+    await uploadDocument(user, 0, 'license.pdf')
+    await uploadDocument(user, 2, 'registry.pdf')
+    await user.type(screen.getByLabelText('連絡先メール'), 'owner@example.com')
+    await user.click(screen.getByLabelText('提出情報は本人のものです'))
+    await user.click(screen.getByLabelText('審査結果に従います'))
+    await user.click(
+      screen.getByLabelText('運営から追加確認の連絡がある場合があることを理解しました'),
+    )
+
+    const submit = screen.getByRole('button', { name: '申請を送信する' })
+    await user.click(submit)
+
+    await waitFor(() => expect(submit).toHaveAttribute('aria-busy', 'true'))
+    expect(submit).not.toBeDisabled()
+  })
+
+  it('送信中の連打では claimCafe を2回送らない', async () => {
+    const user = userEvent.setup()
+    claimCafe.mockImplementation(() => new Promise(() => {}))
+    setup()
+
+    await uploadDocument(user, 0, 'license.pdf')
+    await uploadDocument(user, 2, 'registry.pdf')
+    await user.type(screen.getByLabelText('連絡先メール'), 'owner@example.com')
+    await user.click(screen.getByLabelText('提出情報は本人のものです'))
+    await user.click(screen.getByLabelText('審査結果に従います'))
+    await user.click(
+      screen.getByLabelText('運営から追加確認の連絡がある場合があることを理解しました'),
+    )
+
+    const submit = screen.getByRole('button', { name: '申請を送信する' })
+    await user.click(submit)
+    await user.click(submit)
+
+    expect(claimCafe).toHaveBeenCalledTimes(1)
+  })
+
+  it('送信中は削除ボタンを押しても書類を消さない（送信済みパスの不整合防止 — D60）', async () => {
+    const user = userEvent.setup()
+    claimCafe.mockImplementation(() => new Promise(() => {}))
+    setup()
+
+    await uploadDocument(user, 0, 'license.pdf')
+    await uploadDocument(user, 2, 'registry.pdf')
+    await user.type(screen.getByLabelText('連絡先メール'), 'owner@example.com')
+    await user.click(screen.getByLabelText('提出情報は本人のものです'))
+    await user.click(screen.getByLabelText('審査結果に従います'))
+    await user.click(
+      screen.getByLabelText('運営から追加確認の連絡がある場合があることを理解しました'),
+    )
+    await user.click(screen.getByRole('button', { name: '申請を送信する' }))
+
+    await waitFor(() => expect(claimCafe).toHaveBeenCalled())
+    deleteOwnerDocumentFile.mockClear()
+
+    await user.click(screen.getAllByRole('button', { name: '削除' })[0] as HTMLElement)
+
+    expect(screen.getByText('選択済み: 2 / 2 必要')).toBeInTheDocument()
+    expect(deleteOwnerDocumentFile).not.toHaveBeenCalled()
+  })
 })

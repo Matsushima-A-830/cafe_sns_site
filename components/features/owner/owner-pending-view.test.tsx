@@ -84,4 +84,32 @@ describe('OwnerPendingView', () => {
     )
     expect(screen.getByText('審査中です')).toBeInTheDocument()
   })
+
+  it('送信中も「申請を取り下げる」を disabled にしない（フォーカスを body へ落とさない — D60）', async () => {
+    const user = userEvent.setup()
+    withdrawClaim.mockImplementation(() => new Promise(() => {}))
+    render(<OwnerPendingView verification={base} />)
+
+    const openButton = screen.getByRole('button', { name: '申請を取り下げる' })
+    await user.click(openButton)
+    await user.click(screen.getByRole('button', { name: '取り下げる' }))
+
+    await waitFor(() => expect(openButton).toHaveAttribute('aria-busy', 'true'))
+    expect(openButton).not.toBeDisabled()
+  })
+
+  it('送信中に再度ダイアログを開いて取り下げても withdrawClaim を2回送らない', async () => {
+    const user = userEvent.setup()
+    withdrawClaim.mockImplementation(() => new Promise(() => {}))
+    render(<OwnerPendingView verification={base} />)
+
+    await user.click(screen.getByRole('button', { name: '申請を取り下げる' }))
+    await user.click(screen.getByRole('button', { name: '取り下げる' }))
+
+    // disabled にしていないため再度開けてしまうが、handleWithdraw 側のガードで2回目は弾く
+    await user.click(screen.getByRole('button', { name: '申請を取り下げる' }))
+    await user.click(screen.getByRole('button', { name: '取り下げる' }))
+
+    expect(withdrawClaim).toHaveBeenCalledTimes(1)
+  })
 })
