@@ -52,6 +52,7 @@ docs/
 | **[development-cycle.md](./operations/development-cycle.md)** ⭐️ | スキルを使った1周（着手判断→実装→レビュー→実機確認→出荷→引き継ぎ）の順序と理由 |
 | **[git-workflow.md](./operations/git-workflow.md)** ⭐️ | ブランチ・コミット・PR規約 |
 | **[deployment.md](./operations/deployment.md)** ⭐️ | 環境構成・CI/CD・監視・ドメイン・AWS移行 |
+| [agent-pipeline.md](./operations/agent-pipeline.md) | 無人実行（nightly）・自動レビュー・無人マージのステージと安全弁 |
 
 ### 🌱 Seed（初期投入データ）
 
