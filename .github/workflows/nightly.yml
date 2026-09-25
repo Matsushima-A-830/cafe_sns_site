@@ -8,6 +8,10 @@ name: Nightly
 on:
   schedule:
     - cron: '0 18 * * 1'  # UTC 月 18:00 = JST 火 03:00
+    # TODO: 2026-09-26 の実行後に削除する（担当: matsu）。
+    # schedule 経由で実際に発火するかを週1の定期実行を待たずに確認するための、
+    # 日付指定の使い捨て cron。9月25日にしか一致しない
+    - cron: '0 16 25 9 *'  # UTC 9/25 16:00 = JST 9/26 01:00
   workflow_dispatch:
 
 concurrency:
