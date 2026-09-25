@@ -99,7 +99,7 @@
 |---|---|---|
 | `FILE_TOO_LARGE` | サイズ上限超過 (10MB) | uploads/sign |
 | `UNSUPPORTED_MEDIA_TYPE` | 対応外形式 | uploads/sign |
-| `EXIF_STRIP_FAILED` | EXIF除去失敗 | クライアント側処理 |
+| `EXIF_STRIP_FAILED` | EXIF除去失敗、またはサーバー側再検証でGPS検出 | クライアント側処理 / createPost・createOfficialPost（A10のサーバー側保険） |
 | `UPLOAD_FAILED` | Storage へのアップロード失敗 | クライアント側 |
 
 ### 通報 / モデレーション

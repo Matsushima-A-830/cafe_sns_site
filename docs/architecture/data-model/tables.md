@@ -608,7 +608,12 @@ body_search tsvector GENERATED ALWAYS AS (
 | alt_text | text | |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 
-**アプリ層の責務:** アップロード時にEXIFを剥がしてから Storage に PUT する（クライアント側で exifr 等で処理）。バケット構成は [README.md #ストレージ設計](./README.md#ストレージ設計) を参照
+**アプリ層の責務:** アップロード時にEXIFを剥がしてから Storage に PUT する（クライアント側で exifr 等で処理）。
+署名付きURLで直PUTする構成上サーバーはバイト列を検証できず、クライアント処理は改造クライアント・実装バグで迂回され得るため、
+`createPost` / `createOfficialPost` の `finalize_*` 呼び出し直前でアップロード済みの画像を読み直し GPS の有無をサーバー側でも
+確認する（`lib/storage/post-image-verify.ts`、検出時は該当オブジェクトを削除して投稿自体を拒否）。
+バケット構成は [README.md #ストレージ設計](./README.md#ストレージ設計) を参照
+（[pending-items A10](../../product/pending-items.md#a10-exif除去がクライアント信頼に依存している-解消済2026-09-25)）
 
 **`storage_path` の一意制約:** 同じ `postId` への二重送信（`createPost` の再送・ダブルタップ）は
 `finalize_post`（RPC）の行ロックにより直列化されるため、通常この制約が実際に働くことはない。

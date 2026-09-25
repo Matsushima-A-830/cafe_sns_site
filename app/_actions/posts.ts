@@ -7,6 +7,8 @@ import {
   POSTGRES_UNIQUE_VIOLATION,
 } from '@/lib/constants/postgres-error-codes'
 import { isPostStatus, type PostStatus } from '@/lib/constants/posts'
+import { verifyNoGpsExif } from '@/lib/storage/post-image-verify'
+import { deletePostImages } from '@/lib/storage/post-images'
 import { createClient } from '@/lib/supabase/server'
 import {
   createPostSchema,
@@ -41,6 +43,7 @@ type CreatePostError =
   | 'POST_IMAGES_LIMIT_EXCEEDED'
   | 'POST_TAGS_LIMIT_EXCEEDED'
   | 'NG_WORD_DETECTED'
+  | 'EXIF_STRIP_FAILED'
   | 'INTERNAL_ERROR'
 
 type ReservePostError = 'INVALID_INPUT' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'INTERNAL_ERROR'
@@ -171,6 +174,28 @@ export async function createPost(
     return { ok: false, error: 'INTERNAL_ERROR', details: ngWordError.message }
   }
   if (ngWord) return { ok: false, error: 'NG_WORD_DETECTED' }
+
+  // クライアント側の EXIF除去（processPostImage）を迂回されても GPS付き画像を公開しないための保険。
+  // finalize_post 失敗時と異なり、検出した画像は再送しても使い回せない実害物なので Storage から削除する
+  //   docs/product/pending-items.md A10
+  if (data.imagePaths.length > 0) {
+    const verified = await verifyNoGpsExif(supabase, data.imagePaths)
+    if (!verified.ok) {
+      if (verified.error === 'EXIF_STRIP_FAILED') {
+        // 削除失敗を握り潰さない。EXIF_STRIP_FAILED は Sentry送信対象（error-catalog.md）
+        // なので details に残せば「GPS付き画像がバケットに残った」ことが追跡できる
+        const cleanup = await deletePostImages(supabase, data.imagePaths)
+        if (!cleanup.ok) {
+          return {
+            ok: false,
+            error: 'EXIF_STRIP_FAILED',
+            details: { cleanupFailed: cleanup.details },
+          }
+        }
+      }
+      return verified
+    }
+  }
 
   const { error } = await supabase.rpc('finalize_post', {
     p_post_id: data.postId,

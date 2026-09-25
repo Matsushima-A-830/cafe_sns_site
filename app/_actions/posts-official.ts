@@ -7,6 +7,8 @@ import {
 } from '@/lib/constants/postgres-error-codes'
 import { officialFormatPostType } from '@/lib/constants/posts'
 import { getOwnedCafe } from '@/lib/owner/dashboard'
+import { verifyNoGpsExif } from '@/lib/storage/post-image-verify'
+import { deletePostImages } from '@/lib/storage/post-images'
 import { createClient } from '@/lib/supabase/server'
 import {
   createOfficialPostSchema,
@@ -36,6 +38,7 @@ type CreateOfficialPostError =
   | 'CAFE_NOT_FOUND'
   | 'POST_IMAGES_LIMIT_EXCEEDED'
   | 'NG_WORD_DETECTED'
+  | 'EXIF_STRIP_FAILED'
   | 'INTERNAL_ERROR'
 
 type PostgrestLikeError = { code?: string | null; message: string } | null
@@ -146,6 +149,26 @@ export async function createOfficialPost(
   })
   if (ngWordError) return { ok: false, error: 'INTERNAL_ERROR', details: ngWordError.message }
   if (ngWord) return { ok: false, error: 'NG_WORD_DETECTED' }
+
+  // createPost と同じ保険（クライアント側 EXIF除去の迂回対策）
+  //   docs/product/pending-items.md A10
+  if (imagePaths.length > 0) {
+    const verified = await verifyNoGpsExif(supabase, imagePaths)
+    if (!verified.ok) {
+      if (verified.error === 'EXIF_STRIP_FAILED') {
+        // 削除失敗を握り潰さない（createPost と同じ理由）
+        const cleanup = await deletePostImages(supabase, imagePaths)
+        if (!cleanup.ok) {
+          return {
+            ok: false,
+            error: 'EXIF_STRIP_FAILED',
+            details: { cleanupFailed: cleanup.details },
+          }
+        }
+      }
+      return verified
+    }
+  }
 
   const { error } = await supabase.rpc('finalize_official_post', {
     p_post_id: data.postId,
