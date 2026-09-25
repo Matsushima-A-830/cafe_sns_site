@@ -156,7 +156,15 @@ export async function createOfficialPost(
     const verified = await verifyNoGpsExif(supabase, imagePaths)
     if (!verified.ok) {
       if (verified.error === 'EXIF_STRIP_FAILED') {
-        await deletePostImages(supabase, imagePaths)
+        // 削除失敗を握り潰さない（createPost と同じ理由）
+        const cleanup = await deletePostImages(supabase, imagePaths)
+        if (!cleanup.ok) {
+          return {
+            ok: false,
+            error: 'EXIF_STRIP_FAILED',
+            details: { cleanupFailed: cleanup.details },
+          }
+        }
       }
       return verified
     }

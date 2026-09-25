@@ -182,7 +182,16 @@ export async function createPost(
     const verified = await verifyNoGpsExif(supabase, data.imagePaths)
     if (!verified.ok) {
       if (verified.error === 'EXIF_STRIP_FAILED') {
-        await deletePostImages(supabase, data.imagePaths)
+        // 削除失敗を握り潰さない。EXIF_STRIP_FAILED は Sentry送信対象（error-catalog.md）
+        // なので details に残せば「GPS付き画像がバケットに残った」ことが追跡できる
+        const cleanup = await deletePostImages(supabase, data.imagePaths)
+        if (!cleanup.ok) {
+          return {
+            ok: false,
+            error: 'EXIF_STRIP_FAILED',
+            details: { cleanupFailed: cleanup.details },
+          }
+        }
       }
       return verified
     }

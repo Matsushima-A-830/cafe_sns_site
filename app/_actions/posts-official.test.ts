@@ -105,6 +105,22 @@ describe('createOfficialPost の GPS 再検証（A10）', () => {
     expect(spies.rpc).not.toHaveBeenCalledWith('finalize_official_post', expect.anything())
   })
 
+  it('GPS検出後の画像削除自体が失敗しても握り潰さず details に残す', async () => {
+    const { stub, spies } = buildSupabaseStub({})
+    createClientMock.mockResolvedValue(stub)
+    verifyNoGpsExifMock.mockResolvedValue({ ok: false, error: 'EXIF_STRIP_FAILED' })
+    deletePostImagesMock.mockResolvedValue({ ok: false, error: 'INTERNAL_ERROR', details: 'boom' })
+
+    const result = await createOfficialPost(todaySpecialInput([imagePathA]))
+
+    expect(result).toEqual({
+      ok: false,
+      error: 'EXIF_STRIP_FAILED',
+      details: { cleanupFailed: 'boom' },
+    })
+    expect(spies.rpc).not.toHaveBeenCalledWith('finalize_official_post', expect.anything())
+  })
+
   it('GPSが無ければ finalize_official_post まで到達する', async () => {
     const { stub, spies } = buildSupabaseStub({})
     createClientMock.mockResolvedValue(stub)

@@ -313,6 +313,27 @@ describe('createPost', () => {
     expect(spies.rpc).not.toHaveBeenCalledWith('finalize_post', expect.anything())
   })
 
+  it('GPS検出後の画像削除自体が失敗しても握り潰さず details に残す（画像がバケットに残ったことを追跡可能にする）', async () => {
+    const { stub, spies } = buildSupabaseStub({})
+    createClientMock.mockResolvedValue(stub)
+    verifyNoGpsExifMock.mockResolvedValue({ ok: false, error: 'EXIF_STRIP_FAILED' })
+    deletePostImagesMock.mockResolvedValue({ ok: false, error: 'INTERNAL_ERROR', details: 'boom' })
+
+    const result = await createPost({
+      postType: 'short',
+      postId,
+      bodyJson: emptyDoc,
+      imagePaths: [imagePathA],
+    })
+
+    expect(result).toEqual({
+      ok: false,
+      error: 'EXIF_STRIP_FAILED',
+      details: { cleanupFailed: 'boom' },
+    })
+    expect(spies.rpc).not.toHaveBeenCalledWith('finalize_post', expect.anything())
+  })
+
   it('GPS再検証がダウンロード失敗等で INTERNAL_ERROR を返したら、画像は削除せずそのまま INTERNAL_ERROR を返す', async () => {
     const { stub, spies } = buildSupabaseStub({})
     createClientMock.mockResolvedValue(stub)
