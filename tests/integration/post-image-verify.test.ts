@@ -3,7 +3,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { verifyNoGpsExif } from '../../lib/storage/post-image-verify'
 import { createPostImageUploadUrl, deletePostImages } from '../../lib/storage/post-images'
 import type { Database } from '../../types/database'
-import { buildGpsTaggedJpeg, buildPlainJpeg } from '../helpers/gps-jpeg-fixture'
+import {
+  buildGpsTaggedJpeg,
+  buildGpsTaggedWebp,
+  buildPlainJpeg,
+  buildPlainWebp,
+} from '../helpers/gps-exif-fixture'
 import { type AuthedUser, createAuthedProfile, serviceRoleClient } from '../helpers/supabase'
 
 // A10: processPostImage（クライアント側のEXIF除去）が改造クライアント・実装バグで
@@ -63,7 +68,10 @@ afterAll(async () => {
 })
 
 describe('verifyNoGpsExif', () => {
-  it('GPS付きEXIFの画像は EXIF_STRIP_FAILED を返す', async () => {
+  // processPostImage を迂回し、生の写真ファイル（JPEG）をそのまま image/webp と偽って
+  // 直PUTしてきたケースを想定。exifr はコンテナの実バイト列（マジックバイト）で
+  // 判定するため、宣言されたcontentTypeとは無関係にJPEGとして正しく検出できる
+  it('拒否: JPEGを image/webp と偽ってアップロードし、GPS付きEXIFが残っている', async () => {
     const path = await uploadFixture(buildGpsTaggedJpeg())
     try {
       const result = await verifyNoGpsExif(asDbClient(alice), [path])
@@ -73,8 +81,31 @@ describe('verifyNoGpsExif', () => {
     }
   })
 
-  it('EXIFの無い画像は成功する', async () => {
+  it('許可: JPEGを image/webp と偽ってアップロードしたが EXIF自体が無い', async () => {
     const path = await uploadFixture(buildPlainJpeg())
+    try {
+      const result = await verifyNoGpsExif(asDbClient(alice), [path])
+      expect(result).toEqual({ ok: true, data: null })
+    } finally {
+      await deletePostImages(asDbClient(alice), [path])
+    }
+  })
+
+  // exifr は WebP コンテナ自体を解釈できない（"Unknown file format"）。post-images は
+  // 必ずWebPなので、この2件は「本物のWebPを壊さず検証できるか」の回帰テスト。
+  // 一度、コンテナ非対応の例外を安全側に倒す修正で正規WebPが誤ってブロックされたことがある
+  it('拒否: 本物のWebP（processPostImage後と同じコンテナ）のEXIFチャンクにGPSが残っている', async () => {
+    const path = await uploadFixture(buildGpsTaggedWebp())
+    try {
+      const result = await verifyNoGpsExif(asDbClient(alice), [path])
+      expect(result).toEqual({ ok: false, error: 'EXIF_STRIP_FAILED' })
+    } finally {
+      await deletePostImages(asDbClient(alice), [path])
+    }
+  })
+
+  it('許可: 本物のWebPでEXIFチャンク自体が無い（通常のprocessPostImage後の状態）', async () => {
+    const path = await uploadFixture(buildPlainWebp())
     try {
       const result = await verifyNoGpsExif(asDbClient(alice), [path])
       expect(result).toEqual({ ok: true, data: null })

@@ -118,6 +118,17 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **実装上の注意（未検証だった点の確定）:** `exifr.gps()` に Node の Blob（`supabase.storage.download()` の返り値）を
   そのまま渡すとブラウザ専用の `FileReader` に依存して例外になる。`await blob.arrayBuffer()` で変換してから渡す必要がある
   （`lib/storage/post-image-verify.ts` 内で対応済み）
+- **実装上の重大な注意（レビューで発覚・修正済み）:** `exifr`（7.1.3）は **WebPコンテナ自体を認識できない**
+  （`"Unknown file format"` で例外）。post-images は必ずWebPのため、これに気づかず例外を「GPS無し」として握り潰すと
+  この保険機能が常に無検出のまま素通りする（実質無意味）。逆に例外を安全側でブロックに倒すと**正常なWebP投稿が
+  全滅する**致命的リグレッションになる（本セッション内で一度実際に発生し、レビューで検出）。
+  対応: WebPのRIFFコンテナを自前でパースし `EXIF` チャンクの中身（生のTIFF/EXIFブロック）だけを取り出して
+  `exifr.gps()` に渡す（TIFF単体は `exifr` が解釈できる）。EXIFチャンクが無ければGPSは原理的に存在しないため、
+  `exifr` を呼ぶ前に確定させる。新規依存追加はしていない
+- **テストの穴（教訓）:** 統合テストが「JPEGバイト列を `image/webp` と偽ってアップロード」するフィクスチャのみだと、
+  上記のWebP非対応問題を検出できない（`exifr` はマジックバイトで実体を判定するため偶然JPEGとして正しく処理される）。
+  **本物のWebPコンテナ**（EXIFチャンクあり/無し）を使う回帰テストを別途追加した
+  （`tests/helpers/gps-exif-fixture.ts` の `buildGpsTaggedWebp` / `buildPlainWebp`）
 - **関連:** [lib/storage/post-images.ts](../../lib/storage/post-images.ts) のバリデーションは形式・サイズのみで EXIF は検証しない
 
 ### A6. `pg_cron` が Supabase Free で使えない問題 ✅ 解消済（2026-09-05）
