@@ -2,12 +2,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { POST_BODY_MAX_PLAIN_CHARS } from '@/lib/validators/posts'
 import { createPost, reservePost } from './posts'
 
-const { createClientMock } = vi.hoisted(() => ({
+const { createClientMock, verifyNoGpsExifMock, deletePostImagesMock } = vi.hoisted(() => ({
   createClientMock: vi.fn(),
+  verifyNoGpsExifMock: vi.fn(),
+  deletePostImagesMock: vi.fn(),
 }))
 
 vi.mock('@/lib/supabase/server', () => ({
   createClient: createClientMock,
+}))
+
+// GPS検出（A10）は Storage の実バイト列を読むため、ここでは verifyNoGpsExif 自体をモックし、
+// createPost 側の分岐（検出時に deletePostImages を呼び finalize_post を呼ばない）だけを検証する。
+// verifyNoGpsExif 自体の検証は lib/storage/post-image-verify.test.ts（実Storage経由）で行う
+vi.mock('@/lib/storage/post-image-verify', () => ({
+  verifyNoGpsExif: verifyNoGpsExifMock,
+}))
+vi.mock('@/lib/storage/post-images', () => ({
+  deletePostImages: deletePostImagesMock,
 }))
 
 const userId = '99999999-9999-4999-8999-999999999999'
@@ -66,6 +78,8 @@ beforeEach(() => {
   vi.spyOn(crypto, 'randomUUID').mockReturnValue(
     postId as unknown as ReturnType<typeof crypto.randomUUID>,
   )
+  verifyNoGpsExifMock.mockResolvedValue({ ok: true, data: null })
+  deletePostImagesMock.mockResolvedValue({ ok: true, data: null })
 })
 
 afterEach(() => {
@@ -269,6 +283,55 @@ describe('createPost', () => {
     const result = await createPost({ postType: 'short', postId, bodyJson: textDoc })
 
     expect(result).toEqual({ ok: false, error: 'INTERNAL_ERROR', details: 'boom' })
+  })
+
+  it('imagePaths が空なら verifyNoGpsExif を呼ばない（Storage往復を省く）', async () => {
+    const { stub } = buildSupabaseStub({})
+    createClientMock.mockResolvedValue(stub)
+
+    const result = await createPost({ postType: 'short', postId, bodyJson: textDoc })
+
+    expect(result).toEqual({ ok: true, data: { postId } })
+    expect(verifyNoGpsExifMock).not.toHaveBeenCalled()
+  })
+
+  it('サーバー側の再検証で GPS を検出したら EXIF_STRIP_FAILED を返し、該当画像を削除して finalize_post を呼ばない', async () => {
+    const { stub, spies } = buildSupabaseStub({})
+    createClientMock.mockResolvedValue(stub)
+    verifyNoGpsExifMock.mockResolvedValue({ ok: false, error: 'EXIF_STRIP_FAILED' })
+
+    const result = await createPost({
+      postType: 'short',
+      postId,
+      bodyJson: emptyDoc,
+      imagePaths: [imagePathA, imagePathB],
+    })
+
+    expect(result).toEqual({ ok: false, error: 'EXIF_STRIP_FAILED' })
+    expect(verifyNoGpsExifMock).toHaveBeenCalledWith(stub, [imagePathA, imagePathB])
+    expect(deletePostImagesMock).toHaveBeenCalledWith(stub, [imagePathA, imagePathB])
+    expect(spies.rpc).not.toHaveBeenCalledWith('finalize_post', expect.anything())
+  })
+
+  it('GPS再検証がダウンロード失敗等で INTERNAL_ERROR を返したら、画像は削除せずそのまま INTERNAL_ERROR を返す', async () => {
+    const { stub, spies } = buildSupabaseStub({})
+    createClientMock.mockResolvedValue(stub)
+    verifyNoGpsExifMock.mockResolvedValue({
+      ok: false,
+      error: 'INTERNAL_ERROR',
+      details: 'download failed',
+    })
+
+    const result = await createPost({
+      postType: 'short',
+      postId,
+      bodyJson: emptyDoc,
+      imagePaths: [imagePathA],
+    })
+
+    expect(result).toEqual({ ok: false, error: 'INTERNAL_ERROR', details: 'download failed' })
+    expect(deletePostImagesMock).not.toHaveBeenCalled()
+    expect(spies.rpc).not.toHaveBeenCalledWith('finalize_post', expect.anything())
   })
 
   it('短文投稿を作成できる（画像・タグ・カフェ無し）。finalize_post を正しい引数で呼ぶ', async () => {

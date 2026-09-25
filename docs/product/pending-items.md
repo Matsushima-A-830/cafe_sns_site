@@ -96,7 +96,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - アップロード時の WebP 変換・リサイズを初期から入れる（容量が寿命に直結するため）
   - S3 移行の判断は容量が 1GB に近づいた時点
 
-### A10. EXIF除去がクライアント信頼に依存している 🔴 未決（2026-09-08）
+### A10. EXIF除去がクライアント信頼に依存している ✅ 解消済（2026-09-25）
 
 - **課題:** [`POST /api/uploads/sign`](../architecture/routing.md) は署名付きアップロードURLを発行し、クライアントが
   Storage へ直PUTする構成（[A5](#a5-画像ストレージの正をどちらにするか--解消済2026-09-05)）。サーバはファイルの
@@ -107,11 +107,18 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - a) アップロード後に Route Handler / Edge Function 側で EXIF 検証 → 検出時に該当オブジェクトを削除（一往復増えるが直PUTの構成は維持できる）
   - b) 直PUTをやめてサーバ経由アップロードに変更（帯域・実行時間を消費、A5の決定を覆す）
   - c) 現状維持（クライアント側処理を信頼するリスクを許容）
-- **決定期限:** `POST /api/uploads/sign` および画像アップロードUIの実装時までに a か b を選ぶ。それまでは c として未対策のまま進める
+- **決定:** **a を採用。** `createPost` / `createOfficialPost` の `finalize_*` RPC呼び出し直前で、アップロード済みの
+  `post-images` オブジェクトを Storage から読み直し `exifr.gps()` で GPS の有無を確認する（`lib/storage/post-image-verify.ts`
+  の `verifyNoGpsExif`）。検出時は該当オブジェクトを `deletePostImages` で削除したうえで投稿自体を `EXIF_STRIP_FAILED` で拒否する
+  （finalize 失敗時とは異なり、GPS付き画像は再送しても使い回せない実害物のため）
+- **理由:** b は直PUT構成というA5の決定を覆し帯域・実行時間コストも増える。c は🔴未決のまま実害を許容し続けることになる。
+  a はクライアント側処理（`processPostImage`）を壊さず、それを迂回された場合の保険として一往復のStorageダウンロードを足すだけで済む
+- **スコープ:** `post-images`（公開バケット）のみ。`owner-documents`（非公開・PDF許容）や将来のアバター（D45未実装）への
+  横展開はこのセッションのスコープ外 — 必要になれば別途判断する
+- **実装上の注意（未検証だった点の確定）:** `exifr.gps()` に Node の Blob（`supabase.storage.download()` の返り値）を
+  そのまま渡すとブラウザ専用の `FileReader` に依存して例外になる。`await blob.arrayBuffer()` で変換してから渡す必要がある
+  （`lib/storage/post-image-verify.ts` 内で対応済み）
 - **関連:** [lib/storage/post-images.ts](../../lib/storage/post-images.ts) のバリデーションは形式・サイズのみで EXIF は検証しない
-- **進捗（2026-09-08）:** `POST /api/uploads/sign` Route Handler 自体は実装完了（`feat/uploads-sign-route`）。
-  a/b/c の判断はまだ行っていない — 画像アップロードUI実装時に持ち越し。期限はまだ到来していないが、
-  UI実装セッションでは着手前に必ずこの項目を再確認すること
 
 ### A6. `pg_cron` が Supabase Free で使えない問題 ✅ 解消済（2026-09-05）
 
