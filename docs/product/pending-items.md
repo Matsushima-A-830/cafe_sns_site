@@ -342,11 +342,25 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - ローカル: `lefthook` の pre-push で typecheck + test を強制
   - CI: `.github/workflows/ci.yml` で lint/typecheck/test/build を PR + main で実行
   - この二重チェックで実質的な保護を担保
+- **2026-09-25 追記: エージェントパイプライン導入で影響範囲が広がった**
+  ([agent-pipeline.md](../operations/agent-pipeline.md) 参照)
+  - `agent-review.yml`（エージェントによる差分レビュー）を**必須ステータスチェックにできない**。
+    指摘があればジョブは落ちるが、マージは止まらない。**現状は助言役にとどまる**
+  - `gh pr merge --auto --squash` が使えず、`agent-implement.yml` は
+    PR を立てるところまでで止まる（マージは人）
+  - 実測: `branches/main/protection` と `rulesets` は 403、
+    `allow_auto_merge=true` は PATCH してもエラーなく false のまま
+  - **回避策（ワークフローやエージェント自身にマージさせる）は採らない方針。**
+    ゲートの強制主体が GitHub から自前コードに戻り、
+    「エージェントが自分の関門を迂回できる」構造になるため
 - **対応案:**
   - a) GitHub Pro に加入 ($4/月) して protection/rulesets を有効化
+    → `Agent Review` を必須チェックに登録でき、無人マージも解禁される。
+      Actions 予算 $5 と合わせて月 $9
   - b) リポジトリを Public 化して protection を無料で有効化
   - c) 現状維持（個人開発の自己規律で補完）
-- **決定期限:** チームメンバーが増える時、または PMF 後
+- **決定期限:** チームメンバーが増える時、または PMF 後。
+  ただし**エージェントによるレビューをマージの門番にしたくなった時点**でも判断が必要になる
 
 ### D10. 統合テスト（RLS検証）が CI で実行されていない
 
@@ -1411,6 +1425,27 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   `if (isPending) return` ガードと同じものを `handleFilesSelected` の冒頭にも追加し、
   併せて誤ったコメント（:199-200）を修正する。別PRで対応する
 - 参照: D60 管理画面分（`fix/disabled-focus-loss-admin`）の `/code-review` で発見（2026-09-25）
+
+### D62. GitHub Actions のワークフローを静的検査していない（actionlint 未導入）
+
+- **課題:** `.github/workflows/` は CI で構文検査されておらず、壊れたワークフローがそのまま
+  main に入る。エージェントパイプライン導入時（2026-09-25、`feature/agent-pipeline`）に実際に
+  2件やらかしている
+  - `nightly.yml` の Board Drift が `grep -qF ">12<"` で **HTML に存在しない文字列**を探しており、
+    常に失敗する検査だった（ボードの集計値は埋め込み JSON から JS が算出するため静的には読めない）
+  - `e2e.yml` の `github` コンテキストを `run:` に直接展開していた箇所は、
+    semgrep の pre-commit hook が捕まえたので入る前に気づけた
+- **なぜ手元で気づけなかったか:** 開発環境に YAML パーサが無く（`pyyaml` 未導入、
+  node は WSL 経由のみ）、ワークフローを実行せずにコミットしていた。
+  検証は `bash -n` とタブ文字チェック程度しかできていない
+- **対応案:**
+  - a) `rhysd/actionlint` を CI に追加（GitHub Action 版なら新規の npm 依存は増えない）
+  - b) lefthook の pre-commit に `.github/workflows/**` 変更時のみ actionlint を走らせる
+  - c) 現状維持（semgrep の hook が一部は捕まえる）
+- **注意:** actionlint は構文とコンテキスト参照の誤りは捕まえるが、上記の
+  「常に失敗する検査」のような**論理バグは防げない**。過信しないこと
+- **決定期限:** なし。ワークフローを触る頻度が上がったら判断する
+- 参照: エージェントパイプライン導入（2026-09-25、PR #79 / #81）で顕在化
 
 ## 削除・アーカイブ判断待ち
 
