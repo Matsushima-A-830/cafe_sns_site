@@ -23,7 +23,7 @@ Claude Code のスキルを使って1機能を実装し、次のセッション�
       ↓
 ⑤ 実機確認        Playwright MCP で触る → 1〜2本を E2E spec に落とす
       ↓
-⑥ 出荷            /board-update → db:reset 検証 → PR → CI green → マージ
+⑥ 出荷            /board-update → db:reset 検証 → PR → CI green → マージ → /dashboard-update
       ↓
 ⑦ 引き継ぎ        /handoff <次の画面ID> → セッションを切る
 ```
@@ -107,6 +107,9 @@ Playwright MCP で実際に触る。**確認する観点は、テストで代替
 4. **CI が全部 green になるまで待つ** — Playwright は4ブラウザ（chromium / webkit /
    mobile-chrome / mobile-safari）走る。**webkit 系はローカルで動かないので、ここが唯一の検証機会**
 5. **Squash Merge**
+6. **`/dashboard-update`** — Obsidian vault の個人開発ダッシュボード（リポジトリ外）を更新。
+   `docs/implementation-board.html` は設計の正としての現在地、Obsidian側は「その場の判断・非同期Q&A」の
+   蓄積ログで役割が違う。詳細は [dashboard-update スキル](../../.claude/skills/dashboard-update/SKILL.md)
 
 ## ⑦ 引き継ぎ
 
@@ -137,6 +140,7 @@ Playwright MCP で実際に触る。**確認する観点は、テストで代替
 | `/fe-implement` | ③ | ページ・コンポーネント・デザインシステム遵守 |
 | `/self-review` | ④ | 規約・ドキュメント整合のチェック |
 | `/board-update` | ⑥ | 実装状況ボードの更新 |
+| `/dashboard-update` | ⑥ | Obsidian個人開発ダッシュボード・実装履歴の更新（リポジトリ外） |
 | `/debug` | 随時 | RLS・キャッシュ・型・環境の詰まり所 |
 | （`supabase`） | 随時 | Supabase 一般知識。内容に応じて自動発動 |
 
