@@ -1383,12 +1383,34 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   `isPending` ガードが無く、`claimCafe` 送信中に送信済み書類をStorageから実削除できてしまい、
   DB側の `document_urls` だけ壊れたパスが残る不整合が起き得た。`handleRemove` 冒頭に
   `if (isPending) return` を追加して防止した
-- **管理画面（admin/owner）は別対応のまま:** `owner-verification-review-actions.tsx` /
-  `report-review-actions.tsx` / `ng-word-manager.tsx` / `regulars-view.tsx` /
-  `export-csv-button.tsx` は優先度を下げて未対応。メインターゲットの10〜20代ユーザーが
-  触らない画面のため
+- **管理画面（admin/owner）の残り5ファイルも解消（2026-09-25）:** `owner-verification-review-actions.tsx`
+  （2箇所） / `report-review-actions.tsx`（2箇所） / `ng-word-manager.tsx`（6箇所） /
+  `regulars-view.tsx`（3箇所） / `export-csv-button.tsx`（1箇所）の計14箇所を、ユーザー影響大の
+  10ファイルと同じ `aria-busy` + ハンドラ冒頭の `isPending` ガードに揃えた。バリデーション由来の
+  `disabled`（`owner-verification-review-actions.tsx` の却下理由必須、`ng-word-manager.tsx` の
+  単語未入力）は `report-form.tsx` と同様に `disabled` を残し `aria-busy` と分離した。
+  `ng-word-manager.tsx` は追加フォームと削除確認が `isPending` を共有する設計（`router.refresh()`
+  が一覧側 state を更新しない罠を避けるための既存方針）のため、削除中は追加フォームの送信も
+  止まる仕様のまま。5ファイルとも新規に回帰テストを追加（送信中も disabled にしない／連打で
+  2回目を送らない）
 - 参照: D33（送信中disabledのフォーカス喪失、4コンポーネント分解消）の `/code-review` で判明
-  （2026-09-23）／ユーザー影響大の10ファイルを解消（2026-09-24、`fix/disabled-focus-loss-remaining`）
+  （2026-09-23）／ユーザー影響大の10ファイルを解消（2026-09-24、`fix/disabled-focus-loss-remaining`）／
+  管理画面の残り5ファイルを解消（2026-09-25、`fix/disabled-focus-loss-admin`）
+
+### D61. owner-claim-form.tsx の書類アップロードボタンに isPending ガードが無く、Storageファイルが孤立し得る
+
+- **課題:** `fix/disabled-focus-loss-admin`（D60管理画面分）の `/code-review` で判明。
+  `components/features/owner/owner-claim-form.tsx:198` の「＋アップロード」ボタンは
+  `disabled={uploadingType !== null}` のみで `isPending` を見ていない。`handleFilesSelected`
+  にも `isPending` ガードが無い。ボタン直上のコメント（:199-200）は「追加アップロードは
+  クロージャで確定済みの送信には影響しない」と書いているが誤り: `claimCafe` 送信中（`isPending`）
+  に新しい書類をアップロードすると、Storageには保存されるが `handleSubmit` の `startTransition`
+  が閉じ込めた古い `documents` 配列には含まれないため、`claimCafe` が成功して画面遷移した後、
+  そのStorageオブジェクトは `document_urls` から永久に参照されない孤立ファイルになる
+- **対応方針（未着手）:** 同ファイルの `handleRemove`（削除側）に既にある
+  `if (isPending) return` ガードと同じものを `handleFilesSelected` の冒頭にも追加し、
+  併せて誤ったコメント（:199-200）を修正する。別PRで対応する
+- 参照: D60 管理画面分（`fix/disabled-focus-loss-admin`）の `/code-review` で発見（2026-09-25）
 
 ## 削除・アーカイブ判断待ち
 

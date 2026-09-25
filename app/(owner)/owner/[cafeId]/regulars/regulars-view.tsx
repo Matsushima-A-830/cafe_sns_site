@@ -179,6 +179,8 @@ function RegularCard({ cafeId, regular }: { cafeId: string; regular: RegularCust
   const [isPending, startTransition] = useTransition()
 
   function handleSaveNote() {
+    // disabled にせず自前で弾く（下の aria-busy のコメント参照）
+    if (isPending) return
     setError(null)
     startTransition(async () => {
       const result = await updateRegularNote({ cafeId, userId: regular.userId, note })
@@ -192,6 +194,8 @@ function RegularCard({ cafeId, regular }: { cafeId: string; regular: RegularCust
   }
 
   function handleRevoke() {
+    // disabled にせず自前で弾く（下の aria-busy のコメント参照）
+    if (isPending) return
     setError(null)
     startTransition(async () => {
       const result = await revokeRegular({ cafeId, userId: regular.userId })
@@ -249,7 +253,8 @@ function RegularCard({ cafeId, regular }: { cafeId: string; regular: RegularCust
                 キャンセル
               </Button>
             </DialogClose>
-            <Button type="button" disabled={isPending} onClick={handleSaveNote}>
+            {/* 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。連打は handleSaveNote 側の isPending ガードで止める */}
+            <Button type="button" aria-busy={isPending} onClick={handleSaveNote}>
               保存
             </Button>
           </div>
@@ -275,7 +280,9 @@ function RegularCard({ cafeId, regular }: { cafeId: string; regular: RegularCust
               type="button"
               variant="destructive"
               size="lg"
-              disabled={isPending}
+              // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。
+              // 連打は handleRevoke 側の isPending ガードで止める
+              aria-busy={isPending}
               onClick={handleRevoke}
             >
               取消する
@@ -333,6 +340,8 @@ function CandidateCard({
   const [isPending, startTransition] = useTransition()
 
   function handleAward() {
+    // disabled にせず自前で弾く（下の aria-busy のコメント参照）
+    if (isPending) return
     setError(null)
     startTransition(async () => {
       const result = await awardRegular({ cafeId, userId: candidate.userId, note })
@@ -397,7 +406,8 @@ function CandidateCard({
                 キャンセル
               </Button>
             </DialogClose>
-            <Button type="button" disabled={isPending} onClick={handleAward}>
+            {/* 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。連打は handleAward 側の isPending ガードで止める */}
+            <Button type="button" aria-busy={isPending} onClick={handleAward}>
               認定する
             </Button>
           </div>
