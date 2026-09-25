@@ -395,3 +395,4 @@ MVPリリース時点で以下の基準を満たすことを目標にする。
 - **DB変更は必ずマイグレーションで**（直接いじらない）
 - **未決事項は [product/pending-items.md](docs/product/pending-items.md) を更新**
 - **メモリ（ユーザー知見・プロジェクト決定事項）は `~/.claude/projects/.../memory/` へ**
+- **UI/UX・設計判断で行動経済学的な観点や設計思想の裏付けが要る場合、Obsidian vault（`mcp__obsidian__*` ツール）の `個人開発/cafe_sns_site.md` の「参考読書」セクションを起点に、リンク先の `読書/` 配下の各ノートを `vault_read` で辿る。各ノートの「cafe_sns_siteへの応用アイデア」見出しに実装への示唆がまとまっている**
