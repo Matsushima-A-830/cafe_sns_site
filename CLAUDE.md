@@ -324,17 +324,21 @@ bg-danger           (危険操作)
 #### 無人パイプラインの例外
 
 `agent-implement.yml` は issue への `agent:auto` ラベルを起点に、人の逐次確認なしで
-コミット・ブランチ作成・PR作成を行い、範囲内なら auto-merge まで予約する。
-上の「必ずユーザー確認を経る」はこのワークフローには適用されない。
+コミット・ブランチ作成・PR作成を行う。上の「必ずユーザー確認を経る」は
+このワークフローには適用されない。
 
-代わりに次で担保する。詳細と段階の上げ方は
+**ただしマージは常に人が行う。無人マージは実装していない。**
+GitHub Free のプライベートリポジトリではブランチ保護・ルールセット・auto-merge が
+いずれも使えず、必須ステータスチェックに守られない自動マージは成立しないため。
+
+代わりに次で担保する。詳細は
 [docs/operations/agent-pipeline.md](docs/operations/agent-pipeline.md)。
 
 - 起動できるのは OWNER / MEMBER / COLLABORATOR がラベルを付けた issue だけ
-- 無人マージの範囲は `scripts/check-agent-scope.sh` のステージで制限（現在は `docs/` のみ）
+- エージェントに任せる範囲は `scripts/check-agent-scope.sh` で制限（現在は `docs/` のみ）
 - `.github/` `lefthook.yml` `scripts/check-*` `supabase/migrations/` `package.json`
   `CLAUDE.md` は常時禁止。**エージェントが自分を止める仕組みと本ファイルを変更することはない**
-- 実際のマージは必須ステータスチェックが全緑のときだけ
+- 作られた PR には `agent:needs-review` が付く。人が差分を見てマージする
 
 **対話セッションの Claude Code（このファイルを読んでいる側）にこの例外は適用されない。**
 手元での commit / push / PR 作成は、これまでどおり毎回ユーザー確認を経ること。

@@ -139,8 +139,8 @@ SENTRY_DSN=<開発時は空でも可>
 | `migration-check.yml` | PR (supabase/migrations 変更時) | migration lint |
 | `deploy-migration.yml` | main push (supabase/migrations 変更時) | prod DB migration 適用（マスタデータもここに含まれる） |
 | `nightly.yml` | schedule（週1）/ 手動 | Safari E2E・スキーマドリフト・ボードドリフト |
-| `agent-review.yml` | PR（draft 以外） | エージェントによる差分レビュー。指摘があれば落とす |
-| `agent-implement.yml` | issue に `agent:auto` ラベル | エージェントが実装して PR を立て、範囲内なら auto-merge を予約 |
+| `agent-review.yml` | PR（draft 以外） | エージェントによる差分レビュー。ブランチ保護が使えないため現状は助言役 |
+| `agent-implement.yml` | issue に `agent:auto` ラベル | エージェントが実装して PR を立てる。**マージは人**。`AGENT_GITHUB_TOKEN` 未登録のため現在は停止中 |
 | `preview-cleanup.yml` | PR close | Preview 環境のクリーンアップ（**未作成**） |
 
 エージェント関連3本の設計・安全弁・課金分の実測は [agent-pipeline.md](./agent-pipeline.md) 参照。
