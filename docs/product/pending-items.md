@@ -342,11 +342,25 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - ローカル: `lefthook` の pre-push で typecheck + test を強制
   - CI: `.github/workflows/ci.yml` で lint/typecheck/test/build を PR + main で実行
   - この二重チェックで実質的な保護を担保
+- **2026-09-25 追記: エージェントパイプライン導入で影響範囲が広がった**
+  ([agent-pipeline.md](../operations/agent-pipeline.md) 参照)
+  - `agent-review.yml`（エージェントによる差分レビュー）を**必須ステータスチェックにできない**。
+    指摘があればジョブは落ちるが、マージは止まらない。**現状は助言役にとどまる**
+  - `gh pr merge --auto --squash` が使えず、`agent-implement.yml` は
+    PR を立てるところまでで止まる（マージは人）
+  - 実測: `branches/main/protection` と `rulesets` は 403、
+    `allow_auto_merge=true` は PATCH してもエラーなく false のまま
+  - **回避策（ワークフローやエージェント自身にマージさせる）は採らない方針。**
+    ゲートの強制主体が GitHub から自前コードに戻り、
+    「エージェントが自分の関門を迂回できる」構造になるため
 - **対応案:**
   - a) GitHub Pro に加入 ($4/月) して protection/rulesets を有効化
+    → `Agent Review` を必須チェックに登録でき、無人マージも解禁される。
+      Actions 予算 $5 と合わせて月 $9
   - b) リポジトリを Public 化して protection を無料で有効化
   - c) 現状維持（個人開発の自己規律で補完）
-- **決定期限:** チームメンバーが増える時、または PMF 後
+- **決定期限:** チームメンバーが増える時、または PMF 後。
+  ただし**エージェントによるレビューをマージの門番にしたくなった時点**でも判断が必要になる
 
 ### D10. 統合テスト（RLS検証）が CI で実行されていない
 
@@ -984,18 +998,23 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   リロード前の待機が足りるかは直すときに確認が要る
 - 参照: `likes` 実装後の `/code-review` で指摘され、実機確認でも再現（2026-09-19）
 
-### D38. `likes_select_all` が投稿の可視性を継承していない
+### D38. `likes_select_all` が投稿の可視性を継承していない ✅ 解消済（2026-09-23）
 
-- **課題:** `likes` の SELECT ポリシー（`likes_select_all`）は
-  `not is_blocked_either_way(user_id)` のみで、`post_id` が指す投稿が
-  hidden・論理削除済み・非公開（`visibility='followers'` で非フォロワー）・
-  作者がブロック済みのいずれであっても、その投稿への「いいね」の存在（誰が
-  いいねしたか）は `post_id` さえ分かれば誰でも読める
-- **実害は限定的:** 漏れるのは `user_id` の羅列のみで、本文などは含まれない
-- **対応方針:** `comments` 実装（[docs/architecture/data-model/tables.md#comments](../architecture/data-model/tables.md#comments)）で
-  固めた「`exists (select 1 from posts p where p.id = ...) or is_post_author(post_id)` を
-  SELECT ポリシーに足す」パターンを `likes` にも横展開する。`comments` とは
-  別PRで対応する（`comments` の RLS パターンを先に固めてから展開する判断）
+- **対応済み:** `20260923150000_likes_select_visibility.sql` で
+  `comments_select_visible`（[docs/architecture/data-model/tables.md#likes](../architecture/data-model/tables.md#likes)）
+  と同じパターンを横展開した。`exists (select 1 from posts p where p.id = likes.post_id)
+  or is_post_author(likes.post_id)` を既存の `not is_blocked_either_way` と AND 結合。
+- **副作用の修正も同時に対応:** 可視性継承により `lib/badges/rules.ts` の
+  `countLikesGiven`（RLSバインドの通常クライアント）が、いいねした投稿が後で
+  非公開になった場合に過小評価になる問題（`count_likes_received` で一度発生した問題と同型）
+  が新たに生じるため、`count_likes_given` RPC（`security definer`）を新設して切り替えた。
+  さらに `/code-review` の指摘で、権威ある判定 `badge_criteria_met` の `likes_given` 分岐が
+  無絞り込みの `count(*)` のままだと lib 側の事前フィルタと食い違う（`checkAndAwardBadges`
+  が false を返して `award_badge` へ辿り着けなくなる）ことが判明し、`likes_received` 分岐と
+  同じく `count_likes_given` を呼ぶよう `badge_criteria_met` も同マイグレーションで更新した。
+- テスト: `tests/integration/likes.test.ts` の `RLS（投稿の可視性継承・D38）` /
+  `countLikesGiven（RPCでRLSをバイパスする集計）`、
+  `tests/integration/badges-check.test.ts` の `likes_given: フォロワー限定投稿へのいいねも...`
 - 参照: `comments` 実装の引き継ぎ調査で発見（2026-09-20）
 
 ### D39. コメントUI（comment-list / comment-form）が実機未確認のまま
@@ -1083,7 +1102,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   `processPostImage` がそのまま流用できる（投稿画像専用ロジックではない）
 - 参照: S_PROFILE_EDIT 実装時の着手判断（2026-09-21）
 
-### D46. `profiles.username` の「変更不可」が RLS/トリガーで守られていない
+### D46. `profiles.username` の「変更不可」が RLS/トリガーで守られていない（解消済み・2026-09-23）
 
 - **課題:** `guard_privileged_profile_columns`（`20260905130000_create_profiles.sql`）は
   `role` / `status` の変更だけを弾く。`username` はガード対象外のため、`profiles_update_self`
@@ -1091,11 +1110,14 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   S_PROFILE_EDIT の「ユーザーネームは変更できません」は `app/_actions/profiles.ts` の
   `profileEditSchema` に `username` を含めないことでしか担保していない
   — CLAUDE.md の「RLSに認可を委譲」からは外れた状態
-- **現状の扱い:** この PR では直さず、ギャップを
-  `tests/integration/profiles-rls.test.ts`「username は RLS では守られていない」で固定して記録した
-- **対応案（未検討）:** `guard_privileged_profile_columns` に `username` の変更検知を追加する
-  （`role`/`status` と同じ RAISE EXCEPTION 方式）。`profiles` テーブル全体に影響するマイグレーションになるため、
-  S_PROFILE_EDIT とは別 PR で対応する
+- **対応内容:** `20260923140000_guard_profile_username.sql` で `guard_privileged_profile_columns` に
+  `username` の変更検知を追加（`role`/`status` と同じ RAISE EXCEPTION 方式）。
+  **admin 例外は設けない** — ワイヤー（[mypage.md](../design/wireframes/mypage.md)）に例外の記述が無く、
+  管理画面にも username 変更UIが存在しないため。将来モデレーション目的で強制変更が必要になれば、
+  その時に専用の Server Action + `is_admin()` チェックとして別途設計する
+  （RLS層で先回りして使われない権限を開けない判断）
+- `tests/integration/profiles-rls.test.ts` の該当テストを「守られていない」から
+  「本人・admin ともに変更不可」を検証する形に反転済み
 - 参照: S_PROFILE_EDIT の `/code-review`（2026-09-21）
 
 ### D47. S_REPORT_FORM で見送ったもの
@@ -1364,7 +1386,66 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   （`components/ui/button.tsx` の `buttonVariants` が `disabled:` にしかスタイルを定義していないため）。
   D33対応済みの6コンポーネントも同じ状態で、これは新規に持ち込む問題ではないが、対応の範囲を
   広げるなら「送信中」の視覚表現も合わせて検討する余地がある
-- 参照: D33（送信中disabledのフォーカス喪失、4コンポーネント分解消）の `/code-review` で判明（2026-09-23）
+- **ユーザー影響大の10ファイルを解消（2026-09-24）:** 対応案 a）を採用し、`block-button.tsx` /
+  `settings-form.tsx` / `blocked-user-list.tsx` / `search-result-feed.tsx` / `report-form.tsx` /
+  `post-feed.tsx` / `comment-list.tsx` / `notification-list.tsx` / `owner-pending-view.tsx` /
+  `owner-claim-form.tsx` の計21箇所を `aria-busy` + ハンドラ冒頭の `isPending` ガードに揃えた。
+  `report-form.tsx` / `block-button.tsx` / `blocked-user-list.tsx` / `owner-claim-form.tsx` /
+  `owner-pending-view.tsx` には D33 (`like-button.test.tsx`) と同型の「連打で2回目を送らない」
+  回帰テストを追加した
+- **`/code-review` で見つけたバグ（修正済み）:** `owner-claim-form.tsx` の書類「削除」ボタンに
+  `isPending` ガードが無く、`claimCafe` 送信中に送信済み書類をStorageから実削除できてしまい、
+  DB側の `document_urls` だけ壊れたパスが残る不整合が起き得た。`handleRemove` 冒頭に
+  `if (isPending) return` を追加して防止した
+- **管理画面（admin/owner）の残り5ファイルも解消（2026-09-25）:** `owner-verification-review-actions.tsx`
+  （2箇所） / `report-review-actions.tsx`（2箇所） / `ng-word-manager.tsx`（6箇所） /
+  `regulars-view.tsx`（3箇所） / `export-csv-button.tsx`（1箇所）の計14箇所を、ユーザー影響大の
+  10ファイルと同じ `aria-busy` + ハンドラ冒頭の `isPending` ガードに揃えた。バリデーション由来の
+  `disabled`（`owner-verification-review-actions.tsx` の却下理由必須、`ng-word-manager.tsx` の
+  単語未入力）は `report-form.tsx` と同様に `disabled` を残し `aria-busy` と分離した。
+  `ng-word-manager.tsx` は追加フォームと削除確認が `isPending` を共有する設計（`router.refresh()`
+  が一覧側 state を更新しない罠を避けるための既存方針）のため、削除中は追加フォームの送信も
+  止まる仕様のまま。5ファイルとも新規に回帰テストを追加（送信中も disabled にしない／連打で
+  2回目を送らない）
+- 参照: D33（送信中disabledのフォーカス喪失、4コンポーネント分解消）の `/code-review` で判明
+  （2026-09-23）／ユーザー影響大の10ファイルを解消（2026-09-24、`fix/disabled-focus-loss-remaining`）／
+  管理画面の残り5ファイルを解消（2026-09-25、`fix/disabled-focus-loss-admin`）
+
+### D61. owner-claim-form.tsx の書類アップロードボタンに isPending ガードが無く、Storageファイルが孤立し得る
+
+- **課題:** `fix/disabled-focus-loss-admin`（D60管理画面分）の `/code-review` で判明。
+  `components/features/owner/owner-claim-form.tsx:198` の「＋アップロード」ボタンは
+  `disabled={uploadingType !== null}` のみで `isPending` を見ていない。`handleFilesSelected`
+  にも `isPending` ガードが無い。ボタン直上のコメント（:199-200）は「追加アップロードは
+  クロージャで確定済みの送信には影響しない」と書いているが誤り: `claimCafe` 送信中（`isPending`）
+  に新しい書類をアップロードすると、Storageには保存されるが `handleSubmit` の `startTransition`
+  が閉じ込めた古い `documents` 配列には含まれないため、`claimCafe` が成功して画面遷移した後、
+  そのStorageオブジェクトは `document_urls` から永久に参照されない孤立ファイルになる
+- **対応方針（未着手）:** 同ファイルの `handleRemove`（削除側）に既にある
+  `if (isPending) return` ガードと同じものを `handleFilesSelected` の冒頭にも追加し、
+  併せて誤ったコメント（:199-200）を修正する。別PRで対応する
+- 参照: D60 管理画面分（`fix/disabled-focus-loss-admin`）の `/code-review` で発見（2026-09-25）
+
+### D62. GitHub Actions のワークフローを静的検査していない（actionlint 未導入）
+
+- **課題:** `.github/workflows/` は CI で構文検査されておらず、壊れたワークフローがそのまま
+  main に入る。エージェントパイプライン導入時（2026-09-25、`feature/agent-pipeline`）に実際に
+  2件やらかしている
+  - `nightly.yml` の Board Drift が `grep -qF ">12<"` で **HTML に存在しない文字列**を探しており、
+    常に失敗する検査だった（ボードの集計値は埋め込み JSON から JS が算出するため静的には読めない）
+  - `e2e.yml` の `github` コンテキストを `run:` に直接展開していた箇所は、
+    semgrep の pre-commit hook が捕まえたので入る前に気づけた
+- **なぜ手元で気づけなかったか:** 開発環境に YAML パーサが無く（`pyyaml` 未導入、
+  node は WSL 経由のみ）、ワークフローを実行せずにコミットしていた。
+  検証は `bash -n` とタブ文字チェック程度しかできていない
+- **対応案:**
+  - a) `rhysd/actionlint` を CI に追加（GitHub Action 版なら新規の npm 依存は増えない）
+  - b) lefthook の pre-commit に `.github/workflows/**` 変更時のみ actionlint を走らせる
+  - c) 現状維持（semgrep の hook が一部は捕まえる）
+- **注意:** actionlint は構文とコンテキスト参照の誤りは捕まえるが、上記の
+  「常に失敗する検査」のような**論理バグは防げない**。過信しないこと
+- **決定期限:** なし。ワークフローを触る頻度が上がったら判断する
+- 参照: エージェントパイプライン導入（2026-09-25、PR #79 / #81）で顕在化
 
 ## 削除・アーカイブ判断待ち
 

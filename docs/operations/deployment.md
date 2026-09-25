@@ -133,12 +133,17 @@ SENTRY_DSN=<開発時は空でも可>
 
 | ファイル | トリガ | 内容 |
 |---|---|---|
-| `ci.yml` | PR / push | lint + typecheck + ユニットテスト + build |
+| `ci.yml` | PR / push | lint + typecheck + ユニットテスト + build + commitlint（PRのみ） |
 | `integration.yml` | PR / main push | Supabase を起動して `pnpm test:integration`（RLS 検証） |
-| `e2e.yml` | PR | Playwright E2E |
+| `e2e.yml` | PR / `workflow_call` | Playwright E2E。PR は Chromium 系のみ、webkit は `nightly.yml` と `safari` ラベル時 |
 | `migration-check.yml` | PR (supabase/migrations 変更時) | migration lint |
 | `deploy-migration.yml` | main push (supabase/migrations 変更時) | prod DB migration 適用（マスタデータもここに含まれる） |
+| `nightly.yml` | schedule（週1）/ 手動 | Safari E2E・スキーマドリフト・ボードドリフト |
+| `agent-review.yml` | PR（draft 以外） | エージェントによる差分レビュー。ブランチ保護が使えないため現状は助言役 |
+| `agent-implement.yml` | issue に `agent:auto` ラベル | エージェントが実装して PR を立てる。**マージは人**。`AGENT_GITHUB_TOKEN` 未登録のため現在は停止中 |
 | `preview-cleanup.yml` | PR close | Preview 環境のクリーンアップ（**未作成**） |
+
+エージェント関連3本の設計・安全弁・課金分の実測は [agent-pipeline.md](./agent-pipeline.md) 参照。
 
 **マスタデータ（areas / tags / badges）はマイグレーションに置く。`supabase/seed.sql` には置かない。**
 

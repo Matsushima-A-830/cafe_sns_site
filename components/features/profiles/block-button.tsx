@@ -21,6 +21,9 @@ export function BlockButton({ targetUserId }: { targetUserId: string }) {
   const router = useRouter()
 
   function handleConfirm() {
+    // disabled にせず自前で弾く（下の aria-busy のコメント参照）
+    if (isPending) return
+
     setError(null)
     startTransition(async () => {
       const result = await blockUser({ targetUserId })
@@ -66,7 +69,10 @@ export function BlockButton({ targetUserId }: { targetUserId: string }) {
               type="button"
               variant="destructive"
               size="lg"
-              disabled={isPending}
+              // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ち、
+              // キーボードで押したユーザーは毎回ページ先頭から辿り直すことになる。
+              // 連打は handleConfirm 側の isPending ガードで止める
+              aria-busy={isPending}
               onClick={handleConfirm}
             >
               ブロックする

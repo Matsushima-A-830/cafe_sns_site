@@ -1,10 +1,18 @@
 name: E2E
 
 # paths-ignore は付けない（理由は integration.yml と同じ）
+#
+# push: main は付けない。webkit 検証は nightly.yml に移したため、マージ直後に
+# full セットを回すのは冗長で、1マージあたり 11 分の課金分をそのまま捨てることになる
 on:
   pull_request:
-  push:
-    branches: [main]
+  # 夜間ジョブ (nightly.yml) から webkit 込みで呼ぶための入口
+  workflow_call:
+    inputs:
+      full:
+        description: webkit / mobile-safari を含む 4 project すべてで回す
+        type: boolean
+        default: false
 
 concurrency:
   group: e2e-${{ github.ref }}
@@ -26,11 +34,15 @@ jobs:
 
       # Safari は MVP 開発期間中は非対応（CLAUDE.md）。4 project 全部を毎PRで回すと
       # 実行時間がちょうど倍になるため、PR は Chromium 系のみ。webkit 系は
-      # main へのマージ後と、`safari` ラベルを付けた PR で検証する
+      # 夜間ジョブ (nightly.yml) と、`safari` ラベルを付けた PR で検証する
       - name: Decide browser set
         id: browsers
+        # github コンテキストは PR タイトル等の任意入力を含むため run: に直接展開しない
+        env:
+          FULL_RUN: ${{ inputs.full }}
+          HAS_SAFARI_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'safari') }}
         run: |
-          if [ "${{ github.event_name }}" = "push" ] || ${{ contains(github.event.pull_request.labels.*.name, 'safari') }}; then
+          if [ "$FULL_RUN" = "true" ] || [ "$HAS_SAFARI_LABEL" = "true" ]; then
             echo "install=chromium webkit" >> "$GITHUB_OUTPUT"
             echo "projects=--project=chromium --project=webkit --project=mobile-chrome --project=mobile-safari" >> "$GITHUB_OUTPUT"
             echo "set=full" >> "$GITHUB_OUTPUT"

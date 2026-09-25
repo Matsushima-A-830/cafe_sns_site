@@ -54,6 +54,9 @@ export function NotificationList({
   }
 
   function handleMarkAllRead() {
+    // disabled にせず自前で弾く（下の aria-busy のコメント参照）
+    if (isPending) return
+
     const hasUnread = items.some((item) => item.readAt === null)
     if (!hasUnread) return
 
@@ -77,7 +80,7 @@ export function NotificationList({
   }
 
   function handleLoadMore() {
-    if (!cursor) return
+    if (isPending || !cursor) return
     setError(null)
     startTransition(async () => {
       const result = await loadMoreNotifications({ filter, cursor })
@@ -100,7 +103,10 @@ export function NotificationList({
           variant="outline"
           size="sm"
           onClick={handleMarkAllRead}
-          disabled={!hasUnread || isPending}
+          disabled={!hasUnread}
+          // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。
+          // 連打は handleMarkAllRead 側の isPending ガードで止める
+          aria-busy={isPending}
         >
           すべて既読
         </Button>
@@ -136,7 +142,14 @@ export function NotificationList({
 
       {cursor && (
         <div className="flex justify-center">
-          <Button type="button" variant="outline" onClick={handleLoadMore} disabled={isPending}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleLoadMore}
+            // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。
+            // 連打は handleLoadMore 側の isPending ガードで止める
+            aria-busy={isPending}
+          >
             {isPending ? '読み込み中…' : 'もっと見る'}
           </Button>
         </div>

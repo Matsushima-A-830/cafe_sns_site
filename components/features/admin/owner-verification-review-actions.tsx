@@ -28,6 +28,8 @@ export function OwnerVerificationReviewActions({ verificationId }: { verificatio
   const canConfirm = !notesRequired || notes.trim().length > 0
 
   function handleConfirm() {
+    // disabled にせず自前で弾く（下の aria-busy のコメント参照）
+    if (isPending) return
     const decision = pendingDecision
     if (!decision || !canConfirm) return
     setError(null)
@@ -74,7 +76,10 @@ export function OwnerVerificationReviewActions({ verificationId }: { verificatio
             key={item.value}
             type="button"
             variant={item.value === 'reject' ? 'outline' : 'default'}
-            disabled={isPending}
+            // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ち、
+            // キーボードで押したユーザーは毎回ページ先頭から辿り直すことになる。
+            // 連打は handleConfirm 側の isPending ガードで止める
+            aria-busy={isPending}
             onClick={() => setPendingDecision(item.value)}
             className="focus-visible:ring-2 focus-visible:ring-ring-focus"
           >
@@ -114,7 +119,11 @@ export function OwnerVerificationReviewActions({ verificationId }: { verificatio
               type="button"
               variant="destructive"
               size="lg"
-              disabled={isPending || !canConfirm}
+              disabled={!canConfirm}
+              // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ち、
+              // キーボードで押したユーザーは毎回ページ先頭から辿り直すことになる。
+              // 連打は handleConfirm 側の isPending ガードで止める
+              aria-busy={isPending}
               onClick={handleConfirm}
             >
               実行する

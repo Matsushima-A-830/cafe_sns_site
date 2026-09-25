@@ -146,21 +146,19 @@ describe('profiles の UPDATE', () => {
     expect(error?.message).toContain('FORBIDDEN')
   })
 
-  // guard_privileged_profile_columns は role/status しか弾かない。username の
-  // 「変更不可」は DB 制約ではなく Server Action 側のスキーマ設計だけで担保している
-  // ため、RLS はむしろ許可することをここで固定する（app/_actions/profiles.ts 参照）
-  it('username は RLS では守られていない（アプリ層の責務であることの記録）', async () => {
+  // 変更不可はトリガーで担保する。admin にも例外を設けない
+  // （ワイヤーに例外の記述が無く、管理画面にも username 変更UIが存在しないため）
+  it('自分の username は変えられない（ユーザーネーム変更不可の防止）', async () => {
     const { error } = await alice.client
       .from('profiles')
       .update({ username: 'alice_renamed' })
       .eq('id', alice.userId)
 
-    expect(error).toBeNull()
+    expect(error?.code).toBe(RAISED_BY_TRIGGER)
+    expect(error?.message).toContain('FORBIDDEN')
 
     const after = await service.from('profiles').select('username').eq('id', alice.userId).single()
-    expect(after.data?.username).toBe('alice_renamed')
-
-    await service.from('profiles').update({ username: 'alice_rls' }).eq('id', alice.userId)
+    expect(after.data?.username).toBe('alice_rls')
   })
 
   it('updated_at はトリガーで自動更新される', async () => {
@@ -230,6 +228,27 @@ describe('admin の権限', () => {
       expect(after.data).toEqual({ role: 'owner', status: 'suspended' })
     } finally {
       await service.from('profiles').update({ role: 'user', status: 'active' }).eq('id', bob.userId)
+      await admin.cleanup()
+    }
+  })
+
+  // username は admin にも例外を設けない（ワイヤーに例外の記述が無く、管理画面にも
+  // 変更UIが存在しないため。将来モデレーション目的で必要になれば別途専用の
+  // Server Action として設計する）
+  it('admin でも他人の username は変えられない', async () => {
+    const admin = await createAuthedProfile({ username: 'admin_username_rls', role: 'admin' })
+    try {
+      const { error } = await admin.client
+        .from('profiles')
+        .update({ username: 'bob_hijacked' })
+        .eq('id', bob.userId)
+
+      expect(error?.code).toBe(RAISED_BY_TRIGGER)
+      expect(error?.message).toContain('FORBIDDEN')
+
+      const after = await service.from('profiles').select('username').eq('id', bob.userId).single()
+      expect(after.data?.username).toBe('bob_rls')
+    } finally {
       await admin.cleanup()
     }
   })

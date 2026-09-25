@@ -31,6 +31,7 @@
 | **operations / 開発サイクル** | [docs/operations/development-cycle.md](docs/operations/development-cycle.md) | **スキルを使った1周の順序と理由（着手判断→実装→レビュー→実機確認→出荷→引き継ぎ）** |
 | **operations / Git** | [docs/operations/git-workflow.md](docs/operations/git-workflow.md) | **ブランチ・コミット・PR規約（実装時必読）** |
 | **operations / デプロイ** | [docs/operations/deployment.md](docs/operations/deployment.md) | **環境・CI/CD・監視（実装時必読）** |
+| operations / エージェント | [docs/operations/agent-pipeline.md](docs/operations/agent-pipeline.md) | 無人実行（nightly）・自動レビュー・無人マージのステージと安全弁 |
 | seed / バッジ | [docs/seed/badges-initial-set.md](docs/seed/badges-initial-set.md) | 20バッジの条件定義 |
 | seed / タグ | [docs/seed/curated-tags-initial-set.md](docs/seed/curated-tags-initial-set.md) | 厳選タグ30個 |
 | seed / エリア | [docs/seed/areas-initial-set.md](docs/seed/areas-initial-set.md) | 東京45エリア |
@@ -316,9 +317,32 @@ bg-danger           (危険操作)
 ### Claude Code と作業する際のGit運用
 
 - **ブランチ切り替え、PR作成、コミットは必ずユーザー確認を経る**
+  （例外は CI 上の `agent-implement.yml` のみ。下記「無人パイプラインの例外」参照）
 - **破壊的操作**（force push, hard reset, branch削除等）は指示なしにやらない
 - pre-commit hook 失敗時は `--no-verify` で回避せず、根本を直す
 - コミットメッセージには `Co-Authored-By: Claude ...` を付与
+
+#### 無人パイプラインの例外
+
+`agent-implement.yml` は issue への `agent:auto` ラベルを起点に、人の逐次確認なしで
+コミット・ブランチ作成・PR作成を行う。上の「必ずユーザー確認を経る」は
+このワークフローには適用されない。
+
+**ただしマージは常に人が行う。無人マージは実装していない。**
+GitHub Free のプライベートリポジトリではブランチ保護・ルールセット・auto-merge が
+いずれも使えず、必須ステータスチェックに守られない自動マージは成立しないため。
+
+代わりに次で担保する。詳細は
+[docs/operations/agent-pipeline.md](docs/operations/agent-pipeline.md)。
+
+- 起動できるのは OWNER / MEMBER / COLLABORATOR がラベルを付けた issue だけ
+- エージェントに任せる範囲は `scripts/check-agent-scope.sh` で制限（現在は `docs/` のみ）
+- `.github/` `lefthook.yml` `scripts/check-*` `supabase/migrations/` `package.json`
+  `CLAUDE.md` は常時禁止。**エージェントが自分を止める仕組みと本ファイルを変更することはない**
+- 作られた PR には `agent:needs-review` が付く。人が差分を見てマージする
+
+**対話セッションの Claude Code（このファイルを読んでいる側）にこの例外は適用されない。**
+手元での commit / push / PR 作成は、これまでどおり毎回ユーザー確認を経ること。
 
 ## アクセシビリティとパフォーマンス
 

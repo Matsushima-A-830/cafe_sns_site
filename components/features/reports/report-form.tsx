@@ -37,7 +37,8 @@ export function ReportForm({ targetType, targetId, targetLabel, backHref }: Prop
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
-    if (!reason) return
+    // disabled にせず自前で弾く（下の aria-busy のコメント参照）
+    if (!reason || isPending) return
     setError(null)
 
     startTransition(async () => {
@@ -86,7 +87,9 @@ export function ReportForm({ targetType, targetId, targetLabel, backHref }: Prop
                 name="report-reason"
                 className="sr-only"
                 checked={reason === option.value}
-                disabled={isPending}
+                // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。
+                // 二重送信は handleSubmit 側の isPending ガードで止める
+                aria-busy={isPending}
                 onChange={() => setReason(option.value)}
               />
               {option.label}
@@ -102,7 +105,9 @@ export function ReportForm({ targetType, targetId, targetLabel, backHref }: Prop
         <Textarea
           id="report-description"
           value={description}
-          disabled={isPending}
+          // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。
+          // 二重送信は handleSubmit 側の isPending ガードで止める
+          aria-busy={isPending}
           maxLength={1000}
           onChange={(event) => setDescription(event.target.value)}
         />
@@ -118,7 +123,8 @@ export function ReportForm({ targetType, targetId, targetLabel, backHref }: Prop
         </p>
       )}
 
-      <Button type="submit" size="lg" disabled={!reason || isPending}>
+      {/* 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。二重送信は handleSubmit 側の isPending ガードで止める */}
+      <Button type="submit" size="lg" disabled={!reason} aria-busy={isPending}>
         通報する
       </Button>
     </form>
@@ -137,7 +143,8 @@ function ReportDone({
   const [isPending, startTransition] = useTransition()
 
   function handleBlock() {
-    if (!blockableUserId) return
+    // disabled にせず自前で弾く（下の aria-busy のコメント参照）
+    if (!blockableUserId || isPending) return
     setError(null)
     startTransition(async () => {
       const result = await blockUser({ targetUserId: blockableUserId })
@@ -172,7 +179,10 @@ function ReportDone({
               type="button"
               variant="destructive"
               size="lg"
-              disabled={isPending}
+              // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ち、
+              // キーボードで押したユーザーは毎回ページ先頭から辿り直すことになる。
+              // 連打は handleBlock 側の isPending ガードで止める
+              aria-busy={isPending}
               onClick={handleBlock}
             >
               ブロックする
