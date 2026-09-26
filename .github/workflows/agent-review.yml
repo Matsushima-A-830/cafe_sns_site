@@ -84,7 +84,7 @@ jobs:
           claude_args: |
             --model claude-sonnet-5
             --effort medium
-            --max-turns 15
+            --max-turns 20
             --allowedTools Read,Glob,Grep,Write,Bash
           # PR 本文やタイトルは任意入力なのでプロンプトに埋め込まない。
           # 差分はエージェント自身に git で読ませる
