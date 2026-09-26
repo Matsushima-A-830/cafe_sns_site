@@ -51,14 +51,28 @@ describe('areas の seed', () => {
     expect(orphans).toEqual(['JP-13-kichijoji'])
   })
 
-  it('座標は未収集なので全件 NULL（pending-items A3）', async () => {
+  it('座標45件が投入されている（pending-items A3 解消済み）', async () => {
     const { count, error } = await service
       .from('areas')
       .select('code', { count: 'exact', head: true })
       .not('center_location', 'is', null)
 
     expect(error).toBeNull()
-    expect(count).toBe(0)
+    expect(count).toBe(45)
+  })
+
+  it('原宿と神宮前は座標が重複しない（同一問い合わせで同座標になった実バグの再発防止）', async () => {
+    const { data: rows, error } = await service
+      .from('areas')
+      .select('code, center_location')
+      .in('code', ['JP-13-harajuku', 'JP-13-jingumae'])
+
+    expect(error).toBeNull()
+    expect(rows).toHaveLength(2)
+    const [a, b] = rows ?? []
+    expect(a?.center_location).not.toBeNull()
+    expect(b?.center_location).not.toBeNull()
+    expect(a?.center_location).not.toEqual(b?.center_location)
   })
 })
 
