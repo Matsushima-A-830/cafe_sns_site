@@ -49,14 +49,14 @@ export function AuthNav() {
   if (isAuthed) {
     return (
       <>
-        {/* HomeSideNav の「マイ」は hidden md:block かつ / と /explore にしか無いので、
-            スマホからは /me に辿り着く導線がここしか無い（pending-items D27） */}
+        {/* モバイルは BottomNav の「マイ」でカバーされるため hidden md:inline。
+            HomeSideNav は / と /explore にしか無いため、md 以上はこのリンクが
+            /cafes/[id] 等それ以外のページから /me へ辿る唯一の導線として残す（pending-items D27） */}
         <Link
           href="/me"
-          // 表記はサイドナビと揃えて「マイ」。390px 幅だと「マイページ」では折り返して
-          // ロゴまで2行に崩れる。読み上げ名には全体を渡す（可視文字を含むので 2.5.3 を満たす）
+          // 表記はサイドナビと揃えて「マイ」
           aria-label="マイページ"
-          className="whitespace-nowrap text-link underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
+          className="hidden whitespace-nowrap text-link underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none md:inline"
         >
           マイ
         </Link>

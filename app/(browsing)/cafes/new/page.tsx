@@ -3,8 +3,8 @@
 //
 // NOTE: ワイヤーフレームが存在しない画面（docs/design/wireframes/ に S_CAFE_NEW の記載なし）。
 // フォーム項目はハンドオフメモと cafes テーブル定義から設計した。
-// location（座標）・main_image_path（画像）は含めない — Google Maps 未統合・
-// cafe-images バケット未作成のため（docs/product/pending-items.md A3 / D31）
+// location（座標）は Google Places Autocomplete で新規登録時のみ収集する（feat/s-map）。
+// main_image_path（画像）は cafe-images バケット未作成のため含めない（docs/product/pending-items.md D31）
 import { createClient } from '@/lib/supabase/server'
 import { CafeNewForm } from './cafe-new-form'
 

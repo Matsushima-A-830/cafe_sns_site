@@ -1,12 +1,13 @@
-import { Compass, House, PencilLine, User } from 'lucide-react'
+import { Compass, House, MapPin, PencilLine, User } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils/cn'
 
 /**
  * S_HOME（PC）の3カラム左側。タブレット（md）はアイコンレール、PC（lg）でラベルを出す。
  *
- * ワイヤーには地図・通知・お気に入り・行きたい・下書き・設定も並ぶが、ルート自体が
+ * ワイヤーには通知・お気に入り・行きたい・下書き・設定も並ぶが、ルート自体が
  * 未実装なので置いていない（404 へのリンクを先に作らない — pending-items D27）。
+ * 「地図」は feat/s-map で追加（未ログインでも見られる画面なので AUTHED_ITEMS ではなくこちら）。
  * 「マイ」は /me の実装に合わせて追加した（お気に入り・行きたい・下書きへは
  * マイページの4カードから辿れる）
  *   docs/design/wireframes/browsing.md #S_HOME PC
@@ -14,6 +15,7 @@ import { cn } from '@/lib/utils/cn'
 const ITEMS = [
   { key: 'home', href: '/', label: 'ホーム', Icon: House },
   { key: 'explore', href: '/explore', label: '発見', Icon: Compass },
+  { key: 'map', href: '/map', label: '地図', Icon: MapPin },
 ] as const
 
 /** ログイン中だけ出す項目。未ログインで踏むと /login へ飛ぶだけなので並べない */

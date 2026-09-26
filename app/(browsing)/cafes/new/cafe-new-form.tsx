@@ -4,6 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useId, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { createCafe, findSimilarCafes } from '@/app/_actions/cafes'
+import {
+  type CafeLocation,
+  CafeLocationPicker,
+} from '@/components/features/cafes/cafe-location-picker'
 import { Button } from '@/components/ui/button'
 import { FieldError } from '@/components/ui/field-error'
 import { Input } from '@/components/ui/input'
@@ -22,6 +26,7 @@ type Area = { code: string; label: string }
 export function CafeNewForm({ areas }: { areas: Area[] }) {
   const areaFieldId = useId()
   const [selectedArea, setSelectedArea] = useState<string>()
+  const [location, setLocation] = useState<CafeLocation | null>(null)
   const [formError, setFormError] = useState<string>()
   const [similarCafes, setSimilarCafes] = useState<ComposerCafe[]>([])
   const [created, setCreated] = useState<{ id: string; name: string }>()
@@ -57,7 +62,12 @@ export function CafeNewForm({ areas }: { areas: Area[] }) {
 
   const onSubmit = handleSubmit(async (values) => {
     setFormError(undefined)
-    const result = await createCafe({ ...values, areaCode: selectedArea })
+    const result = await createCafe({
+      ...values,
+      areaCode: selectedArea,
+      lat: location?.lat,
+      lng: location?.lng,
+    })
     if (!result.ok) {
       setFormError(errorMessage(result.error))
       return
@@ -147,6 +157,8 @@ export function CafeNewForm({ areas }: { areas: Area[] }) {
         <Input id="address" {...register('address')} />
         <FieldError>{errors.address?.message}</FieldError>
       </div>
+
+      <CafeLocationPicker value={location} onChange={setLocation} />
 
       <div className="flex flex-col gap-2">
         <Label htmlFor="phone">電話番号（任意）</Label>

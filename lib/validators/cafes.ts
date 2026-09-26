@@ -12,9 +12,21 @@ export const cafeIdSchema = z.object({
 
 export type SearchCafesInput = z.infer<typeof searchCafesSchema>
 
-// S_CAFE_NEW（カフェ新規登録）。location / main_image_path は含めない
-// （Google Maps 未統合・cafe-images バケット未作成のため v1 スコープ外。
-//   docs/product/pending-items.md A3 / D31）
+// S_MAP。閲覧者の現在地（またはフォールバック座標）と絞り込み条件
+export const nearbyCafesSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
+  areaCode: z.string().min(1).optional(),
+  query: z.string().trim().max(50).optional(),
+  limit: z.number().int().min(1).max(200).optional(),
+})
+
+export type NearbyCafesInput = z.infer<typeof nearbyCafesSchema>
+
+// S_CAFE_NEW（カフェ新規登録）。main_image_path は含めない
+// （cafe-images バケット未作成のため v1 スコープ外。docs/product/pending-items.md D31）。
+// location（lat/lng）は Google Places Autocomplete 経由でのみ受け取る（新規登録時のみ。
+// 既存カフェのバックフィルはスコープ外）
 export const createCafeSchema = z.object({
   name: z
     .string()
@@ -37,19 +49,31 @@ export const createCafeSchema = z.object({
   phone: z.string().trim().max(20, '電話番号は20文字以内で入力してください').optional(),
   website: z.string().trim().url('URLの形式が正しくありません').optional().or(z.literal('')),
   description: z.string().trim().max(500, '説明は500文字以内で入力してください').optional(),
+  lat: z.number().min(-90).max(90).optional(),
+  lng: z.number().min(-180).max(180).optional(),
 })
 
 export type CreateCafeInput = z.infer<typeof createCafeSchema>
 
+// lat/lng は両方指定するか両方省略する。片方だけの入力はフォームの取りこぼしを疑う
+export const cafeLocationBothOrNeither = (data: { lat?: number; lng?: number }) =>
+  (data.lat === undefined) === (data.lng === undefined)
+
+export const createCafeInputSchema = createCafeSchema.refine(cafeLocationBothOrNeither, {
+  message: '緯度経度は両方指定してください',
+  path: ['lat'],
+})
+
 // S_OWNER_CAFE_EDIT。createCafeSchema に cafeId・externalIds を足したもの。
-// main_image_path・location は含めない（cafe-images バケット未作成のため今回もスコープ外。
-//   docs/product/pending-items.md D31）
+// main_image_path は含めない（cafe-images バケット未作成のため今回もスコープ外。
+//   docs/product/pending-items.md D31）。location は新規登録時のみ収集する運用のため、
+// 編集フォームでは扱わない（lat/lng を明示的に除く）
 export const externalIdsSchema = z.object({
   googlePlaceId: z.string().trim().max(200, 'Place IDは200文字以内で入力してください').optional(),
   tabelogUrl: z.string().trim().url('URLの形式が正しくありません').optional().or(z.literal('')),
 })
 
-export const updateCafeSchema = createCafeSchema.extend({
+export const updateCafeSchema = createCafeSchema.omit({ lat: true, lng: true }).extend({
   cafeId: z.string().uuid('カフェIDの形式が正しくありません'),
   externalIds: externalIdsSchema.optional(),
 })
