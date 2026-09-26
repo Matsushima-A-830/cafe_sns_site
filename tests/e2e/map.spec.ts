@@ -73,6 +73,11 @@ test('エリアで絞り込むと、対象エリアのカフェだけが一覧�
 
   await page.goto('/map')
 
+  // モバイル幅は初期表示が地図モードで、一覧はボタントグルで切り替えるまで hidden。
+  // PC幅はこのタブ自体が無く常に両方表示なので、存在するときだけ切り替える
+  const listTab = page.getByRole('tab', { name: '一覧' })
+  if (await listTab.count()) await listTab.click()
+
   await expect(page.getByText(shibuyaName)).toBeVisible()
   await expect(page.getByText(shinjukuName)).toBeVisible()
   await expect(page.getByText(`座標無しE2Eカフェ ${suffix}`)).not.toBeVisible()
