@@ -9,7 +9,7 @@ import { escapeIlikePattern, quoteOrFilterValue } from '@/lib/utils/postgrest'
 import {
   type CreateCafeInput,
   cafeIdSchema,
-  createCafeSchema,
+  createCafeInputSchema,
   searchCafesSchema,
   type UpdateCafeInput,
   updateCafeSchema,
@@ -158,15 +158,16 @@ export async function findSimilarCafes(
 }
 
 /**
- * カフェの新規登録（S_CAFE_NEW）。location / main_image_path は受け取らない
- * （lib/validators/cafes.ts の createCafeSchema コメント参照）。
+ * カフェの新規登録（S_CAFE_NEW）。main_image_path は受け取らない
+ * （lib/validators/cafes.ts の createCafeSchema コメント参照）。location（lat/lng）は
+ * Places Autocomplete で選択済みのときだけ受け取る。
  * 認可は cafes_insert_authenticated に委譲し、ここでは入力の検証と
  * エラーコード変換だけを行う（supabase/migrations/20260906130000_create_cafes.sql）
  */
 export async function createCafe(
   input: unknown,
 ): Promise<Result<{ cafeId: string }, CreateCafeError>> {
-  const parsed = createCafeSchema.safeParse(input)
+  const parsed = createCafeInputSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: 'INVALID_INPUT', details: parsed.error.flatten() }
 
   try {
@@ -201,6 +202,11 @@ async function insertCafe(
       phone: input.phone || null,
       website: input.website || null,
       description: input.description || null,
+      // lat/lng は createCafeInputSchema が両方セット or 両方省略のみを通す
+      location:
+        input.lat !== undefined && input.lng !== undefined
+          ? `SRID=4326;POINT(${input.lng} ${input.lat})`
+          : null,
       created_by: user.id,
     })
     .select('id')

@@ -132,6 +132,33 @@ describe('createCafe', () => {
     )
   })
 
+  it('lat/lng が両方あれば location を WKT で送る', async () => {
+    const { stub, spies } = buildSupabaseStub()
+    createClientMock.mockResolvedValue(stub)
+
+    await createCafe({ ...validInput, lat: 35.658, lng: 139.7016 })
+
+    expect(spies.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ location: 'SRID=4326;POINT(139.7016 35.658)' }),
+    )
+  })
+
+  it('lat/lng が両方未指定なら location は null', async () => {
+    const { stub, spies } = buildSupabaseStub()
+    createClientMock.mockResolvedValue(stub)
+
+    await createCafe(validInput)
+
+    expect(spies.insert).toHaveBeenCalledWith(expect.objectContaining({ location: null }))
+  })
+
+  it('lat/lng が片方だけなら INVALID_INPUT を返す', async () => {
+    const result = await createCafe({ ...validInput, lat: 35.658 })
+
+    expect(result).toEqual({ ok: false, error: 'INVALID_INPUT', details: expect.anything() })
+    expect(createClientMock).not.toHaveBeenCalled()
+  })
+
   it('area_code の FK 違反は AREA_CODE_UNKNOWN を返す', async () => {
     const { stub } = buildSupabaseStub({
       insertResult: {

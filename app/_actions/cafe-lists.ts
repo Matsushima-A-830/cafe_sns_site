@@ -1,6 +1,8 @@
 'use server'
 
 import { cafeExists } from '@/lib/cafes/cafe-detail'
+import { getCafeListMembership } from '@/lib/cafes/user-cafe-lists'
+import type { CafeListType } from '@/lib/constants/cafe-lists'
 import {
   POSTGRES_CHECK_VIOLATION,
   POSTGRES_FOREIGN_KEY_VIOLATION,
@@ -9,6 +11,7 @@ import {
 } from '@/lib/constants/postgres-error-codes'
 import { createClient } from '@/lib/supabase/server'
 import { type CafeListEntryInput, cafeListEntrySchema } from '@/lib/validators/cafe-lists'
+import { cafeIdSchema } from '@/lib/validators/cafes'
 import type { Result } from '@/types/result'
 
 /**
@@ -125,4 +128,30 @@ export async function removeCafeFromList(
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
   return { ok: true, data: null }
+}
+
+/**
+ * S_MAP のボトムシートなど、Server Component を介さずクライアントから
+ * 開閉のたびに「行きたい」等の状態を知りたい画面向け。未ログインは全部 false を返す
+ * （CafeListButtons 側がログイン導線に切り替える）
+ */
+export async function getCafeListMembershipForCafe(
+  input: unknown,
+): Promise<Result<Record<CafeListType, boolean>, 'INVALID_INPUT' | 'INTERNAL_ERROR'>> {
+  const parsed = cafeIdSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, error: 'INVALID_INPUT', details: parsed.error.flatten() }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { ok: true, data: { favorite: false, want_to_go: false } }
+
+  try {
+    const membership = await getCafeListMembership(supabase, parsed.data.cafeId)
+    return { ok: true, data: membership }
+  } catch (cause) {
+    console.error('[cafe-lists] カフェリストの状態取得に失敗:', cause)
+    return { ok: false, error: 'INTERNAL_ERROR' }
+  }
 }

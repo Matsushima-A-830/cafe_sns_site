@@ -1360,6 +1360,25 @@ export type Database = {
       is_cafe_owner: { Args: { p_cafe_id: string }; Returns: boolean }
       is_post_author: { Args: { p_post_id: string }; Returns: boolean }
       is_post_cafe_owner: { Args: { p_post_id: string }; Returns: boolean }
+      nearby_cafes: {
+        Args: {
+          p_area_code?: string
+          p_lat: number
+          p_limit?: number
+          p_lng: number
+          p_query?: string
+        }
+        Returns: {
+          area_code: string
+          area_label: string
+          cafe_id: string
+          distance_m: number
+          is_verified: boolean
+          lat: number
+          lng: number
+          name: string
+        }[]
+      }
       replace_user_interest_tags: {
         Args: { p_tag_ids: string[] }
         Returns: undefined
