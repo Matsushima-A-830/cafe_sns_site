@@ -2,11 +2,11 @@
 
 `areas` テーブルに投入する初期データ。**東京中心のMVPからスタート、全国は段階的に拡張**。
 
-> **⚠️ このドキュメントは座標を持っていない。**
-> 以下の表は `code` / `slug` / `label` / `parent_code` のみで、`areas.center_location`（緯度経度）が未収集。
-> **seed は `center_location = NULL` で投入してよい**（列は nullable）が、その状態では `S_MAP` のエリア表示・
-> 新規カフェ登録時の `area_code` 自動判定・`S_ONBOARD_AREA` の「現在地から検索」が動かない。
-> 収集の段取りは [pending-items A3](../product/pending-items.md) を参照。
+> **✅ 座標データは2026-09-26に投入済み（[pending-items A3](../product/pending-items.md) 解消済み）。**
+> 以下の表自体は `code` / `slug` / `label` / `parent_code` のみを載せているが、`areas.center_location`（緯度経度）は
+> `supabase/migrations/20260926214427_backfill_area_coordinates.sql` で全45件に投入済み。
+> `S_MAP` のエリア表示は動くようになったが、新規カフェ登録時の `area_code` 自動判定・`S_ONBOARD_AREA` の
+> 「現在地から検索」は別途 `ST_Distance` によるエリア判定ロジックの実装が要るため、まだ動かない（意図的にスコープ外）。
 
 ## コード体系（ISO 3166-2 準拠）
 

@@ -6,13 +6,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 
 初回マイグレーション（拡張・共通関数・マスタ3テーブル）と profiles 一式
 （profiles / user_settings / user_interest_tags / follows / blocks）は **2026-09-05 に完了**。
-残る未了は座標データ1件のみ。
-
-| # | 内容 | いつ効いてくるか | ブロックするもの |
-|---|---|---|---|
-| [A3](#a3-エリア定義制覇マップ用-部分解消設計は確定--座標データが未収集) | `areas.center_location` の座標45件が未収集 | `S_MAP` / カフェ登録の実装時 | 地図表示、エリア自動判定、現在地検索。**seed は座標なしで投入してよい** |
-
-これ以外の優先度A項目はすべて解消済み。
+座標データ（A3）も **2026-09-26 に解消**。残る優先度A項目は A1（Safari対応方針、意図的にリリース前まで保留）のみ。
 
 ## 優先度A: MVPリリース前に決める必要あり
 
@@ -33,29 +27,21 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **priority 導入:** `tags.priority` で表示順を制御（occasion=100 / mood=50 / other=10）
 - **残作業:** DB初期化時に seed SQL を実行
 
-### A3. エリア定義（制覇マップ用）🟡 部分解消（設計は確定 / 座標データが未収集）
+### A3. エリア定義（制覇マップ用）✅ 解消済（2026-09-26、座標データ投入）
 
 - **確定済み:** コード体系・階層・初期セット45件は [seed/areas-initial-set.md](../seed/areas-initial-set.md) で確定
   - コード体系: ISO 3166-2 準拠（`JP-13-shibuya-ku`）
   - マスタテーブル: `areas` を新設、`parent_code` で階層化
   - 初期セット: 東京45エリア（23区 + 主要副地域22）
 - **境界ポリゴン (`bounds`) は持たない（2026-09-05 決定）:** [tables.md areas](../architecture/data-model/tables.md#areas) は `center_location`（点）のみを持つ。エリア判定は最寄り中心点への距離で足り、行政界ポリゴンの調達・保守コストに見合わない。地図の初期表示範囲も中心点 + 固定ズームで代替する
-
-#### 🔴 未了: `areas.center_location` の座標データ（2026-09-05 に再確認）
-
-**`areas-initial-set.md` は `code / slug / label / parent_code` しか持っておらず、45件ぶんの緯度経度がどこにもない。**
-
-- **マイグレーションと seed は書ける** — 列は nullable なので `center_location = NULL` で投入できる。初回マイグレーションのブロッカーではない
-- **座標が入るまで動かない機能:**
-  - `S_MAP` のエリア指定表示（地図の中心が決まらない）
-  - 新規カフェ登録時の `area_code` 自動判定（`ST_Distance` の比較対象が無い）
-  - `S_ONBOARD_AREA` の「現在地から検索」（最寄りエリアを出せない）
-- **必要な作業:** 45件ぶんの中心点（各区役所 or 主要駅の座標）を収集して seed に入れる
-- **調達方法の候補:**
-  - a) 国土地理院や e-Stat の公開データから区役所座標を取る
-  - b) Google Geocoding API に区名・駅名を投げて一括取得（`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` と同じプロジェクトで従量課金）
-  - c) 45件を手作業で調べる（1〜2時間程度）
-- **決定期限:** `S_MAP` またはカフェ登録機能の実装前。**それまでは seed に座標なしで投入してよい**
+- **解消（2026-09-26）:** `areas.center_location` の座標45件を Google Geocoding API（`"東京都 {label}"` で一括問い合わせ）で
+  取得し、`supabase/migrations/20260926214427_backfill_area_coordinates.sql` の UPDATE 文で投入した
+  （既存の `20260905120400_seed_master_data.sql` は forward-only 原則により書き換えず、別マイグレーションで埋めた）
+- **この解消で動くようになった機能:** `S_MAP` のエリア指定表示（`S_MAP` 本体の実装は別PR、`feat/s-map` で対応）
+- **この解消でもまだ動かない機能（別スコープ）:**
+  - 新規カフェ登録時の `area_code` 自動判定（`ST_Distance` によるエリア判定ロジック自体は未実装）
+  - `S_ONBOARD_AREA` の「現在地から検索」（同上）
+  - どちらも意図的にスコープ外にした（既存画面への機能追加になるため、S_MAP本体を優先）
 
 ### A9. 最初の admin アカウントをどう作るか ✅ 解消済（2026-09-05）
 
@@ -712,7 +698,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **課題:** ワイヤー（[wireframes/browsing.md](../design/wireframes/browsing.md) #S_EXPLORE）の
   サブタブは「おすすめ / 新着 / 近くのカフェ」の3つだが、実装したのは前2つ。
   「近くのカフェ」は Geolocation API + PostGIS の近傍検索 + カフェ一覧カードが前提で、
-  `areas.center_location` の座標45件も未収集（A3）、`S_MAP` / `S_CAFE_DETAIL` も未実装
+  `areas.center_location` の座標45件は投入済み（A3 解消済み・2026-09-26）だが、`S_MAP` / `S_CAFE_DETAIL` も未実装
 - **判断:** 押しても何も出ないタブや404へのリンクを置くより、**タブごと出さない**ことを選んだ
 - **対応判断:** `S_MAP` / `S_CAFE_DETAIL` の実装と同時に戻る
 - 参照: S_EXPLORE 実装時にスコープ外と判断（2026-09-15）
@@ -801,7 +787,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **解消済み（2026-09-18）:** **「行きたい」「お気に入り」** は `user_cafe_lists` の作成に合わせて実装した
   （`components/features/cafes/cafe-list-buttons.tsx`）
 - **出していないものと理由:**
-  - **地図・「徒歩3分」** — `areas.center_location` の座標45件が未収集（A3）、`cafes.location` も実データなし
+  - **地図・「徒歩3分」** — `areas.center_location` の座標45件は投入済み（A3 解消済み・2026-09-26）だが、`S_MAP` 未実装・`cafes.location` も実データなし
   - **解消済み（2026-09-22）:** **「オーナーから」セクション** — S_POST_OFFICIAL 実装に合わせて
     `components/features/cafes/owner-posts-section.tsx` で実装した。直近3件のみ表示で、
     専用の「もっと見る」ページングは持たない（S_CAFE_DETAIL に専用ルートが無いため）
@@ -858,7 +844,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
     N+1 になる（`cafes.main_image_path` は D31 のとおり値が入る経路が無く、投稿件数は
     PostgREST では1クエリにまとめられない）。カード表示は名前・エリア・メモ・追加日のみ
   - **一覧の「並び順」「表示: リスト/グリッド」切替と PC 右カラムの地図** — 並びは `created_at desc` 固定。
-    地図は A3 の座標未収集
+    地図は `S_MAP` 未実装のため（A3 の座標自体は解消済み・2026-09-26）
   - **ページ送り** — 一覧は `CAFE_LIST_LIMIT`（100件）で打ち切る。keyset ページングは
     件数が問題になってから（フィードの「もっと見る」と同じ方式に寄せる）。
     見出しの件数は `getUserCafeListCounts`（打ち切られない正確な値）を出し、
