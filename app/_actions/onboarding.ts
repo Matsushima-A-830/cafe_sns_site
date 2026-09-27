@@ -13,14 +13,7 @@ import {
   usernameSchema,
 } from '@/lib/validators/onboarding'
 import type { Result } from '@/types/result'
-
-type SignupMetadata = {
-  birth_date?: string
-  age_category?: 'minor' | 'adult'
-  guardian_email?: string
-  guardian_consent_token_hash?: string
-  guardian_consent_token_expires_at?: string
-}
+import type { SignupMetadata } from '@/types/signup'
 
 export async function checkUsernameAvailable(
   username: string,

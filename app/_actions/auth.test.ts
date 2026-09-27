@@ -121,13 +121,40 @@ describe('resendGuardianConsentEmail', () => {
     expect(result).toEqual({ ok: false, error: 'CONFLICT' })
   })
 
+  it('送信〜保存の間に承認済みになっていた場合はCONFLICTを返す（保存は上書きしない）', async () => {
+    const selectMaybeSingle = vi.fn().mockResolvedValue({
+      data: { guardian_email: 'g@example.com', status: 'pending_consent' },
+      error: null,
+    })
+    // 送信は成功するが、保存直前に承認されていたと想定し update は0件ヒット
+    const updateMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null })
+    const from = vi.fn(() => ({
+      select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: selectMaybeSingle })) })),
+      update: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          eq: vi.fn(() => ({ select: vi.fn(() => ({ maybeSingle: updateMaybeSingle })) })),
+        })),
+      })),
+    }))
+    createClientMock.mockResolvedValue({ auth: buildAuthGetUser(), from })
+
+    const result = await resendGuardianConsentEmail()
+
+    expect(sendGuardianConsentEmailMock).toHaveBeenCalled()
+    expect(result).toEqual({ ok: false, error: 'CONFLICT' })
+  })
+
   it('新しいトークンを発行して再送する', async () => {
     const selectMaybeSingle = vi.fn().mockResolvedValue({
       data: { guardian_email: 'g@example.com', status: 'pending_consent' },
       error: null,
     })
-    const updateEq = vi.fn().mockResolvedValue({ error: null })
-    const update = vi.fn(() => ({ eq: updateEq }))
+    const updateMaybeSingle = vi.fn().mockResolvedValue({ data: { id: userId }, error: null })
+    const updateEqStatus = vi.fn(() => ({
+      select: vi.fn(() => ({ maybeSingle: updateMaybeSingle })),
+    }))
+    const updateEqId = vi.fn(() => ({ eq: updateEqStatus }))
+    const update = vi.fn(() => ({ eq: updateEqId }))
     const from = vi.fn((table: string) => {
       if (table !== 'profiles') throw new Error(`unexpected table: ${table}`)
       return {
@@ -144,7 +171,8 @@ describe('resendGuardianConsentEmail', () => {
       guardian_consent_token_hash: TOKEN.tokenHash,
       guardian_consent_token_expires_at: TOKEN.expiresAt,
     })
-    expect(updateEq).toHaveBeenCalledWith('id', userId)
+    expect(updateEqId).toHaveBeenCalledWith('id', userId)
+    expect(updateEqStatus).toHaveBeenCalledWith('status', 'pending_consent')
     expect(sendGuardianConsentEmailMock).toHaveBeenCalledWith({
       guardianEmail: 'g@example.com',
       token: TOKEN.token,
@@ -158,12 +186,10 @@ describe('updateGuardianEmail', () => {
     expect(result).toEqual({ ok: false, error: 'INVALID_INPUT', details: expect.anything() })
   })
 
-  it('対象行が無ければ（pending_consent でない）CONFLICT を返す', async () => {
-    const maybeSingle = vi.fn().mockResolvedValue({ data: null, error: null })
+  it('status が pending_consent でなければ CONFLICT を返す（送信もしない）', async () => {
+    const selectMaybeSingle = vi.fn().mockResolvedValue({ data: { status: 'active' }, error: null })
     const from = vi.fn(() => ({
-      update: vi.fn(() => ({
-        eq: vi.fn(() => ({ eq: vi.fn(() => ({ select: vi.fn(() => ({ maybeSingle })) })) })),
-      })),
+      select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: selectMaybeSingle })) })),
     }))
     createClientMock.mockResolvedValue({ auth: buildAuthGetUser(), from })
 
@@ -172,12 +198,39 @@ describe('updateGuardianEmail', () => {
     expect(sendGuardianConsentEmailMock).not.toHaveBeenCalled()
   })
 
+  it('送信〜保存の間に承認済みになっていた場合はCONFLICTを返す（保存は上書きしない）', async () => {
+    const selectMaybeSingle = vi
+      .fn()
+      .mockResolvedValue({ data: { status: 'pending_consent' }, error: null })
+    const updateMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: null })
+    const from = vi.fn(() => ({
+      select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: selectMaybeSingle })) })),
+      update: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          eq: vi.fn(() => ({ select: vi.fn(() => ({ maybeSingle: updateMaybeSingle })) })),
+        })),
+      })),
+    }))
+    createClientMock.mockResolvedValue({ auth: buildAuthGetUser(), from })
+
+    const result = await updateGuardianEmail('new@example.com')
+
+    expect(sendGuardianConsentEmailMock).toHaveBeenCalled()
+    expect(result).toEqual({ ok: false, error: 'CONFLICT' })
+  })
+
   it('保護者メールを更新しトークンを再発行して送信する', async () => {
+    const selectMaybeSingle = vi
+      .fn()
+      .mockResolvedValue({ data: { status: 'pending_consent' }, error: null })
     const maybeSingle = vi.fn().mockResolvedValue({ data: { id: userId }, error: null })
     const update = vi.fn(() => ({
       eq: vi.fn(() => ({ eq: vi.fn(() => ({ select: vi.fn(() => ({ maybeSingle })) })) })),
     }))
-    const from = vi.fn(() => ({ update }))
+    const from = vi.fn(() => ({
+      select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: selectMaybeSingle })) })),
+      update,
+    }))
     createClientMock.mockResolvedValue({ auth: buildAuthGetUser(), from })
 
     const result = await updateGuardianEmail('new@example.com')

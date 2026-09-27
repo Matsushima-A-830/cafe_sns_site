@@ -14,6 +14,7 @@ import {
   signupSchema,
 } from '@/lib/validators/auth'
 import type { Result } from '@/types/result'
+import type { SignupMetadata } from '@/types/signup'
 
 /**
  * 生年月日は signup の時点では profiles にまだ書けない
@@ -25,14 +26,6 @@ import type { Result } from '@/types/result'
  * 'adult' に自己申告して保護者同意フローを丸ごとスキップできてしまう。
  * app_metadata (raw_app_meta_data) は Admin API 経由でしか書けないため、こちらを使う
  */
-type SignupMetadata = {
-  birth_date?: string
-  age_category?: 'minor' | 'adult'
-  guardian_email?: string
-  guardian_consent_token_hash?: string
-  guardian_consent_token_expires_at?: string
-}
-
 async function updateSignupMetadata(userId: string, metadata: SignupMetadata) {
   const admin = createAdminClient()
   return admin.auth.admin.updateUserById(userId, { app_metadata: metadata })
@@ -132,15 +125,17 @@ export async function submitGuardianConsent(input: unknown): Promise<Result<null
 
   const { token, tokenHash, expiresAt } = generateGuardianConsentToken()
 
+  // 送信成功を確認してから保存する。先に保存すると、送信失敗時に
+  // 「誰にも届いていないトークン」だけがapp_metadataに残る
+  const sent = await sendGuardianConsentEmail({ guardianEmail: parsed.data.guardianEmail, token })
+  if (!sent.ok) return { ok: false, error: 'EXTERNAL_SERVICE_ERROR', details: sent.error }
+
   const { error } = await updateSignupMetadata(user.id, {
     guardian_email: parsed.data.guardianEmail,
     guardian_consent_token_hash: tokenHash,
     guardian_consent_token_expires_at: expiresAt,
   })
   if (error) return { ok: false, error: 'INTERNAL_ERROR', details: error.message }
-
-  const sent = await sendGuardianConsentEmail({ guardianEmail: parsed.data.guardianEmail, token })
-  if (!sent.ok) return { ok: false, error: 'EXTERNAL_SERVICE_ERROR', details: sent.error }
 
   return { ok: true, data: null }
 }
@@ -149,7 +144,12 @@ export async function submitGuardianConsent(input: unknown): Promise<Result<null
  * S_ACCOUNT_PENDING「再送する」。この時点では profiles 行が既にあるので
  * （onboarding/profile 済み）、app_metadata ではなく profiles を直接更新する。
  * guardian_email / トークン列は guard_privileged_profile_columns の対象外なので
- * 本人の通常の RLS UPDATE（auth.uid() = id）で書ける
+ * 本人の通常の RLS UPDATE（auth.uid() = id）で書ける。
+ *
+ * 送信成功を確認してから保存し、かつ保存も `status='pending_consent'` を条件にする。
+ * 先に保存すると送信失敗時に有効だった旧トークンまで消してしまう。また、事前の
+ * SELECT と保存の間に保護者が旧トークンで承認（status→active）した場合、条件無しの
+ * UPDATE だと active な行に新トークンを上書きしてしまう（/code-review で発覚）
  */
 export async function resendGuardianConsentEmail(): Promise<Result<null>> {
   const supabase = await createClient()
@@ -168,22 +168,31 @@ export async function resendGuardianConsentEmail(): Promise<Result<null>> {
   if (!profile.guardian_email) return { ok: false, error: 'CONSENT_REQUIRED' }
 
   const { token, tokenHash, expiresAt } = generateGuardianConsentToken()
-  const { error } = await supabase
+  const sent = await sendGuardianConsentEmail({ guardianEmail: profile.guardian_email, token })
+  if (!sent.ok) return { ok: false, error: 'EXTERNAL_SERVICE_ERROR', details: sent.error }
+
+  const { data: updated, error } = await supabase
     .from('profiles')
     .update({
       guardian_consent_token_hash: tokenHash,
       guardian_consent_token_expires_at: expiresAt,
     })
     .eq('id', user.id)
+    .eq('status', 'pending_consent')
+    .select('id')
+    .maybeSingle()
   if (error) return { ok: false, error: 'INTERNAL_ERROR', details: error.message }
-
-  const sent = await sendGuardianConsentEmail({ guardianEmail: profile.guardian_email, token })
-  if (!sent.ok) return { ok: false, error: 'EXTERNAL_SERVICE_ERROR', details: sent.error }
+  // 送信〜保存の間に承認済みになっていた（レース）。送ったメールのリンクは
+  // status不一致でRPCが弾くので実害はないが、状態としてはCONFLICT
+  if (!updated) return { ok: false, error: 'CONFLICT' }
 
   return { ok: true, data: null }
 }
 
-// S_ACCOUNT_PENDING「メールアドレスを変更」。宛先を直すのと同時にトークンも再発行して送り直す
+/**
+ * S_ACCOUNT_PENDING「メールアドレスを変更」。宛先を直すのと同時にトークンも再発行して送り直す。
+ * 送信成功を確認してから保存する理由は resendGuardianConsentEmail と同じ
+ */
 export async function updateGuardianEmail(input: unknown): Promise<Result<null>> {
   const parsed = emailSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: 'INVALID_INPUT', details: parsed.error.flatten() }
@@ -194,7 +203,18 @@ export async function updateGuardianEmail(input: unknown): Promise<Result<null>>
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
 
+  const { data: profile, error: fetchError } = await supabase
+    .from('profiles')
+    .select('status')
+    .eq('id', user.id)
+    .maybeSingle()
+  if (fetchError) return { ok: false, error: 'INTERNAL_ERROR', details: fetchError.message }
+  if (profile?.status !== 'pending_consent') return { ok: false, error: 'CONFLICT' }
+
   const { token, tokenHash, expiresAt } = generateGuardianConsentToken()
+  const sent = await sendGuardianConsentEmail({ guardianEmail: parsed.data, token })
+  if (!sent.ok) return { ok: false, error: 'EXTERNAL_SERVICE_ERROR', details: sent.error }
+
   const { data: updated, error } = await supabase
     .from('profiles')
     .update({
@@ -208,9 +228,6 @@ export async function updateGuardianEmail(input: unknown): Promise<Result<null>>
     .maybeSingle()
   if (error) return { ok: false, error: 'INTERNAL_ERROR', details: error.message }
   if (!updated) return { ok: false, error: 'CONFLICT' }
-
-  const sent = await sendGuardianConsentEmail({ guardianEmail: parsed.data, token })
-  if (!sent.ok) return { ok: false, error: 'EXTERNAL_SERVICE_ERROR', details: sent.error }
 
   return { ok: true, data: null }
 }
