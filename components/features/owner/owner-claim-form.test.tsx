@@ -202,6 +202,30 @@ describe('OwnerClaimForm', () => {
     expect(claimCafe).toHaveBeenCalledTimes(1)
   })
 
+  it('送信中はアップロードボタンを押しても新しい書類を追加しない（孤立ファイル防止 — D61）', async () => {
+    const user = userEvent.setup()
+    claimCafe.mockImplementation(() => new Promise(() => {}))
+    setup()
+
+    await uploadDocument(user, 0, 'license.pdf')
+    await uploadDocument(user, 2, 'registry.pdf')
+    await user.type(screen.getByLabelText('連絡先メール'), 'owner@example.com')
+    await user.click(screen.getByLabelText('提出情報は本人のものです'))
+    await user.click(screen.getByLabelText('審査結果に従います'))
+    await user.click(
+      screen.getByLabelText('運営から追加確認の連絡がある場合があることを理解しました'),
+    )
+    await user.click(screen.getByRole('button', { name: '申請を送信する' }))
+
+    await waitFor(() => expect(claimCafe).toHaveBeenCalled())
+    uploadOwnerDocument.mockClear()
+
+    await uploadDocument(user, 0, 'extra.pdf')
+
+    expect(screen.getByText('選択済み: 2 / 2 必要')).toBeInTheDocument()
+    expect(uploadOwnerDocument).not.toHaveBeenCalled()
+  })
+
   it('送信中は削除ボタンを押しても書類を消さない（送信済みパスの不整合防止 — D60）', async () => {
     const user = userEvent.setup()
     claimCafe.mockImplementation(() => new Promise(() => {}))

@@ -1484,7 +1484,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   （2026-09-23）／ユーザー影響大の10ファイルを解消（2026-09-24、`fix/disabled-focus-loss-remaining`）／
   管理画面の残り5ファイルを解消（2026-09-25、`fix/disabled-focus-loss-admin`）
 
-### D61. owner-claim-form.tsx の書類アップロードボタンに isPending ガードが無く、Storageファイルが孤立し得る
+### D61. owner-claim-form.tsx の書類アップロードボタンに isPending ガードが無く、Storageファイルが孤立し得る 🟢 解消済み（2026-09-27）
 
 - **課題:** `fix/disabled-focus-loss-admin`（D60管理画面分）の `/code-review` で判明。
   `components/features/owner/owner-claim-form.tsx:198` の「＋アップロード」ボタンは
@@ -1494,9 +1494,9 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   に新しい書類をアップロードすると、Storageには保存されるが `handleSubmit` の `startTransition`
   が閉じ込めた古い `documents` 配列には含まれないため、`claimCafe` が成功して画面遷移した後、
   そのStorageオブジェクトは `document_urls` から永久に参照されない孤立ファイルになる
-- **対応方針（未着手）:** 同ファイルの `handleRemove`（削除側）に既にある
-  `if (isPending) return` ガードと同じものを `handleFilesSelected` の冒頭にも追加し、
-  併せて誤ったコメント（:199-200）を修正する。別PRで対応する
+- **対応:** 同ファイルの `handleRemove`（削除側）に既にあった `if (isPending) return` ガードと
+  同じものを `handleFilesSelected` の冒頭にも追加し、誤ったコメント（:199-200）も修正した。
+  回帰テスト「送信中はアップロードボタンを押しても新しい書類を追加しない（孤立ファイル防止 — D61）」を追加
 - 参照: D60 管理画面分（`fix/disabled-focus-loss-admin`）の `/code-review` で発見（2026-09-25）
 
 ### D62. GitHub Actions のワークフローを静的検査していない（actionlint 未導入）
