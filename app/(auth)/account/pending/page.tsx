@@ -29,7 +29,8 @@ export default async function AccountPendingPage({ searchParams }: PageProps) {
       )}
       {consent === 'invalid' && (
         <p role="alert" aria-live="polite" className="text-danger">
-          同意リンクが無効か、有効期限が切れています。「再送する」からやり直してください
+          同意リンクを確認できませんでした。お子様がまだ登録の途中である可能性があります。
+          時間をおいて再度お試しいただくか、うまくいかない場合は「再送する」からやり直してください
         </p>
       )}
 

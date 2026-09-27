@@ -34,7 +34,12 @@ comment on column public.profiles.guardian_consent_token_expires_at is
 -- （20260905130000_create_profiles.sql 参照）、このRPCはその前提の上に成立している。
 -- SECURITY DEFINER が RLS 自体もバイパスするため、認可はこの関数内の
 -- ハッシュ一致・有効期限・status='pending_consent' の3条件だけが唯一の防御線になる。
--- p_token は生の値（アプリから渡される）で、ここでハッシュ化してから照合する
+-- p_token は生の値（アプリから渡される）で、ここでハッシュ化してから照合する。
+--
+-- 既知の制約: このRPCは profiles しか見ない。トークンは /signup/consent で発行されるが
+-- profiles 行は後続の /onboarding/profile 完了時にしか作られないため、その間に保護者が
+-- リンクを踏むと（トークン自体は有効でも）該当行が無くfalseになる。恒久的な失敗ではなく、
+-- 未成年がオンボーディングを終えた後に同じリンクを踏み直せば通る（pending-items.md B3）
 create or replace function public.approve_guardian_consent(p_token text)
 returns boolean
 language plpgsql
