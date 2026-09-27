@@ -893,6 +893,7 @@ export type Database = {
           guardian_consent_at: string | null
           guardian_consent_token_expires_at: string | null
           guardian_consent_token_hash: string | null
+          guardian_consent_token_issued_at: string | null
           guardian_email: string | null
           home_area_code: string | null
           id: string
@@ -912,6 +913,7 @@ export type Database = {
           guardian_consent_at?: string | null
           guardian_consent_token_expires_at?: string | null
           guardian_consent_token_hash?: string | null
+          guardian_consent_token_issued_at?: string | null
           guardian_email?: string | null
           home_area_code?: string | null
           id: string
@@ -931,6 +933,7 @@ export type Database = {
           guardian_consent_at?: string | null
           guardian_consent_token_expires_at?: string | null
           guardian_consent_token_hash?: string | null
+          guardian_consent_token_issued_at?: string | null
           guardian_email?: string | null
           home_area_code?: string | null
           id?: string

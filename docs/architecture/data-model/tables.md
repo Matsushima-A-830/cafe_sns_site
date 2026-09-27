@@ -51,6 +51,7 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 | guardian_consent_at | timestamptz | | 保護者同意日時 |
 | guardian_consent_token_hash | text | UNIQUE（部分インデックス、NULL除外） | 保護者同意リンクのワンタイムトークンのSHA-256ハッシュ。生の値はメールにのみ存在しDBには置かない。承認後null（B3） |
 | guardian_consent_token_expires_at | timestamptz | | guardian_consent_token_hash の有効期限（発行から7日） |
+| guardian_consent_token_issued_at | timestamptz | | 再発行クールダウン判定専用の発行時刻。expires_atからの逆算だとTTL定数変更に弱いため独立列にした（B3） |
 | role | text | NOT NULL, DEFAULT 'user' | user / owner / admin |
 | home_area_code | text | FK → [areas](#areas)(code) | ホームエリア（初期タグサジェスト用）— マスタ参照 |
 | onboarded_at | timestamptz | | オンボーディング完了日時（NULL = 未完了） |

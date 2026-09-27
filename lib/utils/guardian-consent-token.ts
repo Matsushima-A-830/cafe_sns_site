@@ -3,8 +3,8 @@ import { createHash, randomBytes } from 'node:crypto'
 // 有効期限7日。保護者がメールを確認するまでの猶予として十分な長さを取る
 export const GUARDIAN_CONSENT_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
-// 再送/宛先変更のクールダウン。専用テーブルを作らず、既存の有効期限から
-// 発行時刻を逆算して間隔を見る（expiresAt - TTL = 発行時刻）
+// 再送/宛先変更のクールダウン。profiles.guardian_consent_token_issued_at
+// （専用列、TTL変更に影響されない）からの経過時間で判定する
 export const GUARDIAN_CONSENT_REISSUE_COOLDOWN_MS = 60 * 1000
 
 /**

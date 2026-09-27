@@ -146,3 +146,51 @@ describe('自己承認バイパスの防止', () => {
     expect(data).toBe(false)
   })
 })
+
+// /code-review で発覚: guard_privileged_profile_columns のコメントは「service_role限定」と
+// 書いていたが、実装は role/status/username と同じ is_admin() バイパスを流用しており、
+// 認証済みadmin自身のセッションからもトークン列を書き換えられてしまっていた。
+//   supabase/migrations/20260927030000_tighten_guardian_consent_token_guard.sql
+describe('トークン列はis_adminでもバイパスできない', () => {
+  it('admin自身のセッションでも他人のguardian_consent_token_hashを書き換えられない', async () => {
+    const admin = await createAuthedProfile({ role: 'admin' })
+    user = await createAuthedProfile({ status: 'pending_consent' })
+
+    const { error } = await admin.client
+      .from('profiles')
+      .update({
+        guardian_consent_token_hash: hash('admin-forged-token'),
+        guardian_consent_token_expires_at: new Date(Date.now() + 60_000).toISOString(),
+      })
+      .eq('id', user.userId)
+
+    expect(error?.message).toContain('FORBIDDEN')
+    await admin.cleanup()
+  })
+
+  it('admin自身のセッションでも他人のguardian_consent_token_issued_atを書き換えられない（レート制限のリセット防止）', async () => {
+    const admin = await createAuthedProfile({ role: 'admin' })
+    user = await createAuthedProfile({ status: 'pending_consent' })
+
+    const { error } = await admin.client
+      .from('profiles')
+      .update({ guardian_consent_token_issued_at: new Date().toISOString() })
+      .eq('id', user.userId)
+
+    expect(error?.message).toContain('FORBIDDEN')
+    await admin.cleanup()
+  })
+
+  it('admin自身のセッションでも他人のroleは書き換えられる（role/statusのis_adminバイパスは維持）', async () => {
+    const admin = await createAuthedProfile({ role: 'admin' })
+    user = await createAuthedProfile({ status: 'pending_consent' })
+
+    const { error } = await admin.client
+      .from('profiles')
+      .update({ role: 'owner' })
+      .eq('id', user.userId)
+
+    expect(error).toBeNull()
+    await admin.cleanup()
+  })
+})

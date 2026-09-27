@@ -6,7 +6,6 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import {
   GUARDIAN_CONSENT_REISSUE_COOLDOWN_MS,
-  GUARDIAN_CONSENT_TOKEN_TTL_MS,
   generateGuardianConsentToken,
 } from '@/lib/utils/guardian-consent-token'
 import {
@@ -151,14 +150,13 @@ export async function submitGuardianConsent(input: unknown): Promise<Result<null
 
 type PendingConsentProfile = {
   guardian_email: string | null
-  guardian_consent_token_expires_at: string | null
 }
 
 /**
  * 「pending_consentの本人か」の共通ガード（「再送する」「メールアドレスを変更」で使う）。
  * - suspended/deleted は CONFLICT ではなく専用コードを返す
- * - guardian_consent_token_expires_at から発行時刻を逆算してクールダウンも見る
- *   （expiresAt - TTL。専用テーブル無しで連打送信を防ぐ）
+ * - クールダウンの最終的な判定は reissueGuardianConsentToken の原子的UPDATEで行う。
+ *   ここでの判定はUXのための早期リターンに過ぎず、TOCTOUで通り抜けても実害はない
  */
 async function assertPendingConsent(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -166,7 +164,7 @@ async function assertPendingConsent(
 ): Promise<Result<PendingConsentProfile>> {
   const { data: profile, error } = await supabase
     .from('profiles')
-    .select('guardian_email, status, guardian_consent_token_expires_at')
+    .select('guardian_email, status, guardian_consent_token_issued_at')
     .eq('id', userId)
     .maybeSingle()
   if (error) return { ok: false, error: 'INTERNAL_ERROR', details: error.message }
@@ -174,41 +172,58 @@ async function assertPendingConsent(
   if (profile?.status === 'deleted') return { ok: false, error: 'ACCOUNT_DELETED' }
   if (profile?.status !== 'pending_consent') return { ok: false, error: 'CONFLICT' }
 
-  if (profile.guardian_consent_token_expires_at) {
-    const issuedAt =
-      new Date(profile.guardian_consent_token_expires_at).getTime() - GUARDIAN_CONSENT_TOKEN_TTL_MS
+  if (profile.guardian_consent_token_issued_at) {
+    const issuedAt = new Date(profile.guardian_consent_token_issued_at).getTime()
     if (Date.now() - issuedAt < GUARDIAN_CONSENT_REISSUE_COOLDOWN_MS) {
       return { ok: false, error: 'RATE_LIMITED' }
     }
   }
 
-  return {
-    ok: true,
-    data: {
-      guardian_email: profile.guardian_email,
-      guardian_consent_token_expires_at: profile.guardian_consent_token_expires_at,
-    },
-  }
+  return { ok: true, data: { guardian_email: profile.guardian_email } }
 }
 
 /**
  * guardian_email 宛にトークンを再発行して送る共通処理（「再送する」「メールアドレスを変更」で使う）。
  * - 書き込みは createAdminClient() 経由に限定する。本人セッションで書けると
  *   guard_privileged_profile_columns の前提が崩れ自己承認できてしまう（/code-review で発覚）
- * - 送信成功を確認してから保存する（先に保存すると送信失敗時に旧トークンごと失う）
- * - 保存も `status='pending_consent'` 条件付き（確認〜保存の間に承認済みになる競合を防ぐ）
+ * - クールダウンの「予約」を送信前に原子的UPDATEで確保してから送る。assertPendingConsentの
+ *   事前チェックだけだと、ほぼ同時に2回リクエストすると両方が通過して保護者に2通届きうる
+ *   （TOCTOU。/code-review で発覚）。予約はguardian_consent_token_issued_atだけを更新し、
+ *   既存の有効なトークン（hash/expires_at）には触れない
+ * - 送信成功を確認してから最終保存する（先に保存すると送信失敗時に旧トークンごと失う）。
+ *   送信が失敗しても予約は戻さない——クールダウンが再送信の乱発を防ぐ主目的のため、
+ *   「送信失敗時は次のクールダウンまで待たせる」を許容するトレードオフ
+ * - 最終保存も `status='pending_consent'` 条件付き（予約〜保存の間に承認済みになる競合を防ぐ）
  */
 async function reissueGuardianConsentToken(
   userId: string,
   guardianEmail: string,
   extraUpdate: { guardian_email?: string } = {},
 ): Promise<Result<null>> {
+  const admin = createAdminClient()
+  const cooldownThreshold = new Date(
+    Date.now() - GUARDIAN_CONSENT_REISSUE_COOLDOWN_MS,
+  ).toISOString()
+  const nowIso = new Date().toISOString()
+
+  const { data: claimed, error: claimError } = await admin
+    .from('profiles')
+    .update({ guardian_consent_token_issued_at: nowIso })
+    .eq('id', userId)
+    .eq('status', 'pending_consent')
+    .or(
+      `guardian_consent_token_issued_at.is.null,guardian_consent_token_issued_at.lte.${cooldownThreshold}`,
+    )
+    .select('id')
+    .maybeSingle()
+  if (claimError) return { ok: false, error: 'INTERNAL_ERROR', details: claimError.message }
+  if (!claimed) return { ok: false, error: 'RATE_LIMITED' }
+
   const { token, tokenHash, expiresAt } = generateGuardianConsentToken()
 
   const sent = await sendGuardianConsentEmail({ guardianEmail, token })
   if (!sent.ok) return { ok: false, error: 'EXTERNAL_SERVICE_ERROR', details: sent.error }
 
-  const admin = createAdminClient()
   const { data: updated, error } = await admin
     .from('profiles')
     .update({
@@ -275,7 +290,10 @@ export async function refreshConsentStatus(): Promise<Result<{ status: string | 
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
 
-  await supabase.auth.refreshSession()
+  // 失敗を握りつぶすと、JWTが古いままなのにDB読み取りだけ最新状態を返し、
+  // 呼び出し元が誤って遷移してしまう（refreshできていないのでmiddlewareは古い状態のまま判定する）
+  const { error: refreshError } = await supabase.auth.refreshSession()
+  if (refreshError) return { ok: false, error: 'INTERNAL_ERROR', details: refreshError.message }
 
   const { data: profile, error } = await supabase
     .from('profiles')

@@ -119,26 +119,37 @@ describe('submitGuardianConsent', () => {
   })
 })
 
-// assertPendingConsent（regular client）用。guardian_consent_token_expires_at は
+// assertPendingConsent（regular client）用。guardian_consent_token_issued_at は
 // クールダウン判定に使うため、テスト対象時刻より十分過去（クールダウン圏外）をデフォルトにする
 function buildProfileSelectFrom(
   profile: {
     guardian_email?: string | null
     status: string | null
-    guardian_consent_token_expires_at?: string | null
+    guardian_consent_token_issued_at?: string | null
   } | null,
 ) {
-  const resolved = profile ? { guardian_consent_token_expires_at: null, ...profile } : null
+  const resolved = profile ? { guardian_consent_token_issued_at: null, ...profile } : null
   const maybeSingle = vi.fn().mockResolvedValue({ data: resolved, error: null })
   return vi.fn(() => ({ select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle })) })) }))
 }
 
-// reissueGuardianConsentToken は createAdminClient() 経由でUPDATEする
-function buildAdminUpdateFrom(result: { data: { id: string } | null; error: unknown }) {
-  const maybeSingle = vi.fn().mockResolvedValue(result)
-  const update = vi.fn(() => ({
-    eq: vi.fn(() => ({ eq: vi.fn(() => ({ select: vi.fn(() => ({ maybeSingle })) })) })),
-  }))
+// reissueGuardianConsentToken は createAdminClient() 経由で2回UPDATEする
+// （1回目: クールダウン予約、2回目: 実際のトークン保存）。同じチェーン形状
+// （update→eq→eq→[or]→select→maybeSingle）で両方に対応する
+function buildAdminUpdateFrom(
+  claimResult: { data: { id: string } | null; error: unknown },
+  finalResult?: { data: { id: string } | null; error: unknown },
+) {
+  let call = 0
+  const results = [claimResult, finalResult ?? claimResult]
+  const maybeSingle = vi.fn(() => Promise.resolve(results[call++]))
+  const chain = {
+    eq: vi.fn(() => chain),
+    or: vi.fn(() => chain),
+    select: vi.fn(() => chain),
+    maybeSingle,
+  }
+  const update = vi.fn(() => chain)
   return { from: vi.fn(() => ({ update })), update }
 }
 
@@ -174,18 +185,31 @@ describe('resendGuardianConsentEmail', () => {
     expect(result).toEqual({ ok: false, error: 'ACCOUNT_DELETED' })
   })
 
-  it('直前にトークンを発行していた（クールダウン中）なら RATE_LIMITED を返す', async () => {
+  it('直前にトークンを発行していた（クールダウン中）なら早期チェックでRATE_LIMITEDを返す', async () => {
     const from = buildProfileSelectFrom({
       guardian_email: 'g@example.com',
       status: 'pending_consent',
-      // 発行30秒後（クールダウン60秒以内）を想定: expiresAt = 発行時刻 + TTL
-      guardian_consent_token_expires_at: new Date(
-        Date.now() + 7 * 24 * 60 * 60 * 1000 - 30_000,
-      ).toISOString(),
+      // 30秒前に発行（クールダウン60秒以内）
+      guardian_consent_token_issued_at: new Date(Date.now() - 30_000).toISOString(),
     })
     createClientMock.mockResolvedValue({ auth: buildAuthGetUser(), from })
 
     const result = await resendGuardianConsentEmail()
+    expect(result).toEqual({ ok: false, error: 'RATE_LIMITED' })
+    expect(sendGuardianConsentEmailMock).not.toHaveBeenCalled()
+  })
+
+  it('早期チェックを通過しても、原子的な予約UPDATEがクールダウンで弾かれたらRATE_LIMITEDを返し送信しない（TOCTOU対策）', async () => {
+    const from = buildProfileSelectFrom({
+      guardian_email: 'g@example.com',
+      status: 'pending_consent',
+    })
+    createClientMock.mockResolvedValue({ auth: buildAuthGetUser(), from })
+    // 予約UPDATEが0件（別リクエストが先にクールダウンを消費した）
+    createAdminClientMock.mockReturnValue(buildAdminUpdateFrom({ data: null, error: null }))
+
+    const result = await resendGuardianConsentEmail()
+
     expect(result).toEqual({ ok: false, error: 'RATE_LIMITED' })
     expect(sendGuardianConsentEmailMock).not.toHaveBeenCalled()
   })
@@ -196,7 +220,9 @@ describe('resendGuardianConsentEmail', () => {
       status: 'pending_consent',
     })
     createClientMock.mockResolvedValue({ auth: buildAuthGetUser(), from })
-    createAdminClientMock.mockReturnValue(buildAdminUpdateFrom({ data: null, error: null }))
+    createAdminClientMock.mockReturnValue(
+      buildAdminUpdateFrom({ data: { id: userId }, error: null }, { data: null, error: null }),
+    )
 
     const result = await resendGuardianConsentEmail()
 
@@ -204,7 +230,7 @@ describe('resendGuardianConsentEmail', () => {
     expect(result).toEqual({ ok: false, error: 'CONFLICT' })
   })
 
-  it('新しいトークンを発行して再送する（保存はadminクライアント経由）', async () => {
+  it('新しいトークンを発行して再送する（クールダウン予約→送信→保存の順でadminクライアント経由）', async () => {
     const from = buildProfileSelectFrom({
       guardian_email: 'g@example.com',
       status: 'pending_consent',
@@ -216,7 +242,10 @@ describe('resendGuardianConsentEmail', () => {
     const result = await resendGuardianConsentEmail()
 
     expect(result).toEqual({ ok: true, data: null })
-    expect(admin.update).toHaveBeenCalledWith({
+    expect(admin.update).toHaveBeenNthCalledWith(1, {
+      guardian_consent_token_issued_at: expect.any(String),
+    })
+    expect(admin.update).toHaveBeenNthCalledWith(2, {
       guardian_consent_token_hash: TOKEN.tokenHash,
       guardian_consent_token_expires_at: TOKEN.expiresAt,
     })
@@ -256,7 +285,9 @@ describe('updateGuardianEmail', () => {
   it('送信〜保存の間に承認済みになっていた場合はCONFLICTを返す（保存は上書きしない）', async () => {
     const from = buildProfileSelectFrom({ status: 'pending_consent' })
     createClientMock.mockResolvedValue({ auth: buildAuthGetUser(), from })
-    createAdminClientMock.mockReturnValue(buildAdminUpdateFrom({ data: null, error: null }))
+    createAdminClientMock.mockReturnValue(
+      buildAdminUpdateFrom({ data: { id: userId }, error: null }, { data: null, error: null }),
+    )
 
     const result = await updateGuardianEmail('new@example.com')
 
@@ -273,7 +304,7 @@ describe('updateGuardianEmail', () => {
     const result = await updateGuardianEmail('new@example.com')
 
     expect(result).toEqual({ ok: true, data: null })
-    expect(admin.update).toHaveBeenCalledWith({
+    expect(admin.update).toHaveBeenNthCalledWith(2, {
       guardian_email: 'new@example.com',
       guardian_consent_token_hash: TOKEN.tokenHash,
       guardian_consent_token_expires_at: TOKEN.expiresAt,
@@ -306,5 +337,19 @@ describe('refreshConsentStatus', () => {
 
     expect(refreshSession).toHaveBeenCalled()
     expect(result).toEqual({ ok: true, data: { status: 'active' } })
+  })
+
+  it('refreshSession が失敗したら INTERNAL_ERROR を返し、DBを読みに行かない（JWTが古いまま最新扱いされるのを防ぐ）', async () => {
+    const refreshSession = vi.fn().mockResolvedValue({ error: { message: 'refresh failed' } })
+    const from = vi.fn()
+    createClientMock.mockResolvedValue({
+      auth: { ...buildAuthGetUser(), refreshSession },
+      from,
+    })
+
+    const result = await refreshConsentStatus()
+
+    expect(result).toEqual({ ok: false, error: 'INTERNAL_ERROR', details: 'refresh failed' })
+    expect(from).not.toHaveBeenCalled()
   })
 })

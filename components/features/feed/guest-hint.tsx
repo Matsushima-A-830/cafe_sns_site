@@ -1,5 +1,4 @@
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+import { InfoBanner } from './info-banner'
 
 /**
  * 未ログイン時にフィード上端へ出すヒント。消えないが押し付けがましくない色調にする
@@ -7,11 +6,6 @@ import { Button } from '@/components/ui/button'
  */
 export function GuestHint() {
   return (
-    <aside className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-border-strong bg-muted px-4 py-3">
-      <p className="text-sm text-muted-foreground">ログインすると保存・いいねができます</p>
-      <Button asChild size="sm" variant="outline">
-        <Link href="/login">ログイン</Link>
-      </Button>
-    </aside>
+    <InfoBanner message="ログインすると保存・いいねができます" href="/login" ctaLabel="ログイン" />
   )
 }

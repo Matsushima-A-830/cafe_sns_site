@@ -1,5 +1,4 @@
-import Link from 'next/link'
-import { Button } from '@/components/ui/button'
+import { InfoBanner } from './info-banner'
 
 /**
  * pending_consent（保護者同意待ち）ユーザーが S_MY_HOME を訪問した時のバナー
@@ -7,13 +6,10 @@ import { Button } from '@/components/ui/button'
  */
 export function PendingConsentBanner() {
   return (
-    <aside className="flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border-border-strong bg-muted px-4 py-3">
-      <p className="text-sm text-muted-foreground">
-        保護者の同意待ちです。投稿・いいね・コメントは同意後にご利用いただけます
-      </p>
-      <Button asChild size="sm" variant="outline">
-        <Link href="/account/pending">状態を確認する</Link>
-      </Button>
-    </aside>
+    <InfoBanner
+      message="保護者の同意待ちです。投稿・いいね・コメントは同意後にご利用いただけます"
+      href="/account/pending"
+      ctaLabel="状態を確認する"
+    />
   )
 }
