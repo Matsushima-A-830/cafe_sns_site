@@ -109,13 +109,10 @@ export async function submitBirthdate(
 }
 
 /**
- * profiles 行がまだ無い時点（onboarding/profile より前）なので、トークンも
- * guardian_email と同じく app_metadata に一時保持する。submitProfile が
- * profiles 行を作る際にまとめて写す（pending-items B3）。
- *
- * app_metadata は本人が supabase.auth.getUser() で読める（GoTrueは本人の全項目を返す）。
- * 生トークンをそのまま置くと本人がそれを取り出して /api/consent/confirm を自分で叩き、
- * 保護者同意を自己承認できてしまう。ハッシュだけを保持し、生の値はメールにしか存在させない
+ * profiles 行がまだ無いため、トークンも guardian_email 同様 app_metadata に一時保持する
+ * （submitProfile が profiles 行作成時に写す。pending-items B3）。
+ * - app_metadata は本人が supabase.auth.getUser() で読めるため、生トークンではなくハッシュを保持する
+ *   （生の値を置くと本人が自己承認できてしまう）
  */
 export async function submitGuardianConsent(input: unknown): Promise<Result<null>> {
   const parsed = guardianConsentSchema.safeParse(input)
@@ -150,11 +147,10 @@ type PendingConsentProfile = {
 }
 
 /**
- * 「pending_consentの本人か」の共通ガード（S_ACCOUNT_PENDING の「再送する」「メールアドレスを変更」で使う）。
- * suspended/deleted は CONFLICT ではなく専用コードを返し、UIで意味の通るメッセージにする。
- *
- * 既存の guardian_consent_token_expires_at から発行時刻を逆算してクールダウンも見る
- * （expiresAt - TTL = 発行時刻）。専用のレート制限テーブルを作らずに連打送信を防ぐ
+ * 「pending_consentの本人か」の共通ガード（「再送する」「メールアドレスを変更」で使う）。
+ * - suspended/deleted は CONFLICT ではなく専用コードを返す
+ * - guardian_consent_token_expires_at から発行時刻を逆算してクールダウンも見る
+ *   （expiresAt - TTL。専用テーブル無しで連打送信を防ぐ）
  */
 async function assertPendingConsent(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -188,18 +184,11 @@ async function assertPendingConsent(
 }
 
 /**
- * guardian_email 宛にトークンを再発行して送る共通処理
- * （S_ACCOUNT_PENDING の「再送する」「メールアドレスを変更」の両方から使う）。
- *
- * トークン列の書き込みは createAdminClient()（service_role）で行う。本人の通常セッション
- * （auth.uid() = id）で書くと、guard_privileged_profile_columns トリガーが弾く前提が崩れ
- * 「本人が自分でトークンを捏造して自己承認する」経路が開いてしまう（/code-review で発覚）。
- * この列を書けるのはこの関数（実際にメール送信した場合のみ）だけに絞る
- *
- * 送信成功を確認してから保存し、かつ保存も `status='pending_consent'` を条件にする。
- * 先に保存すると送信失敗時に有効だった旧トークンまで消してしまう。また、事前の
- * status 確認と保存の間に保護者が旧トークンで承認（status→active）した場合、条件無しの
- * UPDATE だと active な行に新トークンを上書きしてしまう
+ * guardian_email 宛にトークンを再発行して送る共通処理（「再送する」「メールアドレスを変更」で使う）。
+ * - 書き込みは createAdminClient() 経由に限定する。本人セッションで書けると
+ *   guard_privileged_profile_columns の前提が崩れ自己承認できてしまう（/code-review で発覚）
+ * - 送信成功を確認してから保存する（先に保存すると送信失敗時に旧トークンごと失う）
+ * - 保存も `status='pending_consent'` 条件付き（確認〜保存の間に承認済みになる競合を防ぐ）
  */
 async function reissueGuardianConsentToken(
   userId: string,
