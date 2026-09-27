@@ -30,7 +30,9 @@ export function PendingActions() {
         setError(errorMessage(result.error))
         return
       }
-      if (result.data.status === 'active') {
+      // active 以外に suspended/deleted も含む。ここでは状態を出し分けず「/」へ送り、
+      // middleware に判定を委ねる（suspended→/account/suspended、deleted→/login）
+      if (result.data.status !== 'pending_consent') {
         router.push('/')
         router.refresh()
         return

@@ -123,3 +123,26 @@ describe('approve_guardian_consent', () => {
     expect(data).toBe(false)
   })
 })
+
+// /code-review で発覚: guard_privileged_profile_columns が role/status/username しか
+// 守っておらず、pending_consent の本人が自分でトークン列を書き換えて自己承認できていた。
+//   supabase/migrations/20260927020000_guard_guardian_consent_token_columns.sql
+describe('自己承認バイパスの防止', () => {
+  it('pending_consentの本人は自分のguardian_consent_token_hashを直接書き換えられない', async () => {
+    user = await createAuthedProfile({ status: 'pending_consent' })
+
+    const { error } = await user.client
+      .from('profiles')
+      .update({
+        guardian_consent_token_hash: hash('self-forged-token'),
+        guardian_consent_token_expires_at: new Date(Date.now() + 60_000).toISOString(),
+      })
+      .eq('id', user.userId)
+
+    expect(error?.message).toContain('FORBIDDEN')
+
+    // 万一トリガーをすり抜けていた場合の保険として、実際にRPCが通らないことも確認する
+    const { data } = await anon.rpc('approve_guardian_consent', { p_token: 'self-forged-token' })
+    expect(data).toBe(false)
+  })
+})

@@ -10,6 +10,7 @@ import { SuggestedTags } from '@/components/features/feed/suggested-tags'
 import { PostFeed } from '@/components/features/posts/post-feed'
 import { getMoodTags, resolveFeedOptions } from '@/lib/posts/feed'
 import { getPostList, type PostListPage } from '@/lib/posts/post-list'
+import { decodeAppMetadataClaims } from '@/lib/supabase/claims'
 import { createClient } from '@/lib/supabase/server'
 import { firstParam } from '@/lib/utils/search-params'
 import { parseFeedQuery } from '@/lib/validators/feed'
@@ -42,14 +43,19 @@ export default async function HomePage({ searchParams }: PageProps) {
     areaCode: firstParam(params.area),
   })
 
-  const [moodTags, resolved, profileStatus] = await Promise.all([
+  const [moodTags, resolved] = await Promise.all([
     getMoodTags(supabase),
     resolveFeedOptions(supabase, query, user?.id ?? null),
-    user
-      ? supabase.from('profiles').select('status').eq('id', user.id).maybeSingle()
-      : Promise.resolve({ data: null }),
   ])
   const page = resolved ? await getPostList(supabase, resolved.options) : EMPTY_PAGE
+
+  // pending_consent バナー用。getUser() が既にトークンをサーバー検証済みなので、
+  // ここでの getSession() はローカルCookieを読むだけ（ネットワーク不要）。
+  // profiles を再度SELECTしなくても middleware と同じJWTクレイムから読める
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  const claims = session ? decodeAppMetadataClaims(session.access_token) : null
 
   return (
     <div className="mx-auto flex w-full max-w-6xl gap-8 px-4 py-8">
@@ -72,7 +78,7 @@ export default async function HomePage({ searchParams }: PageProps) {
         )}
 
         {!user && <GuestHint />}
-        {profileStatus.data?.status === 'pending_consent' && <PendingConsentBanner />}
+        {claims?.status === 'pending_consent' && <PendingConsentBanner />}
 
         <PostFeed
           // タブ・絞り込みが変わったら追記済みの一覧を破棄する。同じ位置の同じ

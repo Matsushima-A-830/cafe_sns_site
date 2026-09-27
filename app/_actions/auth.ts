@@ -4,7 +4,11 @@ import { redirect } from 'next/navigation'
 import { sendGuardianConsentEmail } from '@/lib/email/guardian-consent'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
-import { generateGuardianConsentToken } from '@/lib/utils/guardian-consent-token'
+import {
+  GUARDIAN_CONSENT_REISSUE_COOLDOWN_MS,
+  GUARDIAN_CONSENT_TOKEN_TTL_MS,
+  generateGuardianConsentToken,
+} from '@/lib/utils/guardian-consent-token'
 import {
   birthdateSchema,
   emailSchema,
@@ -140,17 +144,64 @@ export async function submitGuardianConsent(input: unknown): Promise<Result<null
   return { ok: true, data: null }
 }
 
+type PendingConsentProfile = {
+  guardian_email: string | null
+  guardian_consent_token_expires_at: string | null
+}
+
+/**
+ * 「pending_consentの本人か」の共通ガード（S_ACCOUNT_PENDING の「再送する」「メールアドレスを変更」で使う）。
+ * suspended/deleted は CONFLICT ではなく専用コードを返し、UIで意味の通るメッセージにする。
+ *
+ * 既存の guardian_consent_token_expires_at から発行時刻を逆算してクールダウンも見る
+ * （expiresAt - TTL = 発行時刻）。専用のレート制限テーブルを作らずに連打送信を防ぐ
+ */
+async function assertPendingConsent(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<Result<PendingConsentProfile>> {
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('guardian_email, status, guardian_consent_token_expires_at')
+    .eq('id', userId)
+    .maybeSingle()
+  if (error) return { ok: false, error: 'INTERNAL_ERROR', details: error.message }
+  if (profile?.status === 'suspended') return { ok: false, error: 'ACCOUNT_SUSPENDED' }
+  if (profile?.status === 'deleted') return { ok: false, error: 'ACCOUNT_DELETED' }
+  if (profile?.status !== 'pending_consent') return { ok: false, error: 'CONFLICT' }
+
+  if (profile.guardian_consent_token_expires_at) {
+    const issuedAt =
+      new Date(profile.guardian_consent_token_expires_at).getTime() - GUARDIAN_CONSENT_TOKEN_TTL_MS
+    if (Date.now() - issuedAt < GUARDIAN_CONSENT_REISSUE_COOLDOWN_MS) {
+      return { ok: false, error: 'RATE_LIMITED' }
+    }
+  }
+
+  return {
+    ok: true,
+    data: {
+      guardian_email: profile.guardian_email,
+      guardian_consent_token_expires_at: profile.guardian_consent_token_expires_at,
+    },
+  }
+}
+
 /**
  * guardian_email 宛にトークンを再発行して送る共通処理
  * （S_ACCOUNT_PENDING の「再送する」「メールアドレスを変更」の両方から使う）。
  *
+ * トークン列の書き込みは createAdminClient()（service_role）で行う。本人の通常セッション
+ * （auth.uid() = id）で書くと、guard_privileged_profile_columns トリガーが弾く前提が崩れ
+ * 「本人が自分でトークンを捏造して自己承認する」経路が開いてしまう（/code-review で発覚）。
+ * この列を書けるのはこの関数（実際にメール送信した場合のみ）だけに絞る
+ *
  * 送信成功を確認してから保存し、かつ保存も `status='pending_consent'` を条件にする。
  * 先に保存すると送信失敗時に有効だった旧トークンまで消してしまう。また、事前の
  * status 確認と保存の間に保護者が旧トークンで承認（status→active）した場合、条件無しの
- * UPDATE だと active な行に新トークンを上書きしてしまう（/code-review で発覚）
+ * UPDATE だと active な行に新トークンを上書きしてしまう
  */
 async function reissueGuardianConsentToken(
-  supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
   guardianEmail: string,
   extraUpdate: { guardian_email?: string } = {},
@@ -160,7 +211,8 @@ async function reissueGuardianConsentToken(
   const sent = await sendGuardianConsentEmail({ guardianEmail, token })
   if (!sent.ok) return { ok: false, error: 'EXTERNAL_SERVICE_ERROR', details: sent.error }
 
-  const { data: updated, error } = await supabase
+  const admin = createAdminClient()
+  const { data: updated, error } = await admin
     .from('profiles')
     .update({
       ...extraUpdate,
@@ -179,12 +231,7 @@ async function reissueGuardianConsentToken(
   return { ok: true, data: null }
 }
 
-/**
- * S_ACCOUNT_PENDING「再送する」。この時点では profiles 行が既にあるので
- * （onboarding/profile 済み）、app_metadata ではなく profiles を直接更新する。
- * guardian_email / トークン列は guard_privileged_profile_columns の対象外なので
- * 本人の通常の RLS UPDATE（auth.uid() = id）で書ける
- */
+// S_ACCOUNT_PENDING「再送する」
 export async function resendGuardianConsentEmail(): Promise<Result<null>> {
   const supabase = await createClient()
   const {
@@ -192,16 +239,11 @@ export async function resendGuardianConsentEmail(): Promise<Result<null>> {
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
 
-  const { data: profile, error: fetchError } = await supabase
-    .from('profiles')
-    .select('guardian_email, status')
-    .eq('id', user.id)
-    .maybeSingle()
-  if (fetchError) return { ok: false, error: 'INTERNAL_ERROR', details: fetchError.message }
-  if (profile?.status !== 'pending_consent') return { ok: false, error: 'CONFLICT' }
-  if (!profile.guardian_email) return { ok: false, error: 'CONSENT_REQUIRED' }
+  const checked = await assertPendingConsent(supabase, user.id)
+  if (!checked.ok) return checked
+  if (!checked.data.guardian_email) return { ok: false, error: 'CONSENT_REQUIRED' }
 
-  return reissueGuardianConsentToken(supabase, user.id, profile.guardian_email)
+  return reissueGuardianConsentToken(user.id, checked.data.guardian_email)
 }
 
 // S_ACCOUNT_PENDING「メールアドレスを変更」。宛先を直すのと同時にトークンも再発行して送り直す
@@ -215,17 +257,10 @@ export async function updateGuardianEmail(input: unknown): Promise<Result<null>>
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
 
-  const { data: profile, error: fetchError } = await supabase
-    .from('profiles')
-    .select('status')
-    .eq('id', user.id)
-    .maybeSingle()
-  if (fetchError) return { ok: false, error: 'INTERNAL_ERROR', details: fetchError.message }
-  if (profile?.status !== 'pending_consent') return { ok: false, error: 'CONFLICT' }
+  const checked = await assertPendingConsent(supabase, user.id)
+  if (!checked.ok) return checked
 
-  return reissueGuardianConsentToken(supabase, user.id, parsed.data, {
-    guardian_email: parsed.data,
-  })
+  return reissueGuardianConsentToken(user.id, parsed.data, { guardian_email: parsed.data })
 }
 
 /**
