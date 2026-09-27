@@ -162,14 +162,33 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - 個人開発者でも利用可能なAPIか審査要件確認
   - 認証済み判定のペイロード確認
 
-### B3. 保護者同意メールのテンプレート・送信基盤
+### B3. 保護者同意メールのテンプレート・送信基盤 🟢 決定・実装済み（2026-09-27）
 
-- **課題:** 未成年アカウント有効化フローに必須。
-- **必要作業:**
-  - メール文面（保護者向け説明・同意ボタン・拒否リンク）
-  - Supabase の内蔵メール送信で足りるか、外部サービス（Resend, SendGrid）併用か判断
-  - 同意リンククリック時のワンタイムトークン設計
-- **決定期限:** サインアップ実装前
+- **決定:** Resend を採用。ワンタイムトークンは生の値をメールにのみ載せ、DBには
+  `profiles.guardian_consent_token_hash`（SHA-256、hex）/ `guardian_consent_token_expires_at`
+  （有効期限7日）としてハッシュだけを保持し、`approve_guardian_consent(p_token)` という
+  anon 実行可の SECURITY DEFINER RPC で承認する（`GET /api/consent/confirm?token=...` から呼ぶ）
+- **理由:** 保護者はメールのリンクを未ログインでクリックするため、承認処理はRLSを経由できる本人セッションを
+  前提にできない。`guard_privileged_profile_columns` トリガーが `auth.uid() が null なら通す` 設計
+  （20260905130000_create_profiles.sql）になっているのを利用し、anon から呼べるRPCに認可判断を閉じ込めた。
+  ハッシュの一致・有効期限・`status='pending_consent'` の3条件がこの機能の唯一の防御線
+- **レビューで発覚し設計変更した点:** 当初は生トークンをそのまま `profiles` に保存する設計だったが、
+  `profiles_select_all` が `using(true)` で行も列も絞らないため、anon が
+  `select('guardian_consent_token').eq('username', 'victim')` を直接叩けばトークンを盗み見て
+  メールを介さず承認を偽装できてしまうと判明。列単位のGRANTで塞ぐ案は、Postgresでは
+  「テーブル単位のSELECT権限を持つロールに対する列単位のREVOKEは効かない」ため
+  `profiles` 全体の権限モデルを作り直す規模の変更になり見送った。代わりにSHA-256ハッシュのみを
+  保存する方式に変更（生の値は一方向関数の入力側にしか存在しなくなる）。
+  同じ理由で、profiles行がまだ無い間の一時保持先である `app_metadata` にも生トークンは置いていない
+  ——`supabase.auth.getUser()` は本人が自分の `app_metadata` を読めるため、生トークンを置くと
+  未成年本人が自己承認できてしまう
+- **未実装のまま残した部分（意図的なスコープ外）:**
+  - 拒否リンク（同意しない選択肢）はワイヤーフレーム（`docs/design/wireframes/auth.md`）に無いため実装していない
+  - 独自ドメインのメール認証が未完了のため、送信元は `onboarding@resend.dev` 固定
+    （`RESEND_FROM_EMAIL` で差し替え可能）。認証完了後に切り替える
+- **既知の制約（設計上のトレードオフ）:** 保護者の同意クリックと未成年本人のブラウザは別セッションのため、
+  同意してもJWTは即時反映されない。`/account/pending` に追加した「状態を確認する」ボタンで
+  `refreshSession()` を明示的に呼ぶ運用にした（自然な期限切れを待たせない）
 
 ### B4. NGワード辞書の初期セット 🟢 決定（2026-09-21）
 

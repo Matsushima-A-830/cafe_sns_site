@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { serviceRoleClient } from '../../helpers/supabase'
 
@@ -79,6 +80,34 @@ export async function createOnboardedAdmin(suffix: string): Promise<E2EUser> {
   const { error } = await service.from('profiles').update({ role: 'admin' }).eq('id', user.userId)
   if (error) throw new Error(`E2E admin への昇格に失敗: ${error.message}`)
   return user
+}
+
+export type E2EPendingConsentUser = E2EUser & { consentToken: string }
+
+/**
+ * 保護者同意待ち（`status='pending_consent'`）のユーザーを、有効なトークン付きで作る。
+ * 生トークンはメールにしか載らない設計なので、テストからは戻り値の `consentToken`
+ * （生の値）を「保護者がメールで受け取った値」として使う
+ *   supabase/migrations/20260927010000_add_guardian_consent_token.sql
+ */
+export async function createPendingConsentUser(suffix: string): Promise<E2EPendingConsentUser> {
+  const user = await createOnboardedUser(suffix)
+  const service = serviceRoleClient()
+  const consentToken = `e2e-consent-token-${randomToken(16)}`
+  const tokenHash = createHash('sha256').update(consentToken).digest('hex')
+
+  const { error } = await service
+    .from('profiles')
+    .update({
+      status: 'pending_consent',
+      guardian_email: `guardian-${suffix}@example.test`,
+      guardian_consent_token_hash: tokenHash,
+      guardian_consent_token_expires_at: new Date(Date.now() + 60_000).toISOString(),
+    })
+    .eq('id', user.userId)
+  if (error) throw new Error(`E2E 同意待ちユーザーの作成に失敗: ${error.message}`)
+
+  return { ...user, consentToken }
 }
 
 export type E2ECafe = { id: string; name: string }

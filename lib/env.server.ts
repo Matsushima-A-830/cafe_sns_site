@@ -9,6 +9,9 @@ const serverEnvSchema = publicEnvSchema.extend({
   AWS_ACCESS_KEY_ID: optionalString(),
   AWS_SECRET_ACCESS_KEY: optionalString(),
   RESEND_API_KEY: optionalString(),
+  // 独自ドメイン未認証の間は onboarding@resend.dev 固定（Resend側の制約）。
+  // 認証後は .env で実ドメインのアドレスに差し替える運用にする
+  RESEND_FROM_EMAIL: z.string().email().default('onboarding@resend.dev'),
   SENTRY_DSN: z.preprocess(
     (value) => (value === '' ? undefined : value),
     z.string().url().optional(),

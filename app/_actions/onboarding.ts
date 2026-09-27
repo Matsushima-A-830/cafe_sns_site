@@ -18,6 +18,8 @@ type SignupMetadata = {
   birth_date?: string
   age_category?: 'minor' | 'adult'
   guardian_email?: string
+  guardian_consent_token_hash?: string
+  guardian_consent_token_expires_at?: string
 }
 
 export async function checkUsernameAvailable(
@@ -77,6 +79,8 @@ export async function submitProfile(input: unknown): Promise<Result<null>> {
     birth_date: metadata.birth_date,
     status,
     guardian_email: metadata.guardian_email ?? null,
+    guardian_consent_token_hash: metadata.guardian_consent_token_hash ?? null,
+    guardian_consent_token_expires_at: metadata.guardian_consent_token_expires_at ?? null,
   })
 
   if (error) {
@@ -94,7 +98,13 @@ export async function submitProfile(input: unknown): Promise<Result<null>> {
   // JWT クレイムからは既に除去しているため失敗してもクレイム漏洩にはならないが、
   // raw_app_meta_data 自体に残ってしまうこと自体は多層防御の欠落なのでログに残す
   const { error: cleanupError } = await createAdminClient().auth.admin.updateUserById(user.id, {
-    app_metadata: { birth_date: null, age_category: null, guardian_email: null },
+    app_metadata: {
+      birth_date: null,
+      age_category: null,
+      guardian_email: null,
+      guardian_consent_token_hash: null,
+      guardian_consent_token_expires_at: null,
+    },
   })
   if (cleanupError) {
     console.error('signup draft の app_metadata クリーンアップに失敗', user.id, cleanupError)
