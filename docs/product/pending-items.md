@@ -1531,8 +1531,12 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
     新規の集計クエリ（カフェ単位で主要タグを判定する）が要るため、エリア + カフェ名検索のみに絞った
   - **ボトムシートの上スワイプで一覧に切替（ドラッグジェスチャ）** — ボタントグルで代替した。
     `vaul` 等の新規依存を避けるため（既存の `radix-ui` のみで実装する方針とした）
-  - **既存カフェの `cafes.location` バックフィル** — 新規登録（S_CAFE_NEW、Places Autocomplete経由）分しか
-    座標が入らない。既存カフェは地図・一覧に出てこない
+  - **既存カフェの `cafes.location` バックフィル** — 解消済み（2026-09-28）。`/admin/cafe-locations`
+    に管理画面ボタンを追加し、`status='active'` かつ `location` 未設定のカフェを
+    `lib/geocoding/google.ts`（Geocoding API）で一括バックフィルできるようにした
+    （`app/_actions/admin-cafe-locations.ts`）。ローカルでは動作確認済みだが、
+    **production への実際の適用はまだ実行していない**（admin権限を持つ人が
+    `/admin/cafe-locations` を開いてボタンを押す運用）
   - **S_CAFE_NEW の自動エリア判定・S_ONBOARD_AREA の「現在地から検索」** — `areas.center_location`
     （A3で解消済み）を使った `ST_Distance` 最寄り判定ロジック自体が未実装。今回は
     `nearby_cafes`（カフェ⇄閲覧者の距離）のみ実装し、エリア判定は別スコープとした
