@@ -8,7 +8,6 @@ import { login } from './helpers/login'
 //   docs/product/pending-items.md B3
 test('保護者が同意リンクを踏むとstatusがactiveになり、本人は「状態を確認する」で反映できる', async ({
   page,
-  request,
   baseURL,
 }) => {
   const suffix = uniqueSuffix(test.info().project.name)
@@ -25,10 +24,12 @@ test('保護者が同意リンクを踏むとstatusがactiveになり、本人�
     await expect(page.getByRole('button', { name: '再送する' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'メールアドレスを変更' })).toBeVisible()
 
-    // --- 保護者が別デバイス・未ログインでリンクをクリックする動作を模す ---
-    // page.request だとログイン中のCookieを引き継いでしまい、
-    // 「本人が自分で承認する」経路（guard_privileged_profile_columnsに弾かれる）を通ってしまう
-    const confirmRes = await request.get(
+    // --- 保護者が本人のログイン中ブラウザ（家族共有端末等）でリンクを踏むケースも通ること ---
+    // page.request は page と同じブラウザコンテキストなのでログイン中のCookieを引き継ぐ。
+    // 通常のcreateClient()（cookieを見る）を使うと guard_privileged_profile_columns トリガーが
+    // 「本人が自分でstatusを変えようとした」と誤認しFORBIDDENになる不具合をコードレビューで発見。
+    // /api/consent/confirm は createAnonClient()（cookieを一切見ない）を使うことで回避している
+    const confirmRes = await page.request.get(
       `${baseURL}/api/consent/confirm?token=${encodeURIComponent(user.consentToken)}`,
       { maxRedirects: 0 },
     )

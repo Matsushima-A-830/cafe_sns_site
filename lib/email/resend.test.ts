@@ -58,4 +58,12 @@ describe('sendEmail', () => {
 
     expect(result).toEqual({ ok: false, error: '送信失敗' })
   })
+
+  it('SDKが例外を投げても呼び出し元まで伝播させず ok:false を返す', async () => {
+    sendMock.mockRejectedValue(new Error('network down'))
+
+    const result = await sendEmail({ to: 'a@example.com', subject: 's', html: '<p>x</p>' })
+
+    expect(result).toEqual({ ok: false, error: 'network down' })
+  })
 })

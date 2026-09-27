@@ -17,16 +17,23 @@ export async function sendEmail(input: {
   }
 
   const resend = new Resend(serverEnv.RESEND_API_KEY)
-  const { error } = await resend.emails.send({
-    from: serverEnv.RESEND_FROM_EMAIL,
-    to: input.to,
-    subject: input.subject,
-    html: input.html,
-  })
+  // resend.emails.send は {error} を返す設計だが、SDK側の例外（ネットワーク断等）は
+  // 素通りしうる。呼び出し元のServer Actionsがcatchしない前提（境界で握る規約）なので、ここで拾う
+  try {
+    const { error } = await resend.emails.send({
+      from: serverEnv.RESEND_FROM_EMAIL,
+      to: input.to,
+      subject: input.subject,
+      html: input.html,
+    })
 
-  if (error) {
-    console.error('Resend送信失敗', input.to, error)
-    return { ok: false, error: error.message }
+    if (error) {
+      console.error('Resend送信失敗', input.to, error)
+      return { ok: false, error: error.message }
+    }
+    return { ok: true }
+  } catch (cause) {
+    console.error('Resend送信で例外が発生', input.to, cause)
+    return { ok: false, error: cause instanceof Error ? cause.message : String(cause) }
   }
-  return { ok: true }
 }
