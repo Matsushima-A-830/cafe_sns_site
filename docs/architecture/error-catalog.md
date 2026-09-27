@@ -44,6 +44,7 @@
 | `BIRTHDATE_REQUIRED` | 生年月日未入力（onboarding/profile に生年月日無しで到達） | submitProfile |
 | `CONSENT_REQUIRED` | 保護者同意未完了で操作不可 | 各種投稿系Action |
 | `CONSENT_TOKEN_INVALID` | 保護者同意リンクトークン無効（期限切れ・使用済み含む）。※`GET /api/consent/confirm`はリダイレクトのみでResult型を返さないため、実際は`?consent=invalid`クエリで表現する。このコード自体は将来JSON APIが要る場合の予約 | api/consent/confirm |
+| `GUARDIAN_EMAIL_SELF_FORBIDDEN` | 保護者メールが未成年本人のアカウントメールと同一（自己承認の迂回を防ぐ） | submitGuardianConsent / updateGuardianEmail |
 | `ACCOUNT_SUSPENDED` | 停止中アカウント | すべて |
 | `ACCOUNT_DELETED` | 削除済みアカウント | login |
 

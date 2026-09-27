@@ -36,7 +36,9 @@ const TOKEN = {
   expiresAt: '2099-01-01T00:00:00.000Z',
 }
 
-function buildAuthGetUser(user: { id: string } | null = { id: userId }) {
+function buildAuthGetUser(
+  user: { id: string; email?: string } | null = { id: userId, email: 'minor@example.com' },
+) {
   return { getUser: vi.fn().mockResolvedValue({ data: { user } }) }
 }
 
@@ -61,6 +63,20 @@ describe('submitGuardianConsent', () => {
       agreed: true,
     })
     expect(result).toEqual({ ok: false, error: 'UNAUTHENTICATED' })
+  })
+
+  it('保護者メールが本人のアカウントメールと同一なら GUARDIAN_EMAIL_SELF_FORBIDDEN を返す（自己承認防止）', async () => {
+    createClientMock.mockResolvedValue({
+      auth: buildAuthGetUser({ id: userId, email: 'minor@example.com' }),
+    })
+
+    const result = await submitGuardianConsent({
+      guardianEmail: 'Minor@Example.com',
+      agreed: true,
+    })
+
+    expect(result).toEqual({ ok: false, error: 'GUARDIAN_EMAIL_SELF_FORBIDDEN' })
+    expect(sendGuardianConsentEmailMock).not.toHaveBeenCalled()
   })
 
   it('トークンを生成しapp_metadataへ保存してメールを送る', async () => {
@@ -223,6 +239,17 @@ describe('updateGuardianEmail', () => {
 
     const result = await updateGuardianEmail('new@example.com')
     expect(result).toEqual({ ok: false, error: 'CONFLICT' })
+    expect(sendGuardianConsentEmailMock).not.toHaveBeenCalled()
+  })
+
+  it('変更後の保護者メールが本人のアカウントメールと同一なら GUARDIAN_EMAIL_SELF_FORBIDDEN を返す（自己承認防止）', async () => {
+    createClientMock.mockResolvedValue({
+      auth: buildAuthGetUser({ id: userId, email: 'minor@example.com' }),
+    })
+
+    const result = await updateGuardianEmail('minor@example.com')
+
+    expect(result).toEqual({ ok: false, error: 'GUARDIAN_EMAIL_SELF_FORBIDDEN' })
     expect(sendGuardianConsentEmailMock).not.toHaveBeenCalled()
   })
 

@@ -35,6 +35,11 @@ async function updateSignupMetadata(userId: string, metadata: SignupMetadata) {
   return admin.auth.admin.updateUserById(userId, { app_metadata: metadata })
 }
 
+// 保護者メールが未成年本人のアカウントメールと同一だと、本人が自分宛にリンクを送って自己承認できる
+function isGuardianEmailSelf(guardianEmail: string, ownEmail: string | undefined) {
+  return !!ownEmail && guardianEmail.trim().toLowerCase() === ownEmail.trim().toLowerCase()
+}
+
 export async function signUp(input: unknown): Promise<Result<{ email: string }>> {
   const parsed = signupSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: 'INVALID_INPUT', details: parsed.error.flatten() }
@@ -123,6 +128,9 @@ export async function submitGuardianConsent(input: unknown): Promise<Result<null
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
+  if (isGuardianEmailSelf(parsed.data.guardianEmail, user.email)) {
+    return { ok: false, error: 'GUARDIAN_EMAIL_SELF_FORBIDDEN' }
+  }
 
   const { token, tokenHash, expiresAt } = generateGuardianConsentToken()
 
@@ -245,6 +253,9 @@ export async function updateGuardianEmail(input: unknown): Promise<Result<null>>
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
+  if (isGuardianEmailSelf(parsed.data, user.email)) {
+    return { ok: false, error: 'GUARDIAN_EMAIL_SELF_FORBIDDEN' }
+  }
 
   const checked = await assertPendingConsent(supabase, user.id)
   if (!checked.ok) return checked
