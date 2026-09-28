@@ -168,6 +168,21 @@ describe('getCafeDetail', () => {
     expect(cafe?.businessHours[2]).toMatchObject({ opensAt: '22:00:00', closesAt: '02:00:00' })
   })
 
+  it('座標未収集のカフェは location が null（pending-items D63 のバックフィル未実施分）', async () => {
+    const cafe = await getCafeDetail(typed(anon), activeCafeId)
+    expect(cafe?.location).toBeNull()
+  })
+
+  it('座標があるカフェは cafe_lat/cafe_lng の computed column から緯度経度を返す', async () => {
+    const locatedCafeId = await insertCafe({
+      name: '座標ありの店',
+      location: 'SRID=4326;POINT(139.702 35.659)',
+    })
+
+    const cafe = await getCafeDetail(typed(anon), locatedCafeId)
+    expect(cafe?.location).toEqual({ lat: 35.659, lng: 139.702 })
+  })
+
   it('hidden なカフェの営業時間は cafe_business_hours 単体では読めてしまう', async () => {
     // cafe_business_hours_select_all は using (true)。カフェ本体を先に引いて404にすることで
     // 漏れを塞いでいる（営業時間から先に引く実装にすると漏れる）

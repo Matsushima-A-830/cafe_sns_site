@@ -14,12 +14,15 @@ import type { Database } from '@/types/database'
 type Client = SupabaseClient<Database>
 
 /**
- * 公開してよい列だけを列挙する。external_ids（外部サービスのID）・metadata・created_by・
- * location は表示に使わないので取らない。status の絞り込みは RLS が担うので列も要らない
+ * 公開してよい列だけを列挙する。external_ids（外部サービスのID）・metadata・created_by は
+ * 表示に使わないので取らない。status の絞り込みは RLS が担うので列も要らない。
+ * location は直接 select すると WKB hex しか返らないため、
+ * cafe_lat/cafe_lng（20260928131058_add_cafe_lat_lng_computed_columns.sql の
+ * computed column）経由で緯度経度だけを取る
  */
 const CAFE_COLUMNS = `
   id, name, prefecture, city, address, phone, website, description,
-  verified_owner_id,
+  verified_owner_id, cafe_lat, cafe_lng,
   areas!cafes_area_code_fkey (label)
 ` as const
 
@@ -36,6 +39,8 @@ export type CafeDetail = {
   /** 認証済みオーナーが付いていれば「✓公式」を出す */
   isVerified: boolean
   businessHours: BusinessHour[]
+  /** 座標未収集のカフェは null（バックフィル未実施分、pending-items D63） */
+  location: { lat: number; lng: number } | null
 }
 
 type CafeRow = {
@@ -48,6 +53,8 @@ type CafeRow = {
   website: string | null
   description: string | null
   verified_owner_id: string | null
+  cafe_lat: number | null
+  cafe_lng: number | null
   areas: { label: string } | null
 }
 
@@ -150,6 +157,10 @@ export async function getCafeDetail(supabase: Client, cafeId: string): Promise<C
     heroImageUrl,
     isVerified: cafe.verified_owner_id !== null,
     businessHours: (hours.data ?? []).map(toBusinessHour),
+    location:
+      cafe.cafe_lat !== null && cafe.cafe_lng !== null
+        ? { lat: cafe.cafe_lat, lng: cafe.cafe_lng }
+        : null,
   }
 }
 

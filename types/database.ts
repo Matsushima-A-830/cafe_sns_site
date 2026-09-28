@@ -1262,6 +1262,14 @@ export type Database = {
         Args: { p_criteria: Json; p_user_id: string }
         Returns: boolean
       }
+      cafe_lat: {
+        Args: { c: Database['public']['Tables']['cafes']['Row'] }
+        Returns: number
+      }
+      cafe_lng: {
+        Args: { c: Database['public']['Tables']['cafes']['Row'] }
+        Returns: number
+      }
       check_ng_words: { Args: { p_text: string }; Returns: string }
       comment_has_live_replies: {
         Args: { p_comment_id: string }
