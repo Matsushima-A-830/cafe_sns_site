@@ -854,9 +854,15 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **解消済み（2026-09-18）:** **「行きたい」「お気に入り」** は `user_cafe_lists` の作成に合わせて実装した
   （`components/features/cafes/cafe-list-buttons.tsx`）
 - **出していないものと理由:**
-  - **地図・「徒歩3分」** — `S_MAP`（`/map`）自体は feat/s-map で実装済み（2026-09-26）だが、
-    S_CAFE_DETAIL 本体には地図・徒歩分数を埋め込んでいない。新規登録カフェのみ `cafes.location` が
-    入るため、既存カフェのバックフィルが済むまでは埋め込んでも大半が空になる（別スコープ）
+  - **解消済み（2026-09-28）:** **地図・「徒歩3分」** — 既存カフェの `cafes.location` バックフィル
+    （D63、2026-09-27）で座標未収集の問題が解消されたのを受けて実装した。
+    `cafe_lat`/`cafe_lng`（PostgREST computed column）で `location` の WKB hex 問題を回避し
+    `getCafeDetail` に緯度経度を追加。PCは右カラムに地図を常時表示、モバイルはワイヤーの
+    「地図で見る」ボタンを `/map` への遷移ではなくその場の開閉にした（
+    [browsing.md #S_CAFE_DETAIL](../design/wireframes/browsing.md#s_cafe_detailカフェ詳細) 注記参照）。
+    徒歩分数はクライアント側 haversine 距離 × `estimateWalkMinutes` の概算（GPS拒否・非対応時は
+    表示自体を出さない、`/map` と同じ失敗許容パターン）
+    （`components/features/cafes/cafe-detail-map.tsx` `cafe-map-section.tsx` `walking-time-badge.tsx`）
   - **解消済み（2026-09-22）:** **「オーナーから」セクション** — S_POST_OFFICIAL 実装に合わせて
     `components/features/cafes/owner-posts-section.tsx` で実装した。直近3件のみ表示で、
     専用の「もっと見る」ページングは持たない（S_CAFE_DETAIL に専用ルートが無いため）
@@ -870,7 +876,8 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - **投稿カードのアクション行のうち コメント / 保存** — S_HOME・S_POST_DETAIL・
     S_USER_PROFILE_PUBLIC と同じ判断（**いいねは 2026-09-19 に実装済み**）
 - **対応判断:** 各テーブル・幹C の実装時に戻る
-- 参照: S_CAFE_DETAIL 実装時にスコープ外と判断（2026-09-17）／いいねのみ解消（2026-09-19）／通報リンク解消（2026-09-21）
+- 参照: S_CAFE_DETAIL 実装時にスコープ外と判断（2026-09-17）／いいねのみ解消（2026-09-19）／通報リンク解消（2026-09-21）／
+  地図・徒歩3分解消（2026-09-28）
 
 ### D31. カフェのヒーロー画像が最新投稿へのフォールバックだけで成り立っている
 
