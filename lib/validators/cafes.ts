@@ -19,6 +19,8 @@ export const nearbyCafesSchema = z.object({
   areaCode: z.string().min(1).optional(),
   query: z.string().trim().max(50).optional(),
   limit: z.number().int().min(1).max(200).optional(),
+  moodTag: z.string().min(1).optional(),
+  occasionTag: z.string().min(1).optional(),
 })
 
 export type NearbyCafesInput = z.infer<typeof nearbyCafesSchema>
