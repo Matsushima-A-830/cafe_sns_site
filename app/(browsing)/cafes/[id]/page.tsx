@@ -174,6 +174,8 @@ export default async function CafeDetailPage({ params }: PageProps) {
     areaCode: null,
     authorUsername: null,
     cafeId: cafe.id,
+    lat: null,
+    lng: null,
   }
 
   return (

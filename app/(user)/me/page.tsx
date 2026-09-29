@@ -196,6 +196,8 @@ export default async function MyPage() {
     areaCode: null,
     authorUsername: profile.username,
     cafeId: null,
+    lat: null,
+    lng: null,
   }
 
   return (

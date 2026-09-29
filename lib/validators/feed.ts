@@ -6,7 +6,7 @@ import { usernameSchema } from '@/lib/validators/onboarding'
  * 「もっと見る」の Server Action 経由でも同じ形で入ってくる
  */
 
-export const FEED_SCOPES = ['recommended', 'new', 'following'] as const
+export const FEED_SCOPES = ['recommended', 'new', 'following', 'nearby'] as const
 
 // tags.slug は英小文字とハイフン、areas.code は ISO 3166-2 準拠で大文字と数字を含む
 //   docs/seed/curated-tags-initial-set.md / docs/seed/areas-initial-set.md
@@ -15,6 +15,8 @@ const AREA_CODE_PATTERN = /^[A-Za-z0-9-]+$/
 
 const tagSlugSchema = z.string().max(60).regex(SLUG_PATTERN)
 const areaCodeSchema = z.string().max(60).regex(AREA_CODE_PATTERN)
+const latSchema = z.number().min(-90).max(90)
+const lngSchema = z.number().min(-180).max(180)
 
 export const feedQuerySchema = z.object({
   scope: z.enum(FEED_SCOPES),
@@ -28,7 +30,20 @@ export const feedQuerySchema = z.object({
   authorUsername: usernameSchema.nullable().default(null),
   /** S_CAFE_DETAIL の投稿グリッド。authorUsername と同じ理由でクライアント入力を検証する */
   cafeId: z.string().uuid().nullable().default(null),
+  /** S_EXPLORE「近くのカフェ」タブの閲覧者座標。scope='nearby' のときだけ使う（pending-items D25） */
+  lat: latSchema.nullable().default(null),
+  lng: lngSchema.nullable().default(null),
 })
+
+/**
+ * 範囲外・数値でない座標は null に丸める。tagSlug/areaCode と同じく、片方が
+ * 壊れているからといってクエリ全体を捨てない（このフィールドは lat/lng で対）
+ */
+function parseCoordinate(value: string | null, schema: typeof latSchema): number | null {
+  if (value === null || value.trim() === '') return null
+  const parsed = schema.safeParse(Number(value))
+  return parsed.success ? parsed.data : null
+}
 
 /**
  * URL のクエリ文字列から絞り込みを組み立てる。壊れた値は 404 にせずその項目だけ捨てる。
@@ -39,6 +54,8 @@ export function parseFeedQuery(input: {
   scope: FeedScope
   tagSlug: string | null
   areaCode: string | null
+  lat?: string | null
+  lng?: string | null
 }): FeedQuery {
   return {
     scope: input.scope,
@@ -48,6 +65,8 @@ export function parseFeedQuery(input: {
     // （壊れた値を null に丸める上の方式だと、絞り込みが外れて全件になってしまう）
     authorUsername: null,
     cafeId: null,
+    lat: parseCoordinate(input.lat ?? null, latSchema),
+    lng: parseCoordinate(input.lng ?? null, lngSchema),
   }
 }
 

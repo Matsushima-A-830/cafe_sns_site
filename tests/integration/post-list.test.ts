@@ -33,9 +33,14 @@ let author: AuthedUser
 let follower: AuthedUser
 let stranger: AuthedUser
 let cafeId: string
+let nearbyCafeId: string
 let areaCode: string
 let moodTagId: string
 let otherTagId: string
+
+// 「近くのカフェ」テスト用。SRID=4326;POINT(lng lat) — nearby-cafes.test.ts と同じ書式
+const point = (lat: number, lng: number) => `SRID=4326;POINT(${lng} ${lat})`
+const SHIBUYA_STATION = { lat: 35.658, lng: 139.7016 }
 
 const postIds: string[] = []
 
@@ -70,6 +75,8 @@ const query = (overrides: Partial<FeedQuery> = {}): FeedQuery => ({
   areaCode: null,
   authorUsername: null,
   cafeId: null,
+  lat: null,
+  lng: null,
   ...overrides,
 })
 
@@ -98,6 +105,23 @@ beforeAll(async () => {
   if (cafeError || !cafe) throw new Error(`テストカフェの作成に失敗: ${cafeError?.message}`)
   cafeId = cafe.id as string
 
+  const { data: nearbyCafe, error: nearbyCafeError } = await service
+    .from('cafes')
+    .insert({
+      name: '渋谷駅前テストカフェ',
+      prefecture: '東京都',
+      city: '渋谷区',
+      area_code: areaCode,
+      created_by: author.userId,
+      location: point(SHIBUYA_STATION.lat, SHIBUYA_STATION.lng),
+    })
+    .select('id')
+    .single()
+  if (nearbyCafeError || !nearbyCafe) {
+    throw new Error(`近くのカフェテスト用カフェの作成に失敗: ${nearbyCafeError?.message}`)
+  }
+  nearbyCafeId = nearbyCafe.id as string
+
   const { data: tags } = await service
     .from('tags')
     .select('id')
@@ -118,6 +142,7 @@ afterEach(async () => {
 
 afterAll(async () => {
   await service.from('cafes').delete().eq('id', cafeId)
+  await service.from('cafes').delete().eq('id', nearbyCafeId)
   await author?.cleanup()
   await follower?.cleanup()
   await stranger?.cleanup()
@@ -263,6 +288,19 @@ describe('getPostList', () => {
     expect(ids).not.toContain(withoutCafe)
   })
 
+  it('cafeIds はいずれかのカフェに絞る（近くのカフェタブ用。空配列では絞り込まない）', async () => {
+    const atCafe = await insertPost({ cafe_id: cafeId })
+    const atNearbyCafe = await insertPost({ cafe_id: nearbyCafeId })
+    const withoutCafe = await insertPost()
+
+    const page = await getPostList(typed(anonClient()), { cafeIds: [nearbyCafeId] })
+    const ids = page.items.map((post) => post.id)
+
+    expect(ids).toContain(atNearbyCafe)
+    expect(ids).not.toContain(atCafe)
+    expect(ids).not.toContain(withoutCafe)
+  })
+
   it('フォロー中の作者だけに絞り込む', async () => {
     const byAuthor = await insertPost()
 
@@ -335,5 +373,22 @@ describe('resolveFeedOptions', () => {
     expect(withoutInterests?.options.tagIds).toBeUndefined()
 
     await service.from('user_interest_tags').delete().eq('user_id', follower.userId)
+  })
+
+  it('近くのカフェ: lat/lng から近いカフェIDの集合に解決する', async () => {
+    const resolved = await resolveFeedOptions(
+      typed(anonClient()),
+      query({ scope: 'nearby', lat: SHIBUYA_STATION.lat, lng: SHIBUYA_STATION.lng }),
+      null,
+    )
+
+    expect(resolved?.options.cafeIds).toContain(nearbyCafeId)
+    // location が null のカフェは nearby_cafes 自体が返さない
+    expect(resolved?.options.cafeIds).not.toContain(cafeId)
+  })
+
+  it('近くのカフェ: lat/lng 未指定は null（0件確定、フォールバック中心埋めは呼び出し元の責務）', async () => {
+    const resolved = await resolveFeedOptions(typed(anonClient()), query({ scope: 'nearby' }), null)
+    expect(resolved).toBeNull()
   })
 })

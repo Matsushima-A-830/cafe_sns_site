@@ -11,6 +11,8 @@ describe('parseFeedQuery', () => {
       areaCode: 'JP-13-shibuya-ku',
       authorUsername: null,
       cafeId: null,
+      lat: null,
+      lng: null,
     })
   })
 
@@ -22,6 +24,8 @@ describe('parseFeedQuery', () => {
       areaCode: 'JP-13-shibuya-ku',
       authorUsername: null,
       cafeId: null,
+      lat: null,
+      lng: null,
     })
 
     expect(
@@ -32,6 +36,8 @@ describe('parseFeedQuery', () => {
       areaCode: 'JP-13-shibuya-ku',
       authorUsername: null,
       cafeId: null,
+      lat: null,
+      lng: null,
     })
   })
 
@@ -48,6 +54,44 @@ describe('parseFeedQuery', () => {
 
     expect(query.authorUsername).toBeNull()
     expect(query.cafeId).toBeNull()
+  })
+
+  it('近くのカフェタブ: lat/lng を数値として通す', () => {
+    const query = parseFeedQuery({
+      scope: 'nearby',
+      tagSlug: null,
+      areaCode: null,
+      lat: '35.6896',
+      lng: '139.7006',
+    })
+    expect(query.lat).toBe(35.6896)
+    expect(query.lng).toBe(139.7006)
+  })
+
+  it('範囲外・壊れた lat/lng だけを捨てる（tagSlug/areaCodeと同じ方針）', () => {
+    for (const lat of ['91', '-91', 'abc', '']) {
+      expect(
+        parseFeedQuery({ scope: 'nearby', tagSlug: null, areaCode: null, lat, lng: '139.7006' })
+          .lat,
+      ).toBeNull()
+    }
+    for (const lng of ['181', '-181', 'abc', '']) {
+      expect(
+        parseFeedQuery({ scope: 'nearby', tagSlug: null, areaCode: null, lat: '35.6896', lng }).lng,
+      ).toBeNull()
+    }
+  })
+
+  it('lat/lng 未指定は null', () => {
+    const query = parseFeedQuery({
+      scope: 'nearby',
+      tagSlug: null,
+      areaCode: null,
+      lat: null,
+      lng: null,
+    })
+    expect(query.lat).toBeNull()
+    expect(query.lng).toBeNull()
   })
 })
 

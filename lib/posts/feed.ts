@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { cafeExists } from '@/lib/cafes/cafe-detail'
+import { getNearbyCafes } from '@/lib/cafes/nearby'
 import type { PostListOptions, PostListTag } from '@/lib/posts/post-list'
 import { getPublicProfile } from '@/lib/profiles/public-profile'
 import type { FeedQuery } from '@/lib/validators/feed'
@@ -9,6 +10,9 @@ type Client = SupabaseClient<Database>
 
 /** 気分入り口（幹A）に出すチップの数。選択のパラドックス回避で絞る */
 export const MOOD_TAG_LIMIT = 12
+
+/** S_EXPLORE「近くのカフェ」タブの対象カフェ件数。投稿フィードなので /map の100件より絞る */
+export const NEARBY_CAFE_LIMIT = 40
 
 /** S_SEARCH の「よく使うタグ」チップは、押した先で mood/occasion どちらの絞り込みかを出し分ける */
 export type MoodTag = PostListTag & { category: 'mood' | 'occasion' }
@@ -98,6 +102,20 @@ export async function resolveFeedOptions(
 
   if (query.scope === 'following' && userId) {
     options.followerId = userId
+  }
+
+  if (query.scope === 'nearby') {
+    // 現在地未取得（初回SSR描画の一瞬・Geolocation拒否）は呼び出し元がフォールバック中心を
+    // 埋めて渡す想定。それでも null ならこの時点では対象カフェが定まらない
+    if (query.lat === null || query.lng === null) return null
+    const nearbyCafes = await getNearbyCafes(supabase, {
+      lat: query.lat,
+      lng: query.lng,
+      limit: NEARBY_CAFE_LIMIT,
+    })
+    // 座標付きカフェが近くに1件も無い（半径カットオフは無い設計 — pending-items D63）
+    if (nearbyCafes.length === 0) return null
+    options.cafeIds = nearbyCafes.map((cafe) => cafe.cafeId)
   }
 
   return { options, tag }

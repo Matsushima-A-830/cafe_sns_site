@@ -71,6 +71,12 @@ export type PostListOptions = {
   authorId?: string | null
   /** カフェ詳細（S_CAFE_DETAIL）の投稿グリッド。1つのカフェに絞る */
   cafeId?: string | null
+  /**
+   * S_EXPLORE「近くのカフェ」タブ用。複数カフェのいずれかに絞る（cafeId とは併用しない）。
+   * 空配列は「該当カフェなし」なので resolveFeedOptions 側で null を返して0件にする
+   * （.in() に空配列を渡す曖昧さを避けるため、ここは非空のときだけフィルタする）
+   */
+  cafeIds?: string[] | null
   /** カフェ詳細の「オーナーから」セクション用。公式投稿のみに絞る */
   officialOnly?: boolean
   /**
@@ -273,6 +279,9 @@ export async function getPostList(
   }
   if (options.cafeId) {
     query = query.eq('cafe_id', options.cafeId)
+  }
+  if (options.cafeIds && options.cafeIds.length > 0) {
+    query = query.in('cafe_id', options.cafeIds)
   }
   if (options.officialOnly) {
     query = query.eq('is_official', true)
