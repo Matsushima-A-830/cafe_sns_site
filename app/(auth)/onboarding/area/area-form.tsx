@@ -30,16 +30,24 @@ export function AreaForm({ areas }: { areas: Area[] }) {
     setIsLocating(true)
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        const result = await findNearestArea({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        })
-        setIsLocating(false)
-        if (!result.ok) {
-          setFormError(errorMessage(result.error))
-          return
+        // findNearestArea 内の try/catch はRPC呼び出しの失敗しか拾わない。
+        // Server Action 自体の呼び出しがネットワーク層で失敗すると reject するため、
+        // ここで拾わないと isLocating が true のまま固まる
+        try {
+          const result = await findNearestArea({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          })
+          if (!result.ok) {
+            setFormError(errorMessage(result.error))
+            return
+          }
+          setSelected(result.data.areaCode)
+        } catch {
+          setFormError('位置情報を取得できませんでした。一覧から選んでください')
+        } finally {
+          setIsLocating(false)
         }
-        setSelected(result.data.areaCode)
       },
       () => {
         setIsLocating(false)
