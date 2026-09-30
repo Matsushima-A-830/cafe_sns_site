@@ -36,7 +36,7 @@ test('成人がサインアップからオンボーディングを完走して�
   await page.getByLabel('表示名').fill('E2Eテスト太郎')
   await page.getByRole('button', { name: '次へ' }).click()
 
-  // --- S_ONBOARD_AREA（一覧から選択。現在地検索は A3 未実装のため対象外） ---
+  // --- S_ONBOARD_AREA（一覧から選択。現在地検索は onboard-area-geolocation.spec.ts で別途検証） ---
   await expect(page).toHaveURL(/\/onboarding\/area/)
   await page.getByRole('button', { name: '千代田区' }).click()
   await page.getByRole('button', { name: '次へ' }).click()
