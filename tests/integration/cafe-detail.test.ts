@@ -214,6 +214,8 @@ describe('投稿グリッド（cafeId 絞り込み）', () => {
     areaCode: null,
     authorUsername: null,
     cafeId: null,
+    lat: null,
+    lng: null,
     ...overrides,
   })
 

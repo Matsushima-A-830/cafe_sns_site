@@ -88,6 +88,8 @@ export default async function UserProfilePage({ params }: PageProps) {
     areaCode: null,
     authorUsername: profile.username,
     cafeId: null,
+    lat: null,
+    lng: null,
   }
 
   const postsPanel = (
