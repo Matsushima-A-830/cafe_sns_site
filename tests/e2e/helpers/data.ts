@@ -35,12 +35,12 @@ export type E2EUser = {
 }
 
 /**
- * オンボーディング済み（`onboarded_at` あり・`status='active'`）のユーザーを作る。
- * middleware は `onboarded_at` を唯一の判定材料にするため、これが無いと保護ルートから
- * `/onboarding/profile` へ飛ばされる
+ * オンボーディング途中（`onboarded_at` 無し・`status='active'`）のユーザーを作る。
+ * middleware は `/onboarding` 配下だけは onboarded_at の有無に関わらず通すため、
+ * ログイン直後に `/onboarding/area` 等へ直接遷移させて検証できる
  *   supabase/migrations/20260905130000_create_profiles.sql
  */
-export async function createOnboardedUser(suffix: string): Promise<E2EUser> {
+export async function createInProgressOnboardingUser(suffix: string): Promise<E2EUser> {
   const service = serviceRoleClient()
   const email = `e2e-data-${suffix}@example.test`
   // username は citext unique かつ3〜20文字。suffix を詰めると上限で切れて衝突しうるので、
@@ -63,7 +63,6 @@ export async function createOnboardedUser(suffix: string): Promise<E2EUser> {
     display_name: 'E2E データ太郎',
     // enforce_min_age に弾かれない生年月日
     birth_date: '2000-01-01',
-    onboarded_at: new Date().toISOString(),
   })
   if (error) {
     await service.auth.admin.deleteUser(userId)
@@ -71,6 +70,26 @@ export async function createOnboardedUser(suffix: string): Promise<E2EUser> {
   }
 
   return { email, password: PASSWORD, userId, username }
+}
+
+/**
+ * オンボーディング済み（`onboarded_at` あり・`status='active'`）のユーザーを作る。
+ * middleware は `onboarded_at` を唯一の判定材料にするため、これが無いと保護ルートから
+ * `/onboarding/profile` へ飛ばされる
+ *   supabase/migrations/20260905130000_create_profiles.sql
+ */
+export async function createOnboardedUser(suffix: string): Promise<E2EUser> {
+  const user = await createInProgressOnboardingUser(suffix)
+  const service = serviceRoleClient()
+  const { error } = await service
+    .from('profiles')
+    .update({ onboarded_at: new Date().toISOString() })
+    .eq('id', user.userId)
+  if (error) {
+    await service.auth.admin.deleteUser(user.userId)
+    throw new Error(`E2E プロフィールの onboarded_at 更新に失敗: ${error.message}`)
+  }
+  return user
 }
 
 /** createOnboardedUser のadmin版。profiles.role は本人更新できないため service role で直接立てる */

@@ -39,9 +39,8 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   （既存の `20260905120400_seed_master_data.sql` は forward-only 原則により書き換えず、別マイグレーションで埋めた）
 - **この解消で動くようになった機能:** `S_MAP` のエリア指定表示（`S_MAP` 本体の実装は別PR、`feat/s-map` で対応）
 - **この解消でもまだ動かない機能（別スコープ）:**
-  - 新規カフェ登録時の `area_code` 自動判定（`ST_Distance` によるエリア判定ロジック自体は未実装）
-  - `S_ONBOARD_AREA` の「現在地から検索」（同上）
-  - どちらも意図的にスコープ外にした（既存画面への機能追加になるため、S_MAP本体を優先）
+  - 新規カフェ登録時の `area_code` 自動判定（`ST_Distance` によるエリア判定ロジック自体は未実装。S_CAFE_NEW はワイヤーフレーム自体が無く、仕様の決め打ちが要るため引き続きスコープ外）
+  - `S_ONBOARD_AREA` の「現在地から検索」は **解消済み（2026-09-30、D63）**。`nearest_area` RPC（KNN距離順、`level='ward'`固定）を追加し、位置情報許可→最寄りエリア自動選択まで動く
 
 ### A9. 最初の admin アカウントをどう作るか ✅ 解消済（2026-09-05）
 
@@ -1553,9 +1552,11 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
     （`app/_actions/admin-cafe-locations.ts`）。ローカルでは動作確認済みだが、
     **production への実際の適用はまだ実行していない**（admin権限を持つ人が
     `/admin/cafe-locations` を開いてボタンを押す運用）
-  - **S_CAFE_NEW の自動エリア判定・S_ONBOARD_AREA の「現在地から検索」** — `areas.center_location`
-    （A3で解消済み）を使った `ST_Distance` 最寄り判定ロジック自体が未実装。今回は
-    `nearby_cafes`（カフェ⇄閲覧者の距離）のみ実装し、エリア判定は別スコープとした
+  - **S_ONBOARD_AREA の「現在地から検索」（解消済み・2026-09-30）** — `nearest_area` RPC（KNN距離順、
+    `level='ward'`固定。`sub_area`まで候補に含めると「23区制覇」の母数粒度とズレるため引数化しなかった）
+    を追加し、`area-form.tsx` に「位置情報を使う」ボタンを実装
+  - **S_CAFE_NEW の自動エリア判定** — 上記と同じ `ST_Distance` 最寄り判定を転用できるが、S_CAFE_NEW は
+    ワイヤーフレーム自体が存在せず仕様の決め打ちが要るため、引き続きスコープ外
 - **本番投入前に要対応:** `AdvancedMarker` に使っている Map ID は Google 公式の検証用
   `DEMO_MAP_ID`。本番運用前に Google Cloud Console で専用の Map ID を作成して差し替える
   （`components/features/map/cafe-map.tsx`）

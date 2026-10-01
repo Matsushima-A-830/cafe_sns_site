@@ -1,11 +1,13 @@
 'use server'
 
+import { getNearestArea, type NearestArea } from '@/lib/areas/nearest'
 import {
   POSTGRES_FOREIGN_KEY_VIOLATION,
   POSTGRES_UNIQUE_VIOLATION,
 } from '@/lib/constants/postgres-error-codes'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { nearestAreaSchema } from '@/lib/validators/areas'
 import {
   areaSchema,
   interestsSchema,
@@ -109,6 +111,27 @@ export async function submitProfile(input: unknown): Promise<Result<null>> {
   await supabase.auth.refreshSession()
 
   return { ok: true, data: null }
+}
+
+/**
+ * S_ONBOARD_AREA の「現在地から検索」。認可は nearest_area（security invoker）が
+ * areas_select_active の RLS に委譲する
+ */
+export async function findNearestArea(
+  input: unknown,
+): Promise<Result<NearestArea, 'INVALID_INPUT' | 'NOT_FOUND' | 'INTERNAL_ERROR'>> {
+  const parsed = nearestAreaSchema.safeParse(input)
+  if (!parsed.success) return { ok: false, error: 'INVALID_INPUT', details: parsed.error.flatten() }
+
+  try {
+    const supabase = await createClient()
+    const area = await getNearestArea(supabase, parsed.data)
+    if (!area) return { ok: false, error: 'NOT_FOUND' }
+    return { ok: true, data: area }
+  } catch (cause) {
+    console.error('[onboarding] 最寄りエリアの取得に失敗:', cause)
+    return { ok: false, error: 'INTERNAL_ERROR' }
+  }
 }
 
 export async function submitArea(input: unknown): Promise<Result<null>> {

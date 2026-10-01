@@ -1399,6 +1399,14 @@ export type Database = {
           name: string
         }[]
       }
+      nearest_area: {
+        Args: { p_lat: number; p_lng: number }
+        Returns: {
+          area_code: string
+          distance_m: number
+          label: string
+        }[]
+      }
       replace_user_interest_tags: {
         Args: { p_tag_ids: string[] }
         Returns: undefined
