@@ -2,7 +2,12 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { getNearbyCafes } from '@/lib/cafes/nearby'
 import type { Database } from '@/types/database'
-import { anonClient, serviceRoleClient } from '../helpers/supabase'
+import {
+  type AuthedUser,
+  anonClient,
+  createAuthedProfile,
+  serviceRoleClient,
+} from '../helpers/supabase'
 
 // nearby_cafes（RPC）と lib/cafes/nearby.ts を実DBに対して動かす。確認したいのは:
 //  1. 距離順（近い順）に並ぶこと
@@ -10,6 +15,11 @@ import { anonClient, serviceRoleClient } from '../helpers/supabase'
 //  3. area_code / query の絞り込みが効くこと
 //  4. security invoker のため、未ログインでも closed / hidden は RLS で落ちること
 //  5. 境界の入力検証（lat/lng の範囲外）で例外にならず空配列になること
+//  6. moodTag / occasionTag の絞り込みが効くこと（D63: 該当カテゴリのタグが付いた
+//     公開投稿を1件以上持つカフェのみ）。非公開（hidden）投稿のタグは一致に使われないこと
+//  7. posts_select_own（本人には status/deleted_at を問わず見せる permissive policy）が
+//     タグ絞り込みのEXISTSにまで滲み出さないこと — 投稿者本人のセッションで実行しても、
+//     自分の hidden 投稿のタグはヒット条件に使われない（code-review指摘の回帰防止）
 
 const service = serviceRoleClient()
 const anon = anonClient()
@@ -41,8 +51,49 @@ let noLocationCafeId: string
 let closedNearbyCafeId: string
 let hiddenNearbyCafeId: string
 let otherAreaCafeId: string
+let quietMoodCafeId: string
+let workOccasionCafeId: string
+let hiddenTaggedCafeId: string
+
+let poster: AuthedUser
+const postIds: string[] = []
+const bodyJson = {
+  type: 'doc',
+  content: [{ type: 'paragraph', content: [{ type: 'text', text: 'タグ絞り込みテスト投稿' }] }],
+}
+
+async function insertTaggedPost(cafeId: string, tagSlug: string, status = 'published') {
+  const { data: tag, error: tagError } = await service
+    .from('tags')
+    .select('id')
+    .eq('slug', tagSlug)
+    .single()
+  if (tagError || !tag)
+    throw new Error(`タグ ${tagSlug} が seed されていない: ${tagError?.message}`)
+
+  const { data: post, error: postError } = await service
+    .from('posts')
+    .insert({
+      author_id: poster.userId,
+      cafe_id: cafeId,
+      post_type: 'short',
+      body_json: bodyJson,
+      status,
+    })
+    .select('id')
+    .single()
+  if (postError || !post) throw new Error(`テスト投稿の作成に失敗: ${postError?.message}`)
+  postIds.push(post.id)
+
+  const { error: tagLinkError } = await service
+    .from('post_tags')
+    .insert({ post_id: post.id, tag_id: tag.id })
+  if (tagLinkError) throw new Error(`post_tags の作成に失敗: ${tagLinkError.message}`)
+}
 
 beforeAll(async () => {
+  poster = await createAuthedProfile({ username: 'nearby_tag_poster' })
+
   nearCafeId = await insertCafe({
     name: '渋谷駅前カフェ',
     area_code: 'JP-13-shibuya-ku',
@@ -71,10 +122,31 @@ beforeAll(async () => {
     area_code: 'JP-13-shinjuku-ku',
     location: point(35.6585, 139.7018),
   })
+  quietMoodCafeId = await insertCafe({
+    name: '静かな店タグ付き',
+    area_code: 'JP-13-shibuya-ku',
+    location: point(35.6585, 139.7018),
+  })
+  workOccasionCafeId = await insertCafe({
+    name: 'ワーク向けタグ付き',
+    area_code: 'JP-13-shibuya-ku',
+    location: point(35.6585, 139.7018),
+  })
+  hiddenTaggedCafeId = await insertCafe({
+    name: 'タグは付くが投稿が非公開',
+    area_code: 'JP-13-shibuya-ku',
+    location: point(35.6585, 139.7018),
+  })
+
+  await insertTaggedPost(quietMoodCafeId, 'quiet')
+  await insertTaggedPost(workOccasionCafeId, 'work')
+  await insertTaggedPost(hiddenTaggedCafeId, 'quiet', 'hidden')
 })
 
 afterAll(async () => {
+  if (postIds.length > 0) await service.from('posts').delete().in('id', postIds)
   if (cafeIds.length > 0) await service.from('cafes').delete().in('id', cafeIds)
+  await poster.cleanup()
 })
 
 describe('getNearbyCafes', () => {
@@ -123,5 +195,50 @@ describe('getNearbyCafes', () => {
 
     expect(near).toMatchObject({ areaLabel: '渋谷区', isVerified: false })
     expect(near?.distanceM).toBeGreaterThanOrEqual(0)
+  })
+
+  it('moodTag で絞り込める（該当カテゴリのタグが付いた公開投稿を持つカフェのみ）', async () => {
+    const result = await getNearbyCafes(typed(anon), { ...SHIBUYA, moodTag: 'quiet' })
+    const ids = result.map((r) => r.cafeId)
+
+    expect(ids).toContain(quietMoodCafeId)
+    expect(ids).not.toContain(workOccasionCafeId)
+    expect(ids).not.toContain(nearCafeId)
+  })
+
+  it('occasionTag で絞り込める', async () => {
+    const result = await getNearbyCafes(typed(anon), { ...SHIBUYA, occasionTag: 'work' })
+    const ids = result.map((r) => r.cafeId)
+
+    expect(ids).toContain(workOccasionCafeId)
+    expect(ids).not.toContain(quietMoodCafeId)
+  })
+
+  it('非公開（hidden）投稿に付いたタグは絞り込みに使われない', async () => {
+    const result = await getNearbyCafes(typed(anon), { ...SHIBUYA, moodTag: 'quiet' })
+    const ids = result.map((r) => r.cafeId)
+
+    expect(ids).not.toContain(hiddenTaggedCafeId)
+  })
+
+  it('投稿者本人のセッションでも、自分の非公開投稿のタグは絞り込みに使われない', async () => {
+    // posts_select_own は author_id 一致のみで status/deleted_at を見ない permissive policy。
+    // RLS 任せだと本人のセッションからは hidden 投稿越しにカフェがヒットしてしまう
+    const result = await getNearbyCafes(typed(poster.client), { ...SHIBUYA, moodTag: 'quiet' })
+    const ids = result.map((r) => r.cafeId)
+
+    expect(ids).not.toContain(hiddenTaggedCafeId)
+  })
+
+  it('moodTag と occasionTag を同時に指定すると両方を満たすカフェのみ返る', async () => {
+    const result = await getNearbyCafes(typed(anon), {
+      ...SHIBUYA,
+      moodTag: 'quiet',
+      occasionTag: 'work',
+    })
+    const ids = result.map((r) => r.cafeId)
+
+    expect(ids).not.toContain(quietMoodCafeId)
+    expect(ids).not.toContain(workOccasionCafeId)
   })
 })

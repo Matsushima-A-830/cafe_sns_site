@@ -1384,6 +1384,8 @@ export type Database = {
           p_lat: number
           p_limit?: number
           p_lng: number
+          p_mood_tag?: string
+          p_occasion_tag?: string
           p_query?: string
         }
         Returns: {

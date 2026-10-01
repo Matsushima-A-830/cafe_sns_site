@@ -27,11 +27,14 @@ export type NearbyCafesParams = {
   areaCode?: string
   query?: string
   limit?: number
+  moodTag?: string
+  occasionTag?: string
 }
 
 /**
- * 認可は supabase/migrations/20260926224028_create_nearby_cafes_function.sql の
- * nearby_cafes（security invoker）が cafes の RLS に委譲する。ここでは境界の入力検証のみ行う
+ * 認可は supabase/migrations/20260926224028_create_nearby_cafes_function.sql
+ *（20260929120000_nearby_cafes_tag_filter.sql で mood/occasion 絞り込みを追加）の
+ * nearby_cafes（security invoker）が cafes・posts の RLS に委譲する。ここでは境界の入力検証のみ行う
  */
 export async function getNearbyCafes(
   supabase: Client,
@@ -46,6 +49,8 @@ export async function getNearbyCafes(
     p_area_code: parsed.data.areaCode,
     p_query: parsed.data.query,
     p_limit: parsed.data.limit ?? 100,
+    p_mood_tag: parsed.data.moodTag,
+    p_occasion_tag: parsed.data.occasionTag,
   })
 
   if (error) throw new Error(`近くのカフェの取得に失敗しました: ${error.message}`)

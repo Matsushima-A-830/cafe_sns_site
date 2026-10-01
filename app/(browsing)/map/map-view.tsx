@@ -14,21 +14,28 @@ import { cn } from '@/lib/utils/cn'
 const REFETCH_DEBOUNCE_MS = 400
 
 type Area = { code: string; label: string }
+type Tag = { slug: string; label: string }
 type LatLng = { lat: number; lng: number }
 
 export function MapView({
   areas,
+  moodTags,
+  occasionTags,
   initialCafes,
   defaultCenter,
   isAuthenticated,
 }: {
   areas: Area[]
+  moodTags: Tag[]
+  occasionTags: Tag[]
   initialCafes: NearbyCafe[]
   defaultCenter: LatLng
   isAuthenticated: boolean
 }) {
   const [position, setPosition] = useState<LatLng>(defaultCenter)
   const [areaCode, setAreaCode] = useState('')
+  const [moodTag, setMoodTag] = useState('')
+  const [occasionTag, setOccasionTag] = useState('')
   const [query, setQuery] = useState('')
   const [cafes, setCafes] = useState(initialCafes)
   const [viewMode, setViewMode] = useState<MapViewMode>('map')
@@ -63,6 +70,8 @@ export function MapView({
         lat: position.lat,
         lng: position.lng,
         areaCode: areaCode || undefined,
+        moodTag: moodTag || undefined,
+        occasionTag: occasionTag || undefined,
         query: query || undefined,
       })
       if (!cancelled && result.ok) setCafes(result.data)
@@ -72,7 +81,7 @@ export function MapView({
       cancelled = true
       clearTimeout(timer)
     }
-  }, [position, areaCode, query])
+  }, [position, areaCode, moodTag, occasionTag, query])
 
   const selectedCafe = cafes.find((cafe) => cafe.cafeId === selectedCafeId) ?? null
 
@@ -83,6 +92,12 @@ export function MapView({
           areas={areas}
           areaCode={areaCode}
           onAreaChange={setAreaCode}
+          moodTags={moodTags}
+          moodTag={moodTag}
+          onMoodTagChange={setMoodTag}
+          occasionTags={occasionTags}
+          occasionTag={occasionTag}
+          onOccasionTagChange={setOccasionTag}
           query={query}
           onQueryChange={setQuery}
         />
