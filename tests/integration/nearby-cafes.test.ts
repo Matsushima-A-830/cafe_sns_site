@@ -17,6 +17,9 @@ import {
 //  5. 境界の入力検証（lat/lng の範囲外）で例外にならず空配列になること
 //  6. moodTag / occasionTag の絞り込みが効くこと（D63: 該当カテゴリのタグが付いた
 //     公開投稿を1件以上持つカフェのみ）。非公開（hidden）投稿のタグは一致に使われないこと
+//  7. posts_select_own（本人には status/deleted_at を問わず見せる permissive policy）が
+//     タグ絞り込みのEXISTSにまで滲み出さないこと — 投稿者本人のセッションで実行しても、
+//     自分の hidden 投稿のタグはヒット条件に使われない（code-review指摘の回帰防止）
 
 const service = serviceRoleClient()
 const anon = anonClient()
@@ -213,6 +216,15 @@ describe('getNearbyCafes', () => {
 
   it('非公開（hidden）投稿に付いたタグは絞り込みに使われない', async () => {
     const result = await getNearbyCafes(typed(anon), { ...SHIBUYA, moodTag: 'quiet' })
+    const ids = result.map((r) => r.cafeId)
+
+    expect(ids).not.toContain(hiddenTaggedCafeId)
+  })
+
+  it('投稿者本人のセッションでも、自分の非公開投稿のタグは絞り込みに使われない', async () => {
+    // posts_select_own は author_id 一致のみで status/deleted_at を見ない permissive policy。
+    // RLS 任せだと本人のセッションからは hidden 投稿越しにカフェがヒットしてしまう
+    const result = await getNearbyCafes(typed(poster.client), { ...SHIBUYA, moodTag: 'quiet' })
     const ids = result.map((r) => r.cafeId)
 
     expect(ids).not.toContain(hiddenTaggedCafeId)

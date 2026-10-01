@@ -5,6 +5,12 @@
 -- 「該当カテゴリのタグが付いた公開投稿を1件以上持つカフェ」を絞り込み条件にする。
 -- security invoker のままなので posts_select の RLS（visibility / ブロック等）が
 -- そのまま効き、非公開投稿はタグ一致の判定に使われない。
+--
+-- ただし posts_select_own（本人には status/deleted_at を問わず見せる permissive policy。
+-- 20260910120000_fix_posts_select_own.sql）が RLS に OR 合成されるため、RLS だけに
+-- 任せると「投稿者本人が自分の hidden/archived/削除済み投稿にタグを付けていた場合、
+-- 本人だけその投稿を根拠にカフェがヒットしてしまう」。likes_select_visibility 等と同じく
+-- status/deleted_at をここでも明示する
 --   docs/product/pending-items.md D63 / docs/design/wireframes/browsing.md #S_MAP
 -- ============================================
 
@@ -60,7 +66,9 @@ as $$
         from public.posts p
         join public.post_tags pt on pt.post_id = p.id
         join public.tags t on t.id = pt.tag_id
-        where p.cafe_id = c.id and t.category = 'mood' and t.slug = p_mood_tag
+        where p.cafe_id = c.id
+          and p.status = 'published' and p.deleted_at is null
+          and t.category = 'mood' and t.slug = p_mood_tag
       )
     )
     and (
@@ -70,7 +78,9 @@ as $$
         from public.posts p
         join public.post_tags pt on pt.post_id = p.id
         join public.tags t on t.id = pt.tag_id
-        where p.cafe_id = c.id and t.category = 'occasion' and t.slug = p_occasion_tag
+        where p.cafe_id = c.id
+          and p.status = 'published' and p.deleted_at is null
+          and t.category = 'occasion' and t.slug = p_occasion_tag
       )
     )
   order by
