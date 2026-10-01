@@ -8,8 +8,8 @@ import { MoodEntry } from '@/components/features/feed/mood-entry'
 import { PendingConsentBanner } from '@/components/features/feed/pending-consent-banner'
 import { SuggestedTags } from '@/components/features/feed/suggested-tags'
 import { PostFeed } from '@/components/features/posts/post-feed'
-import { getMoodTags, resolveFeedOptions } from '@/lib/posts/feed'
-import { getPostList, type PostListPage } from '@/lib/posts/post-list'
+import { getFeedPage, getMoodTags, resolveFeedOptions } from '@/lib/posts/feed'
+import type { PostListPage } from '@/lib/posts/post-list'
 import { decodeAppMetadataClaims } from '@/lib/supabase/claims'
 import { createClient } from '@/lib/supabase/server'
 import { firstParam } from '@/lib/utils/search-params'
@@ -47,7 +47,7 @@ export default async function HomePage({ searchParams }: PageProps) {
     getMoodTags(supabase),
     resolveFeedOptions(supabase, query, user?.id ?? null),
   ])
-  const page = resolved ? await getPostList(supabase, resolved.options) : EMPTY_PAGE
+  const page = resolved ? await getFeedPage(supabase, resolved, user?.id ?? null) : EMPTY_PAGE
 
   // pending_consent バナー用。getUser() が既にトークンをサーバー検証済みなので、
   // ここでの getSession() はローカルCookieを読むだけ（ネットワーク不要）。

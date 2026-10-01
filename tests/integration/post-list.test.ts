@@ -1,7 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { resolveFeedOptions } from '@/lib/posts/feed'
+import { getFeedPage, resolveFeedOptions } from '@/lib/posts/feed'
 import { getPostList } from '@/lib/posts/post-list'
+import { getRecommendedPostList } from '@/lib/posts/recommended-feed'
 import type { FeedQuery } from '@/lib/validators/feed'
 import type { Database } from '@/types/database'
 import {
@@ -370,9 +371,21 @@ describe('resolveFeedOptions', () => {
     )
 
     expect(withInterests?.options.tagIds).toEqual([moodTagId])
+    expect(withInterests?.useRecommendedScoring).toBe(true)
     expect(withoutInterests?.options.tagIds).toBeUndefined()
+    expect(withoutInterests?.useRecommendedScoring).toBe(false)
 
     await service.from('user_interest_tags').delete().eq('user_id', follower.userId)
+  })
+
+  it('タグ指定（mood チップ）経由では一致タグ数スコアリングを使わない', async () => {
+    const { data: tag } = await service.from('tags').select('slug').eq('id', moodTagId).single()
+    const resolved = await resolveFeedOptions(
+      typed(follower.client),
+      query({ scope: 'recommended', tagSlug: tag?.slug as string }),
+      follower.userId,
+    )
+    expect(resolved?.useRecommendedScoring).toBe(false)
   })
 
   it('近くのカフェ: lat/lng から近いカフェIDの集合に解決する', async () => {
@@ -390,5 +403,104 @@ describe('resolveFeedOptions', () => {
   it('近くのカフェ: lat/lng 未指定は null（0件確定、フォールバック中心埋めは呼び出し元の責務）', async () => {
     const resolved = await resolveFeedOptions(typed(anonClient()), query({ scope: 'nearby' }), null)
     expect(resolved).toBeNull()
+  })
+})
+
+// pending-items D24: 一致タグ数順（同数は新着順）。PostgREST の order() では書けないため
+// DB関数 recommended_post_ranks に委ねている部分の検証
+describe('getRecommendedPostList / getFeedPage（おすすめタブのスコアリング）', () => {
+  it('一致タグ数が多い投稿を優先し、同数内は新着順にする', async () => {
+    const twoMatches = await insertPost({ published_at: publishedAt(60) })
+    const oneMatchNewer = await insertPost({ published_at: publishedAt(70) })
+    const oneMatchOlder = await insertPost({ published_at: publishedAt(50) })
+    const noMatch = await insertPost({ published_at: publishedAt(80) })
+
+    await service.from('post_tags').insert([
+      { post_id: twoMatches, tag_id: moodTagId },
+      { post_id: twoMatches, tag_id: otherTagId },
+      { post_id: oneMatchNewer, tag_id: moodTagId },
+      { post_id: oneMatchOlder, tag_id: otherTagId },
+    ])
+
+    const page = await getRecommendedPostList(typed(author.client), {
+      tagIds: [moodTagId, otherTagId],
+      viewerId: author.userId,
+    })
+    const ids = ownIds(page.items.map((post) => post.id))
+
+    expect(ids).toEqual([twoMatches, oneMatchNewer, oneMatchOlder])
+    expect(ids).not.toContain(noMatch)
+  })
+
+  it('興味タグが0件なら呼び出し元で空配列を渡す想定で、何も絞り込まず空になる', async () => {
+    const page = await getRecommendedPostList(typed(author.client), {
+      tagIds: [],
+      viewerId: author.userId,
+    })
+    expect(page).toEqual({ items: [], nextCursor: null })
+  })
+
+  it('matchCount込みのカーソルで続きを取りこぼし・重複なく返す', async () => {
+    const twoMatches = await insertPost({ published_at: publishedAt(60) })
+    const oneMatchNewer = await insertPost({ published_at: publishedAt(70) })
+    const oneMatchOlder = await insertPost({ published_at: publishedAt(50) })
+    await service.from('post_tags').insert([
+      { post_id: twoMatches, tag_id: moodTagId },
+      { post_id: twoMatches, tag_id: otherTagId },
+      { post_id: oneMatchNewer, tag_id: moodTagId },
+      { post_id: oneMatchOlder, tag_id: otherTagId },
+    ])
+
+    const first = await getRecommendedPostList(typed(author.client), {
+      tagIds: [moodTagId, otherTagId],
+      viewerId: author.userId,
+      limit: 2,
+    })
+    expect(first.items.map((post) => post.id)).toEqual([twoMatches, oneMatchNewer])
+    expect(first.nextCursor?.matchCount).toBe(1)
+
+    const second = await getRecommendedPostList(typed(author.client), {
+      tagIds: [moodTagId, otherTagId],
+      viewerId: author.userId,
+      limit: 2,
+      cursor: first.nextCursor,
+    })
+    expect(ownIds(second.items.map((post) => post.id))).toEqual([oneMatchOlder])
+  })
+
+  it('hidden・archived・論理削除済みは、興味タグが一致していても作者本人のおすすめに出さない', async () => {
+    const hidden = await insertPost({ status: 'hidden', published_at: null })
+    const visible = await insertPost()
+    await service.from('post_tags').insert([
+      { post_id: hidden, tag_id: moodTagId },
+      { post_id: visible, tag_id: moodTagId },
+    ])
+
+    const page = await getRecommendedPostList(typed(author.client), {
+      tagIds: [moodTagId],
+      viewerId: author.userId,
+    })
+    const ids = ownIds(page.items.map((post) => post.id))
+
+    expect(ids).toContain(visible)
+    expect(ids).not.toContain(hidden)
+  })
+
+  it('getFeedPage は useRecommendedScoring に応じて一致タグ数順/新着順を使い分ける', async () => {
+    await service.from('user_interest_tags').insert({ user_id: follower.userId, tag_id: moodTagId })
+    const tagged = await insertPost({ published_at: publishedAt(90) })
+    await service.from('post_tags').insert({ post_id: tagged, tag_id: moodTagId })
+
+    const resolved = await resolveFeedOptions(
+      typed(follower.client),
+      query({ scope: 'recommended' }),
+      follower.userId,
+    )
+    if (!resolved) throw new Error('resolved が null')
+
+    const page = await getFeedPage(typed(follower.client), resolved, follower.userId)
+    expect(page.items.map((post) => post.id)).toContain(tagged)
+
+    await service.from('user_interest_tags').delete().eq('user_id', follower.userId)
   })
 })

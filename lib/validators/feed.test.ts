@@ -142,4 +142,15 @@ describe('feedCursorSchema', () => {
       feedCursorSchema.safeParse({ publishedAt: '2026-09-15T00:00:00Z', id: 'x,y)' }).success,
     ).toBe(false)
   })
+
+  it('matchCount は省略可（おすすめタブ以外のカーソルには付かない）', () => {
+    const base = {
+      publishedAt: '2026-09-15T14:54:51.659211+00:00',
+      id: '11111111-1111-4111-8111-111111111111',
+    }
+    expect(feedCursorSchema.safeParse(base).success).toBe(true)
+    expect(feedCursorSchema.safeParse({ ...base, matchCount: 3 }).success).toBe(true)
+    expect(feedCursorSchema.safeParse({ ...base, matchCount: -1 }).success).toBe(false)
+    expect(feedCursorSchema.safeParse({ ...base, matchCount: 1.5 }).success).toBe(false)
+  })
 })
