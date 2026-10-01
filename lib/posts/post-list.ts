@@ -21,8 +21,12 @@ const TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+
 
 export type PostListTag = { id: string; slug: string; label: string }
 
-/** keyset ページング用。offset は件数が増えると遅く、投稿の増減で重複・取りこぼしが出る */
-export type PostListCursor = { publishedAt: string; id: string }
+/**
+ * keyset ページング用。offset は件数が増えると遅く、投稿の増減で重複・取りこぼしが出る。
+ * matchCount は「おすすめ」タブ（一致タグ数順）のときだけ使う（lib/posts/recommended-feed.ts）。
+ * 新着順など他スコープでは無視される
+ */
+export type PostListCursor = { publishedAt: string; id: string; matchCount?: number }
 
 export type PostListItem = {
   id: string
@@ -71,6 +75,12 @@ export type PostListOptions = {
   authorId?: string | null
   /** カフェ詳細（S_CAFE_DETAIL）の投稿グリッド。1つのカフェに絞る */
   cafeId?: string | null
+  /**
+   * 「おすすめ」タブ専用。recommended_post_ranks（DB関数）が決めた投稿ID集合をそのまま取る。
+   * 順序はこの一覧取得では保証しない（呼び出し元の getRecommendedPostList がランク順に並べ直す）。
+   * tagIds・cursor とは併用しない（並び順の決定権がDB関数側に移るため）
+   */
+  postIds?: string[]
   /**
    * S_EXPLORE「近くのカフェ」タブ用。複数カフェのいずれかに絞る（cafeId とは併用しない）。
    * 空配列は「該当カフェなし」なので resolveFeedOptions 側で null を返して0件にする
@@ -282,6 +292,9 @@ export async function getPostList(
   }
   if (options.cafeIds && options.cafeIds.length > 0) {
     query = query.in('cafe_id', options.cafeIds)
+  }
+  if (options.postIds && options.postIds.length > 0) {
+    query = query.in('id', options.postIds)
   }
   if (options.officialOnly) {
     query = query.eq('is_official', true)

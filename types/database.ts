@@ -1407,6 +1407,20 @@ export type Database = {
           label: string
         }[]
       }
+      recommended_post_ranks: {
+        Args: {
+          p_cursor_id?: string
+          p_cursor_match_count?: number
+          p_cursor_published_at?: string
+          p_limit?: number
+          p_tag_ids: string[]
+        }
+        Returns: {
+          match_count: number
+          post_id: string
+          published_at: string
+        }[]
+      }
       replace_user_interest_tags: {
         Args: { p_tag_ids: string[] }
         Returns: undefined

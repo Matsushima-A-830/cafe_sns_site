@@ -8,8 +8,8 @@ import { GuestHint } from '@/components/features/feed/guest-hint'
 import { HomeSideNav } from '@/components/features/feed/home-side-nav'
 import { NearbyLocationSync } from '@/components/features/feed/nearby-location-sync'
 import { PostFeed } from '@/components/features/posts/post-feed'
-import { resolveFeedOptions } from '@/lib/posts/feed'
-import { getPostList, type PostListPage } from '@/lib/posts/post-list'
+import { getFeedPage, resolveFeedOptions } from '@/lib/posts/feed'
+import type { PostListPage } from '@/lib/posts/post-list'
 import { createClient } from '@/lib/supabase/server'
 import { firstParam } from '@/lib/utils/search-params'
 import { type FeedQuery, parseFeedQuery } from '@/lib/validators/feed'
@@ -54,7 +54,7 @@ export default async function ExplorePage({ searchParams }: PageProps) {
     : query
 
   const resolved = await resolveFeedOptions(supabase, effectiveQuery, user?.id ?? null)
-  const page = resolved ? await getPostList(supabase, resolved.options) : EMPTY_PAGE
+  const page = resolved ? await getFeedPage(supabase, resolved, user?.id ?? null) : EMPTY_PAGE
 
   // タグ絞り込み中は、何で絞っているかと外し方を明示する
   const activeTag = resolved?.tag?.label ?? (query.tagSlug && !resolved ? query.tagSlug : null)

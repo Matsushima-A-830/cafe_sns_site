@@ -1,7 +1,7 @@
 'use server'
 
-import { resolveFeedOptions } from '@/lib/posts/feed'
-import { getPostList, type PostListPage } from '@/lib/posts/post-list'
+import { getFeedPage, resolveFeedOptions } from '@/lib/posts/feed'
+import type { PostListPage } from '@/lib/posts/post-list'
 import { createClient } from '@/lib/supabase/server'
 import { loadMoreFeedSchema } from '@/lib/validators/feed'
 import type { Result } from '@/types/result'
@@ -30,7 +30,7 @@ export async function loadMoreFeed(
     const resolved = await resolveFeedOptions(supabase, parsed.data.query, user?.id ?? null)
     if (!resolved) return { ok: true, data: { items: [], nextCursor: null } }
 
-    const page = await getPostList(supabase, { ...resolved.options, cursor: parsed.data.cursor })
+    const page = await getFeedPage(supabase, resolved, user?.id ?? null, parsed.data.cursor)
     return { ok: true, data: page }
   } catch (cause) {
     console.error('[feed] 次ページの取得に失敗:', cause)
