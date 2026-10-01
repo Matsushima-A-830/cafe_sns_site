@@ -55,6 +55,9 @@ export function OwnerClaimForm({ cafeId, cafeName, rejectedReason }: Props) {
     documents.length >= OWNER_DOCUMENT_MIN_COUNT && contactEmail.trim() !== '' && allConsented
 
   async function handleFilesSelected(type: DocumentType, files: FileList | null) {
+    // 送信中の追加を禁止する。isPending 中は documents が既に claimCafe に渡っており、
+    // ここで追加してもクロージャで確定済みの送信には反映されず、Storage側だけの孤立ファイルになる
+    if (isPending) return
     if (!files || files.length === 0) return
     setError(null)
     setUploadingType(type)
@@ -197,7 +200,7 @@ export function OwnerClaimForm({ cafeId, cafeName, rejectedReason }: Props) {
                 size="sm"
                 disabled={uploadingType !== null}
                 // 送信中に disabled にしない。無効化された瞬間にフォーカスが body へ落ちる。
-                // 追加アップロードはクロージャで確定済みの送信には影響しない
+                // 送信中の追加は handleFilesSelected 側の isPending ガードで止める（D61）
                 aria-busy={isPending}
                 onClick={() => fileInputRefs.current[option.value]?.click()}
                 className="self-start"
