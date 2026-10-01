@@ -9,6 +9,7 @@ const messages: Partial<Record<ErrorCode, string>> = {
   CONFLICT: '既に登録されています',
   RATE_LIMITED: 'しばらく待ってから再試行してください',
   INTERNAL_ERROR: 'エラーが発生しました。時間をおいて再試行してください',
+  EXTERNAL_SERVICE_ERROR: 'メールの送信に失敗しました。時間をおいて再試行してください',
   EMAIL_ALREADY_EXISTS: 'このメールアドレスは既に登録されています',
   USERNAME_ALREADY_EXISTS: 'このユーザーネームは既に使われています',
   INVALID_CREDENTIALS: 'メールアドレスまたはパスワードが正しくありません',
@@ -20,6 +21,8 @@ const messages: Partial<Record<ErrorCode, string>> = {
   ACCOUNT_DELETED: 'このアカウントは削除されています',
   AREA_CODE_UNKNOWN: '選択したエリアが見つかりませんでした',
   CONSENT_REQUIRED: '保護者の同意が必要です',
+  CONSENT_TOKEN_INVALID: '同意リンクが無効か、有効期限が切れています',
+  GUARDIAN_EMAIL_SELF_FORBIDDEN: '保護者のメールアドレスをご本人のものと別に入力してください',
   // 投稿 / composer
   POST_NOT_FOUND: '投稿が見つかりませんでした',
   POST_BODY_EMPTY: '本文か写真のどちらかを入力してください',

@@ -891,6 +891,9 @@ export type Database = {
           created_at: string
           display_name: string
           guardian_consent_at: string | null
+          guardian_consent_token_expires_at: string | null
+          guardian_consent_token_hash: string | null
+          guardian_consent_token_issued_at: string | null
           guardian_email: string | null
           home_area_code: string | null
           id: string
@@ -908,6 +911,9 @@ export type Database = {
           created_at?: string
           display_name: string
           guardian_consent_at?: string | null
+          guardian_consent_token_expires_at?: string | null
+          guardian_consent_token_hash?: string | null
+          guardian_consent_token_issued_at?: string | null
           guardian_email?: string | null
           home_area_code?: string | null
           id: string
@@ -925,6 +931,9 @@ export type Database = {
           created_at?: string
           display_name?: string
           guardian_consent_at?: string | null
+          guardian_consent_token_expires_at?: string | null
+          guardian_consent_token_hash?: string | null
+          guardian_consent_token_issued_at?: string | null
           guardian_email?: string | null
           home_area_code?: string | null
           id?: string
@@ -1244,6 +1253,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      approve_guardian_consent: { Args: { p_token: string }; Returns: boolean }
       award_badge: {
         Args: { p_badge_code: string; p_user_id: string }
         Returns: undefined

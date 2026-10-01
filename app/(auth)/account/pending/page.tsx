@@ -1,11 +1,16 @@
 // S_ACCOUNT_PENDING: 保護者同意待ち
 // 詳細: docs/design/wireframes/auth.md#s_account_pending同意待ち
-//
-// NOTE: 再送・メールアドレス変更は未実装（guardian_email の同意インフラ自体が pending-items B3 未決のため）
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { PendingActions } from './pending-actions'
 
-export default function AccountPendingPage() {
+type PageProps = {
+  searchParams: Promise<{ consent?: string }>
+}
+
+export default async function AccountPendingPage({ searchParams }: PageProps) {
+  const { consent } = await searchParams
+
   return (
     <div className="flex flex-col items-center gap-4 text-center">
       <h1 className="text-2xl font-bold text-foreground">保護者の同意をお待ちしています</h1>
@@ -16,6 +21,21 @@ export default function AccountPendingPage() {
       <p className="text-muted-foreground">
         現在は投稿・いいね・コメントはご利用いただけません。閲覧のみ可能です。
       </p>
+
+      {consent === 'success' && (
+        <p aria-live="polite" className="text-success">
+          保護者の同意が確認できました。「状態を確認する」を押してください
+        </p>
+      )}
+      {consent === 'invalid' && (
+        <p role="alert" aria-live="polite" className="text-danger">
+          同意リンクを確認できませんでした。お子様がまだ登録の途中である可能性があります。
+          時間をおいて再度お試しいただくか、うまくいかない場合は「再送する」からやり直してください
+        </p>
+      )}
+
+      <PendingActions />
+
       <Button asChild size="lg" variant="outline" className="mt-4">
         <Link href="/">まずは閲覧を始める</Link>
       </Button>

@@ -162,14 +162,72 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - 個人開発者でも利用可能なAPIか審査要件確認
   - 認証済み判定のペイロード確認
 
-### B3. 保護者同意メールのテンプレート・送信基盤
+### B3. 保護者同意メールのテンプレート・送信基盤 🟢 決定・実装済み（2026-09-27）
 
-- **課題:** 未成年アカウント有効化フローに必須。
-- **必要作業:**
-  - メール文面（保護者向け説明・同意ボタン・拒否リンク）
-  - Supabase の内蔵メール送信で足りるか、外部サービス（Resend, SendGrid）併用か判断
-  - 同意リンククリック時のワンタイムトークン設計
-- **決定期限:** サインアップ実装前
+- **決定:** Resend を採用。ワンタイムトークンは生の値をメールにのみ載せ、DBには
+  `profiles.guardian_consent_token_hash`（SHA-256、hex）/ `guardian_consent_token_expires_at`
+  （有効期限7日）としてハッシュだけを保持し、`approve_guardian_consent(p_token)` という
+  anon 実行可の SECURITY DEFINER RPC で承認する（`GET /api/consent/confirm?token=...` から呼ぶ）
+- **理由:** 保護者はメールのリンクを未ログインでクリックするため、承認処理はRLSを経由できる本人セッションを
+  前提にできない。`guard_privileged_profile_columns` トリガーが `auth.uid() が null なら通す` 設計
+  （20260905130000_create_profiles.sql）になっているのを利用し、anon から呼べるRPCに認可判断を閉じ込めた。
+  ハッシュの一致・有効期限・`status='pending_consent'` の3条件がこの機能の唯一の防御線
+- **レビューで発覚し設計変更した点:** 当初は生トークンをそのまま `profiles` に保存する設計だったが、
+  `profiles_select_all` が `using(true)` で行も列も絞らないため、anon が
+  `select('guardian_consent_token').eq('username', 'victim')` を直接叩けばトークンを盗み見て
+  メールを介さず承認を偽装できてしまうと判明。列単位のGRANTで塞ぐ案は、Postgresでは
+  「テーブル単位のSELECT権限を持つロールに対する列単位のREVOKEは効かない」ため
+  `profiles` 全体の権限モデルを作り直す規模の変更になり見送った。代わりにSHA-256ハッシュのみを
+  保存する方式に変更（生の値は一方向関数の入力側にしか存在しなくなる）。
+  同じ理由で、profiles行がまだ無い間の一時保持先である `app_metadata` にも生トークンは置いていない
+  ——`supabase.auth.getUser()` は本人が自分の `app_metadata` を読めるため、生トークンを置くと
+  未成年本人が自己承認できてしまう
+- **未実装のまま残した部分（意図的なスコープ外）:**
+  - 拒否リンク（同意しない選択肢）はワイヤーフレーム（`docs/design/wireframes/auth.md`）に無いため実装していない
+  - 独自ドメインのメール認証が未完了のため、送信元は `onboarding@resend.dev` 固定
+    （`RESEND_FROM_EMAIL` で差し替え可能）。認証完了後に切り替える
+- **既知の制約（設計上のトレードオフ）:** 保護者の同意クリックと未成年本人のブラウザは別セッションのため、
+  同意してもJWTは即時反映されない。`/account/pending` に追加した「状態を確認する」ボタンで
+  `refreshSession()` を明示的に呼ぶ運用にした（自然な期限切れを待たせない）
+- **既知の制約2（/code-review で発覚・未対応）:** `approve_guardian_consent` は `profiles` テーブルしか
+  見ないが、トークンは `/signup/consent`（保護者にメール送信する時点）で発行され、`profiles` 行は
+  その後の `/onboarding/profile` 完了時にしか作られない。この間に保護者がリンクを踏むと
+  （トークン自体は有効・未使用でも）該当行が無いため RPC は false を返し、`/account/pending` に
+  `consent=invalid` として着地する。ただし **恒久的な失敗ではない** ——同じリンクは
+  未成年が `/onboarding/profile` を終えた後に踏み直せば通る（トークンの有効期限7日以内なら）。
+  サインアップは強制的な一本道フローで数十秒〜数分しかかからない一方、保護者がメールを開くまでの
+  時間はそれより長いのが通常のため、実際に踏む頃には行が存在している可能性が高いと判断し、
+  `profiles` 行が無い間も承認できるようにする対応（`auth.users.app_metadata` 側も見る等、
+  auth スキーマを直接読み書きする SECURITY DEFINER 関数が必要でリスクが大きい）は見送った。
+  `/account/pending` の invalid 表示は「登録の途中である可能性」に言及する文言にして
+  緩和している（`app/(auth)/account/pending/page.tsx`）
+- **既知の制約3（/code-review で指摘・意図的に受容）:** 同意リンクは `GET`
+  （ワイヤーフレームが「メール内のリンクをクリックするだけ」の一発承認を明示しているため）。
+  メールセキュリティゲートウェイ（Outlook Safe Links等）がクリック前にリンクを事前アクセスすると、
+  保護者が実際にクリックする前にトークンを消費してしまいうる。これは業界共通の既知のトレードオフ
+  （Supabase自身のメール確認リンクも含め、多くのサービスがGETの一発リンクを採用している）で、
+  クリック確認ページを挟む二段階化はワイヤーフレームの一発承認という意図に反するため見送った。
+  実害が出た場合の対処: トークンの有効期限内に「再送する」で再発行すれば復旧できる
+- **既知の制約4（/code-review で発覚・解消済み・2026-09-27）:** `submitGuardianConsent` /
+  `updateGuardianEmail` は `guardianEmail` が未成年本人のアカウントメールと異なるかを検証しておらず、
+  本人が自分のメールアドレスを保護者メールとして入力すれば自分宛にリンクが届き自己承認できてしまっていた
+  （DB列改ざん経由の自己承認バイパスとは別の、より単純な迂回路）。`GUARDIAN_EMAIL_SELF_FORBIDDEN`
+  エラーコードを追加し、両アクションで本人メールと大文字小文字を無視して一致するか検証するガードを追加して解消
+- **既知の制約5（/code-review で発覚・解消済み・2026-09-27）:** 再発行のクールダウン判定
+  （`assertPendingConsent`、通常クライアントのSELECT）とトークン発行（`reissueGuardianConsentToken`、
+  adminクライアントのUPDATE）が別々のDB往復のため原子性が無く、ほぼ同時に2回リクエストすると
+  両方がクールダウンを通過して保護者に2通のメールが届きうる状態だった。加えてクールダウン判定は
+  `guardian_consent_token_expires_at - GUARDIAN_CONSENT_TOKEN_TTL_MS` で発行時刻を逆算しており、
+  TTL定数が将来変わると既発行トークンの解釈がずれる脆弱さもあった。専用列
+  `guardian_consent_token_issued_at` を追加し（`guard_privileged_profile_columns` の対象にも追加）、
+  送信前に「クールダウンを満たす場合のみ更新できる」原子的UPDATEでこの列を予約してから
+  メール送信・最終保存する2段階の設計に変更して両方を解消した。送信が失敗しても予約は戻さない
+  （クールダウンが再送信の乱発を防ぐ主目的のため、送信失敗時は次のクールダウンまで待たせる設計）
+- **既知の制約6（/code-review で発覚・解消済み・2026-09-27）:** `guard_privileged_profile_columns` の
+  コメントは「トークン列への書き込みはservice_role限定」と書いていたが、実装はrole/status/usernameと
+  同じ `is_admin()` バイパスを流用しており、認証済みadmin自身のセッションからも書き換えられてしまって
+  いた（コメントと実装の矛盾）。正規の書き込みは常にcreateAdminClient()経由という設計のため、
+  is_admin()バイパスを外してコメント通りの制約に締めた
 
 ### B4. NGワード辞書の初期セット 🟢 決定（2026-09-21）
 

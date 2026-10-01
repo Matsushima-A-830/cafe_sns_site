@@ -160,8 +160,9 @@ app/
     │   ├── sign/route.ts             # Storage 署名付きアップロードURL発行（post-images）
     │   └── owner-document/
     │       └── sign/route.ts        # Storage 署名付きアップロードURL発行（owner-documents）
+    ├── consent/
+    │   └── confirm/route.ts         # 保護者同意リンク処理（GET、ブラウザの通常ナビゲーション）
     ├── webhooks/
-    │   ├── consent/route.ts         # 保護者同意リンク処理
     │   └── stripe/route.ts          # 将来: 決済Webhook
     └── revalidate/route.ts          # 手動 ISR revalidation
 ```
@@ -404,7 +405,7 @@ Server Actionsで代替できないものだけを Route Handlers で実装。
 |---|---|
 | `POST /api/auth/callback` | Supabase Auth のリダイレクト受け |
 | `POST /api/uploads/sign` | Supabase Storage の署名付きアップロードURL発行（クライアントから直PUT）。サイズ・MIME・パス規約の検証をここで通す |
-| `POST /api/webhooks/consent` | 保護者同意リンククリック処理（ワンタイムトークン検証） |
+| `GET /api/consent/confirm?token=...` | 保護者同意リンククリック処理（ワンタイムトークン検証）。メールリンクの通常ナビゲーションなのでGET。検証後 `/account/pending` へ結果付きでリダイレクト |
 | `POST /api/revalidate` | 手動 ISR revalidation（管理者用） |
 
 ## 特殊ファイル配置

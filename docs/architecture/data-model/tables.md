@@ -49,6 +49,9 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 | status | text | NOT NULL, DEFAULT 'active' | active / pending_consent / suspended / deleted |
 | guardian_email | text | | 保護者メール（未成年時） |
 | guardian_consent_at | timestamptz | | 保護者同意日時 |
+| guardian_consent_token_hash | text | UNIQUE（部分インデックス、NULL除外） | 保護者同意リンクのワンタイムトークンのSHA-256ハッシュ。生の値はメールにのみ存在しDBには置かない。承認後null（B3） |
+| guardian_consent_token_expires_at | timestamptz | | guardian_consent_token_hash の有効期限（発行から7日） |
+| guardian_consent_token_issued_at | timestamptz | | 再発行クールダウン判定専用の発行時刻。expires_atからの逆算だとTTL定数変更に弱いため独立列にした（B3） |
 | role | text | NOT NULL, DEFAULT 'user' | user / owner / admin |
 | home_area_code | text | FK → [areas](#areas)(code) | ホームエリア（初期タグサジェスト用）— マスタ参照 |
 | onboarded_at | timestamptz | | オンボーディング完了日時（NULL = 未完了） |
@@ -91,6 +94,17 @@ RLS の `WITH CHECK` は OLD 行を参照できず「どの列が変わったか
 
 **最初の admin:** ローカルは `seed.sql`、本番は service_role での手動昇格
 （[deployment.md #本番の最初の-admin-を作る](../../operations/deployment.md)）。
+
+**`approve_guardian_consent(p_token)`（B3）:** 保護者同意リンクの承認RPC。`security definer` かつ
+`anon, authenticated` に grant — 保護者は未ログインでメールのリンクをクリックするため。
+`guard_privileged_profile_columns` トリガーが `auth.uid() が NULL なら素通り` する設計を利用しており、
+このRPC自身が受け取った生トークンをハッシュ化して `guardian_consent_token_hash` と照合し、
+`guardian_consent_token_expires_at > now()`・`status = 'pending_consent'` を含めた3条件だけで
+認可する（RLSはSECURITY DEFINERでバイパスされるため、この3条件が唯一の防御線）。
+`profiles_select_all` は `using(true)` で列を絞れないため、生トークンをそのまま保存すると
+anon の直接読み出しで盗まれメールを介さず承認を偽装できてしまう——だからハッシュだけを持つ。
+成功時は `status` を `active` にし、ハッシュを `null` に戻して再利用を防ぐ。
+呼び出し元は `GET /api/consent/confirm?token=...`（[routing.md](../routing.md)）。
 
 ---
 
