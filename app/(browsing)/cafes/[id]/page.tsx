@@ -7,9 +7,11 @@ import { notFound } from 'next/navigation'
 import { cache } from 'react'
 import { BusinessHoursTable } from '@/components/features/cafes/business-hours-table'
 import { CafeListButtons } from '@/components/features/cafes/cafe-list-buttons'
+import { CafeMapSection } from '@/components/features/cafes/cafe-map-section'
 import { CongestionSection } from '@/components/features/cafes/congestion-section'
 import { OpenStateBadge } from '@/components/features/cafes/open-state-badge'
 import { OwnerPostsSection } from '@/components/features/cafes/owner-posts-section'
+import { WalkingTimeBadge } from '@/components/features/cafes/walking-time-badge'
 import { PostFeed } from '@/components/features/posts/post-feed'
 import { jstDayOfWeek } from '@/lib/cafes/business-hours'
 import { type CafeDetail, getCafeDetail, getCafePostCount } from '@/lib/cafes/cafe-detail'
@@ -165,7 +167,6 @@ export default async function CafeDetailPage({ params }: PageProps) {
   const now = new Date()
   const today = jstDayOfWeek(now)
 
-  // 地図・「徒歩3分」（座標未収集）は元テーブル・データが未整備のため出していない
   // 「オーナーから」（幹C本体）は OwnerPostsSection で表示する（pending-items D30 解消）
   const query: FeedQuery = {
     scope: 'new',
@@ -194,6 +195,7 @@ export default async function CafeDetailPage({ params }: PageProps) {
           <p className="text-sm text-muted-foreground">
             {cafe.areaLabel && <span>{cafe.areaLabel}</span>}
             <span className="ml-2">投稿 {postCount}件</span>
+            <WalkingTimeBadge location={cafe.location} />
           </p>
 
           {cafe.description && (
@@ -258,6 +260,8 @@ export default async function CafeDetailPage({ params }: PageProps) {
         </section>
 
         <aside className="flex flex-col gap-8 lg:col-span-1">
+          <CafeMapSection location={cafe.location} cafeName={cafe.name} />
+
           <section className="flex flex-col gap-4">
             <h2 className="text-lg font-bold text-foreground">営業時間</h2>
             <BusinessHoursTable hours={cafe.businessHours} now={now} />

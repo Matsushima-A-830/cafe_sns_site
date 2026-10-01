@@ -112,14 +112,20 @@ export async function createPendingConsentUser(suffix: string): Promise<E2EPendi
 
 export type E2ECafe = { id: string; name: string }
 
-/** 公開中（`status='active'`）のカフェ。これ以外は cafes の RLS が行ごと隠す */
-export async function createActiveCafe(suffix: string): Promise<E2ECafe> {
+/**
+ * 公開中（`status='active'`）のカフェ。これ以外は cafes の RLS が行ごと隠す。
+ * `location` は `SRID=4326;POINT(lng lat)` 形式（S_CAFE_DETAIL の地図テストで使う）
+ */
+export async function createActiveCafe(
+  suffix: string,
+  overrides: { location?: string } = {},
+): Promise<E2ECafe> {
   const service = serviceRoleClient()
   const name = `E2E珈琲店 ${suffix}`
 
   const { data, error } = await service
     .from('cafes')
-    .insert({ name, prefecture: '東京都', city: '渋谷区', status: 'active' })
+    .insert({ name, prefecture: '東京都', city: '渋谷区', status: 'active', ...overrides })
     .select('id')
     .single()
 
