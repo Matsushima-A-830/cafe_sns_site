@@ -98,6 +98,30 @@ Board Drift が判定しないのは、ボードの集計値が HTML 内の JSON
 - `github` コンテキストは `run:` に直接展開せず `env:` 経由にする（`e2e.yml` の既存箇所も同時に修正済み）
 - fork からの PR には secrets が渡らずレビューは skip される。プライベート個人リポジトリなので現状は問題にならない
 
+### レビューしない PR
+
+| 条件 | 理由 |
+|---|---|
+| draft | 書きかけの差分に push ごと約3分の枠を使うのは無駄 |
+| **bot 起点（dependabot 等）** | `claude-code-action` が非人間アクターの起動を既定で拒否する（下記） |
+| fork から | secrets が渡らない |
+
+#### bot 起点を skip する理由（2026-10-02 実測）
+
+dependabot の PR で Agent Review が12秒で落ちた。レビュー結果ではなく**起動拒否**だった。
+
+```
+Action failed with error: Workflow initiated by non-human actor: dependabot (type: Bot).
+Add bot to allowed_bots list or use '*' to allow all bots.
+```
+
+`allowed_bots` で許可する選択肢もあるが採らない。依存更新の差分は大半が lockfile で、
+読ませても得るものが無い割に利用枠を食う。**依存更新の実質的な検証は
+typecheck / Vitest / Playwright / Integration が担う。**
+
+放置すると「Agent Review が落ちているのが常態」になり、本物の指摘を見逃す。
+Pro に上げて必須チェックにした場合は、**dependabot PR が永久にマージできなくなる**。
+
 ## 3. 範囲の安全弁: scripts/check-agent-scope.sh
 
 エージェントに触らせてよい範囲かを判定する。
