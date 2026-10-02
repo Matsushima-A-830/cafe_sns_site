@@ -1,23 +1,24 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useCallback, useEffect, useRef, useState, useTransition } from 'react'
 import { loadMoreFeed } from '@/app/_actions/feed'
 import { PostCard } from '@/components/features/posts/post-card'
 import { Button } from '@/components/ui/button'
 import type { PostListCursor, PostListItem, PostListPage } from '@/lib/posts/post-list'
 import { errorMessage } from '@/lib/utils/error-messages'
-import type { FeedQuery } from '@/lib/validators/feed'
-
-type StoredFeedState = {
-  items: PostListItem[]
-  cursor: PostListCursor | null
-  scrollY: number
-}
+import {
+  type FeedQuery,
+  type FeedRestoreState,
+  feedRestoreStateSchema,
+} from '@/lib/validators/feed'
 
 /**
  * フィード本体。スクロールで IntersectionObserver が keyset カーソルの続きを自動追記する。
- * 読み込み済み一覧とスクロール位置は sessionStorage に退避して復元する（pending-items D26）
+ * 何ページぶん読み込んだか（pageCount）とスクロール位置は sessionStorage に退避し、マウント時に
+ * pageCount 分だけ loadMoreFeed を叩き直して復元する（pending-items D26）。投稿データそのものは
+ * キャッシュしない — ブロック・削除・フォロー解除等で可視性が変わった投稿が、リロードや
+ * 戻る操作のたびに古いまま表示され続けることを避けるため、常に最新の RLS 結果で組み立て直す
  */
 export function PostFeed({
   initialPage,
@@ -48,75 +49,98 @@ export function PostFeed({
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  const itemsRef = useRef(items)
-  const cursorRef = useRef(cursor)
+  // 読み込んだページ数（items.length とは別管理。復元時に同じ回数だけ loadMoreFeed を
+  // 叩き直すための単位で、投稿の中身は持たない）
+  const pageCountRef = useRef(0)
   const loadingRef = useRef(false)
   const sentinelRef = useRef<HTMLDivElement>(null)
+  // 復元中（loadMoreFeed を叩き直している最中）は scroll effect 側の persist を止める。
+  // StrictMode の開発時二重実行で先に unmount クリーンアップが走ると、復元が終わる前に
+  // pageCountRef.current（まだ0）で sessionStorage を上書きし、保存内容を消してしまうため
+  const restoringRef = useRef(false)
 
-  useEffect(() => {
-    itemsRef.current = items
-    cursorRef.current = cursor
-  }, [items, cursor])
+  const persist = useCallback(
+    (scrollY: number) => {
+      try {
+        const payload: FeedRestoreState = { pageCount: pageCountRef.current, scrollY }
+        sessionStorage.setItem(storageKey, JSON.stringify(payload))
+      } catch {
+        // Safari のプライベートブラウジング・容量超過等は諦める
+      }
+    },
+    [storageKey],
+  )
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: マウント時に一度だけ復元する
   useEffect(() => {
-    // Safari のプライベートブラウジング等では sessionStorage へのアクセス自体が
-    // 例外を投げうる。読み取り・パースの両方を try で包み、失敗時はサーバー描画のまま進める
+    // 保存が無い・壊れている・pageCount=0 の大半のケースはここで同期的に抜ける。
+    // startTransition に包むのはページ数ぶん loadMoreFeed を叩き直す本当の復元処理だけにする
+    // （ここも包むと、復元不要な初回マウントまで一瞬 isPending=true になりボタン文言が揺れる）
+    let restored: FeedRestoreState
     try {
       const saved = sessionStorage.getItem(storageKey)
       if (!saved) return
-      const restored = JSON.parse(saved) as StoredFeedState
-      setItems(restored.items)
-      setCursor(restored.cursor)
-      window.scrollTo({ top: restored.scrollY, behavior: 'auto' })
+      const parsed = feedRestoreStateSchema.safeParse(JSON.parse(saved))
+      if (!parsed.success || parsed.data.pageCount === 0) {
+        if (parsed.success) window.scrollTo({ top: parsed.data.scrollY, behavior: 'auto' })
+        return
+      }
+      restored = parsed.data
     } catch {
       // 読めなければ initialPage のまま
+      return
+    }
+
+    let cancelled = false
+    loadingRef.current = true
+    restoringRef.current = true
+    startTransition(async () => {
+      // 投稿データはキャッシュせず、保存されていたページ数ぶんだけ loadMoreFeed を叩き直す。
+      // ブロック・削除・フォロー解除等で可視性が変わっていても、常に今の RLS 結果になる
+      let nextCursor = initialPage.nextCursor
+      for (let i = 0; i < restored.pageCount && nextCursor && !cancelled; i++) {
+        const result = await loadMoreFeed({ query, cursor: nextCursor })
+        if (!result.ok || cancelled) break
+        setItems((current) => [...current, ...result.data.items])
+        nextCursor = result.data.nextCursor
+        setCursor(nextCursor)
+        pageCountRef.current += 1
+      }
+      loadingRef.current = false
+      if (!cancelled) {
+        restoringRef.current = false
+        persist(restored.scrollY)
+        window.scrollTo({ top: restored.scrollY, behavior: 'auto' })
+      }
+    })
+    return () => {
+      cancelled = true
     }
   }, [])
 
-  // 読み込み済み一覧とカーソルは変化のたびに保存する
-  useEffect(() => {
-    try {
-      const payload: StoredFeedState = { items, cursor, scrollY: window.scrollY }
-      sessionStorage.setItem(storageKey, JSON.stringify(payload))
-    } catch {
-      // 容量超過等は諦める（次の訪問はサーバー描画からやり直すだけ）
-    }
-  }, [storageKey, items, cursor])
-
-  // スクロール位置も継続的に保存する（読み込みを挟まずスクロールだけした場合に備える）
+  // スクロール位置は継続的に保存する（読み込みを挟まずスクロールだけした場合に備える）
   useEffect(() => {
     let ticking = false
-    function persistScroll() {
-      try {
-        const payload: StoredFeedState = {
-          items: itemsRef.current,
-          cursor: cursorRef.current,
-          scrollY: window.scrollY,
-        }
-        sessionStorage.setItem(storageKey, JSON.stringify(payload))
-      } catch {
-        // 容量超過等は諦める
-      }
-    }
     function onScroll() {
-      if (ticking) return
+      if (ticking || restoringRef.current) return
       ticking = true
       requestAnimationFrame(() => {
-        persistScroll()
+        persist(window.scrollY)
         ticking = false
       })
     }
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => {
       window.removeEventListener('scroll', onScroll)
-      persistScroll()
+      // 復元中（pageCountRef がまだ反映しきっていない）はここで上書きしない
+      if (!restoringRef.current) persist(window.scrollY)
     }
-  }, [storageKey])
+  }, [persist])
 
   function handleLoadMore() {
     // disabled にせず自前で弾く（下の aria-busy のコメント参照）。loadingRef は
-    // IntersectionObserver からの連続発火を isPending の state 反映を待たずに止めるため
+    // IntersectionObserver からの連続発火や復元中の二重読み込みを isPending の
+    // state 反映を待たずに止めるため
     if (loadingRef.current || !cursor) return
     loadingRef.current = true
     setError(null)
@@ -129,6 +153,8 @@ export function PostFeed({
       }
       setItems((current) => [...current, ...result.data.items])
       setCursor(result.data.nextCursor)
+      pageCountRef.current += 1
+      persist(window.scrollY)
     })
   }
 

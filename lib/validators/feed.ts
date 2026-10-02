@@ -90,5 +90,16 @@ export const loadMoreFeedSchema = z.object({
   cursor: feedCursorSchema,
 })
 
+/**
+ * PostFeed が sessionStorage に退避する復元用の状態（pending-items D26）。
+ * 投稿データそのものは持たない — pageCount 分だけ loadMoreFeed を叩き直して
+ * 常に最新の RLS 結果で再構築する（ブロック・削除・可視性変化を反映するため）
+ */
+export const feedRestoreStateSchema = z.object({
+  pageCount: z.number().int().min(0).max(1000),
+  scrollY: z.number().min(0),
+})
+
+export type FeedRestoreState = z.infer<typeof feedRestoreStateSchema>
 export type FeedQuery = z.infer<typeof feedQuerySchema>
 export type FeedScope = (typeof FEED_SCOPES)[number]

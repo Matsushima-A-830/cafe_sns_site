@@ -116,7 +116,7 @@ describe('PostFeed', () => {
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
   })
 
-  it('読み込み済み一覧とスクロール位置を sessionStorage に保存し、次のマウントで復元する', async () => {
+  it('読み込んだページ数とスクロール位置を sessionStorage に保存し、次のマウントで同じページ数ぶん読み込み直す', async () => {
     loadMoreFeed.mockResolvedValue({
       ok: true,
       data: { items: [makePost({ id: 'p2', excerpt: '2杯目のコーヒー' })], nextCursor: null },
@@ -127,10 +127,44 @@ describe('PostFeed', () => {
     await waitFor(() => expect(screen.getByText('2杯目のコーヒー')).toBeInTheDocument())
     unmount()
 
-    // 元の1件ぶんの initialPage を渡しても、保存済みの2件が復元されるはず
+    // 投稿データ自体はキャッシュせず、保存した1ページぶんを loadMoreFeed で取得し直す
     setup()
-    expect(screen.getByText('2杯目のコーヒー')).toBeInTheDocument()
-    expect(loadMoreFeed).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(screen.getByText('2杯目のコーヒー')).toBeInTheDocument())
+    expect(loadMoreFeed).toHaveBeenCalledTimes(2)
+  })
+
+  it('リロード・再訪問時は sessionStorage の投稿データを信頼せず、常に最新の initialPage と再取得結果を表示する', async () => {
+    loadMoreFeed.mockResolvedValueOnce({
+      ok: true,
+      data: { items: [makePost({ id: 'p2', excerpt: '2杯目のコーヒー' })], nextCursor: null },
+    })
+    const { unmount } = setup()
+
+    await userEvent.click(screen.getByRole('button', { name: 'もっと見る' }))
+    await waitFor(() => expect(screen.getByText('2杯目のコーヒー')).toBeInTheDocument())
+    unmount()
+
+    // 2回目のマウントまでにサーバー側のデータが変わった想定
+    // （例: 元の投稿がブロック/削除されて別の投稿に置き換わった）
+    const freshInitialPage: PostListPage = {
+      items: [makePost({ id: 'p-fresh', excerpt: '最新の投稿' })],
+      nextCursor: cursor1,
+    }
+    loadMoreFeed.mockResolvedValueOnce({
+      ok: true,
+      data: {
+        items: [makePost({ id: 'p3', excerpt: '3杯目のコーヒー（再取得）' })],
+        nextCursor: null,
+      },
+    })
+    render(<PostFeed initialPage={freshInitialPage} query={query} isAuthenticated />)
+
+    // sessionStorage にあった「2杯目のコーヒー」は復元されない。
+    // 最新の initialPage と、再取得した最新のページだけが表示される
+    expect(screen.getByText('最新の投稿')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('3杯目のコーヒー（再取得）')).toBeInTheDocument())
+    expect(screen.queryByText('2杯目のコーヒー')).not.toBeInTheDocument()
+    expect(loadMoreFeed).toHaveBeenCalledTimes(2)
   })
 
   it('画面・クエリが変われば前の sessionStorage を引き継がない', async () => {
