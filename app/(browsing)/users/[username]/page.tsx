@@ -96,8 +96,10 @@ export default async function UserProfilePage({ params }: PageProps) {
     <PostFeed
       // フォロー状態が変われば visibility='followers' の投稿の見え方も変わる。
       // PostFeed は initialPage を useState の初期値にしか使わないため、
-      // router.refresh() だけではフォロー前の一覧が残り続ける
+      // router.refresh() だけではフォロー前の一覧が残り続ける。cacheKey も揃えて
+      // sessionStorage の復元がフォロー変更前の古い一覧を握り潰さないようにする
       key={`${profile.id}:${following}`}
+      cacheKey={`${profile.id}:${following}`}
       initialPage={page}
       query={query}
       isAuthenticated={user != null}
