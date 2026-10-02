@@ -18,6 +18,36 @@ class ResizeObserverStub {
 }
 globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver
 
+// jsdom は IntersectionObserver も実装しない（無限スクロール系コンポーネント用）。
+// テスト側から発火を制御できるよう、生成されたインスタンスを記録しておく
+type IntersectionCallback = ConstructorParameters<typeof IntersectionObserver>[0]
+export const intersectionObserverInstances: MockIntersectionObserver[] = []
+
+class MockIntersectionObserver {
+  callback: IntersectionCallback
+  constructor(callback: IntersectionCallback) {
+    this.callback = callback
+    intersectionObserverInstances.push(this)
+  }
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  /** テストから番兵が交差した状態を模倣する */
+  trigger(isIntersecting: boolean) {
+    this.callback(
+      [{ isIntersecting } as IntersectionObserverEntry],
+      this as unknown as IntersectionObserver,
+    )
+  }
+}
+globalThis.IntersectionObserver ??=
+  MockIntersectionObserver as unknown as typeof IntersectionObserver
+
+// jsdom の window.scrollTo は呼ぶたびに "not implemented" を出すだけのスタブなので、
+// スクロール位置復元系コンポーネントのテストが毎回ノイズを吐く。no-op で上書きする
+window.scrollTo = (() => {}) as typeof window.scrollTo
+
 afterEach(() => {
   cleanup()
+  intersectionObserverInstances.length = 0
 })
