@@ -6,8 +6,8 @@ name: Agent Review
 # 止まると信用されなくなり、結局 --no-verify 的な迂回を招くため、信頼が付いてから
 # BLOCKING_PATHS を広げる。範囲外の PR ではコメントを残すだけで落とさない。
 #
-# 注意: fork からの PR には secrets が渡らずレビューは skip される。
-# プライベート個人リポジトリなので現状は問題にならない
+# レビューしない PR: draft / bot 起点（dependabot 等）/ fork から（secrets が渡らない）。
+# プライベート個人リポジトリなので fork は現状問題にならない
 on:
   pull_request:
     # ready_for_review を入れているのは、draft 中は skip するため。
@@ -34,8 +34,16 @@ jobs:
   review:
     name: Agent Review
     # draft のうちはレビューしない。push ごとに約3分の課金分を使うため、
-    # 書きかけの差分に対して回すのは無駄になる
-    if: github.event.pull_request.draft == false
+    # 書きかけの差分に対して回すのは無駄になる。
+    #
+    # bot が起点の PR も skip する。claude-code-action は非人間アクターの起動を
+    # 既定で拒否し（"Workflow initiated by non-human actor"）、レビューが始まらないまま
+    # ジョブだけが落ちるため。allowed_bots で許可することもできるが、dependabot の差分は
+    # 大半が lockfile で、読ませても得るものが無い割に利用枠を食う。
+    # 依存更新の実質的な検証は typecheck / Vitest / Playwright / Integration が担う
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.type != 'Bot'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
