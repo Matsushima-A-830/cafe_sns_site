@@ -16,27 +16,32 @@ type StoredFeedState = {
 }
 
 /**
- * フィード本体。初回ぶんはサーバーで描画済みのものを受け取り、スクロールで
- * IntersectionObserver が keyset カーソルの続きを自動追記する。対象5画面は
- * すべて SSR（Router Cache に乗らない）ため、投稿詳細から戻ると React state は
- * 失われる。読み込み済み一覧とスクロール位置は sessionStorage に退避して復元する（pending-items D26）
+ * フィード本体。スクロールで IntersectionObserver が keyset カーソルの続きを自動追記する。
+ * 読み込み済み一覧とスクロール位置は sessionStorage に退避して復元する（pending-items D26）
  */
 export function PostFeed({
   initialPage,
   query,
   isAuthenticated,
   emptyMessage = 'まだ投稿がありません。',
+  cacheKey,
 }: {
   initialPage: PostListPage
   query: FeedQuery
   /** カードのいいねボタンの出し分けに使う。ここでは取れないのでページから渡す */
   isAuthenticated: boolean
   emptyMessage?: string
+  /**
+   * sessionStorage のキーに足す識別子。query に出てこない値で親が key={...} remount
+   * させている場合（例: users/[username] のフォロー状態）に必須。無いと remount 後も
+   * 古い保存内容が復元され、RLSで変わったはずの投稿一覧が上書きされてしまう
+   */
+  cacheKey?: string
 }) {
   const pathname = usePathname()
-  // 画面＋クエリ単位で分離する。親が key={...} で remount させるタブ切替（S_HOME/S_EXPLORE）も
-  // 含めて、保存先がタブごとに食い違わないよう実際のクエリ内容から直接作る
-  const storageKey = `post-feed:${pathname}:${JSON.stringify(query)}`
+  // 画面＋クエリ＋cacheKey単位で分離する。親が key={...} で remount させるケース
+  // （タブ切替、フォロー状態変化）すべてで保存先が食い違わないようにする
+  const storageKey = `post-feed:${pathname}:${cacheKey ?? ''}:${JSON.stringify(query)}`
 
   const [items, setItems] = useState<PostListItem[]>(initialPage.items)
   const [cursor, setCursor] = useState<PostListCursor | null>(initialPage.nextCursor)

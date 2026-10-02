@@ -149,4 +149,22 @@ describe('PostFeed', () => {
     expect(screen.queryByText('2杯目のコーヒー')).not.toBeInTheDocument()
     expect(screen.getByText('朝のカフェで一息')).toBeInTheDocument()
   })
+
+  it('cacheKeyが変われば、queryが同じでも前のsessionStorageを引き継がない（フォロー状態変化などquery外のremount対策）', async () => {
+    loadMoreFeed.mockResolvedValue({
+      ok: true,
+      data: { items: [makePost({ id: 'p2', excerpt: '2杯目のコーヒー' })], nextCursor: null },
+    })
+    const { unmount } = setup({ cacheKey: 'user1:following' })
+
+    await userEvent.click(screen.getByRole('button', { name: 'もっと見る' }))
+    await waitFor(() => expect(screen.getByText('2杯目のコーヒー')).toBeInTheDocument())
+    unmount()
+
+    // query は同じだが cacheKey だけ変わる（フォロー解除後の remount 相当）。
+    // サーバーが再計算した新しい initialPage が、フォロー前の古い一覧で上書きされてはいけない
+    setup({ cacheKey: 'user1:not-following' })
+    expect(screen.queryByText('2杯目のコーヒー')).not.toBeInTheDocument()
+    expect(screen.getByText('朝のカフェで一息')).toBeInTheDocument()
+  })
 })
