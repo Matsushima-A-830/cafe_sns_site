@@ -97,7 +97,7 @@ app/
 │   ├── layout.tsx                   # サイドナビ + ボトムナビのアプリシェル
 │   ├── me/
 │   │   ├── page.tsx                 # /me (S_MYPAGE)
-│   │   ├── edit/page.tsx            # /me/edit (S_PROFILE_EDIT) ※アバター差し替えは未実装（pending-items D45）
+│   │   ├── edit/page.tsx            # /me/edit (S_PROFILE_EDIT)
 │   │   ├── favorites/page.tsx       # /me/favorites (S_FAVORITES)
 │   │   ├── want-to-go/page.tsx      # /me/want-to-go (S_WANT_TO_GO)
 │   │   ├── bookmarks/page.tsx       # /me/bookmarks (S_BOOKMARKS)
@@ -158,8 +158,10 @@ app/
     │   └── callback/route.ts        # Supabase Auth コールバック
     ├── uploads/
     │   ├── sign/route.ts             # Storage 署名付きアップロードURL発行（post-images）
-    │   └── owner-document/
-    │       └── sign/route.ts        # Storage 署名付きアップロードURL発行（owner-documents）
+    │   ├── owner-document/
+    │   │   └── sign/route.ts        # Storage 署名付きアップロードURL発行（owner-documents）
+    │   └── avatar/
+    │       └── sign/route.ts        # Storage 署名付きアップロードURL発行（avatars）
     ├── consent/
     │   └── confirm/route.ts         # 保護者同意リンク処理（GET、ブラウザの通常ナビゲーション）
     ├── webhooks/
@@ -405,6 +407,8 @@ Server Actionsで代替できないものだけを Route Handlers で実装。
 |---|---|
 | `POST /api/auth/callback` | Supabase Auth のリダイレクト受け |
 | `POST /api/uploads/sign` | Supabase Storage の署名付きアップロードURL発行（クライアントから直PUT）。サイズ・MIME・パス規約の検証をここで通す |
+| `POST /api/uploads/owner-document/sign` | 同上（owner-documents バケット） |
+| `POST /api/uploads/avatar/sign` | 同上（avatars バケット） |
 | `GET /api/consent/confirm?token=...` | 保護者同意リンククリック処理（ワンタイムトークン検証）。メールリンクの通常ナビゲーションなのでGET。検証後 `/account/pending` へ結果付きでリダイレクト |
 | `POST /api/revalidate` | 手動 ISR revalidation（管理者用） |
 

@@ -98,9 +98,9 @@
 
 | コード | 意味 | 発生源 |
 |---|---|---|
-| `FILE_TOO_LARGE` | サイズ上限超過 (10MB) | uploads/sign |
-| `UNSUPPORTED_MEDIA_TYPE` | 対応外形式 | uploads/sign |
-| `EXIF_STRIP_FAILED` | EXIF除去失敗、またはサーバー側再検証でGPS検出 | クライアント側処理 / createPost・createOfficialPost（A10のサーバー側保険） |
+| `FILE_TOO_LARGE` | サイズ上限超過（post-images: 10MB、owner-documents: 10MB、avatars: 2MB） | uploads/sign・uploads/owner-document/sign・uploads/avatar/sign |
+| `UNSUPPORTED_MEDIA_TYPE` | 対応外形式 | uploads/sign・uploads/owner-document/sign・uploads/avatar/sign |
+| `EXIF_STRIP_FAILED` | EXIF除去失敗、またはサーバー側再検証でGPS検出 | クライアント側処理 / createPost・createOfficialPost（post-images, A10のサーバー側保険）・updateProfile（avatars, 同様の保険。`verifyNoGpsExif` の bucket 引数で共用） |
 | `UPLOAD_FAILED` | Storage へのアップロード失敗 | クライアント側 |
 
 ### 通報 / モデレーション

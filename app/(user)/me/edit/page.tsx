@@ -1,8 +1,5 @@
 // S_PROFILE_EDIT: プロフィール編集
 // 詳細: docs/design/wireframes/mypage.md#s_profile_editプロフィール編集 / docs/architecture/routing.md
-//
-// NOTE: アバター差し替えは未実装（avatars バケット・署名URLエンドポイントが無いため。
-// pending-items D45）
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
@@ -51,6 +48,7 @@ export default async function ProfileEditPage() {
           username: profile.username,
           displayName: profile.displayName,
           bio: profile.bio,
+          avatarUrl: profile.avatarUrl,
           areaCode: homeAreaCode,
         }}
         areas={areas}

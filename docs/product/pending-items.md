@@ -356,7 +356,8 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - `drafts.payload` 内の image_paths（下書き期限切れ時）
   - `cafe_owner_verifications.document_urls` の書類（審査完了・却下後の保管期限）
   - `cafes.main_image_path`（差し替え時の旧ファイル）
-  - `profiles.avatar_url`（アバター変更時の旧ファイル）
+  - `profiles.avatar_url`（アバター変更時の旧ファイル）— **対応案c で解消済み（2026-10-03、D45参照）**。
+    残る対象は `post_images` / `drafts` / `cafe_owner_verifications` / `cafes.main_image_path`
 - **対応案:**
   - a) DB トリガーで削除キューに積み、[A6 のスケジューラ](#a6-pg_cron-が-supabase-free-で使えない問題--解消済2026-09-05)がまとめて Storage から消す
   - b) 日次バッチで参照されていないオブジェクトを走査して削除
@@ -936,7 +937,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
     件数が0でもプレビュー枠自体は出す（4枚のショートカットカードと同じ判断。D25・D28・D30の
     「タブ自体を隠す」はタブ切替に対する判断で、この枠はタブではないため対象外）
   - **アバター差し替え** — `/me/edit`（表示名・bio・ホームエリア編集）は実装済み（feature/profile-edit）。
-    アバター変更は Storage 導線が別途必要なため未実装のまま（D45）
+    アバター変更は当初 Storage 導線が別途必要なため未実装だったが、D45で解消済み（2026-10-03）
   - **カフェカードのサムネイルと「投稿12」** — どちらもカフェ1件ごとに追加の問い合わせが要り
     N+1 になる（`cafes.main_image_path` は D31 のとおり値が入る経路が無く、投稿件数は
     PostgREST では1クエリにまとめられない）。カード表示は名前・エリア・メモ・追加日のみ
@@ -1190,18 +1191,30 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   `suppressHydrationWarning` を付ける
 - 参照: S_NOTIFICATIONS 実装後の `/self-review`（2026-09-20）
 
-### D45. アバター差し替え（S_PROFILE_EDIT）が未実装
+### D45. アバター差し替え（S_PROFILE_EDIT）が未実装 ✅ 解消済み（2026-10-03）
 
-- **課題:** `/me/edit` で表示名・bio・ホームエリアは編集できるが、アバター画像の変更導線が無い。
-  必要なもの一式が丸ごと欠けている: `avatars` Storage バケット＋RLS（マイグレーション未作成）、
-  署名URL発行エンドポイント（`app/api/uploads/sign/route.ts` は `post-images` 専用）、
-  クライアント側アップロードコード。設計自体は
-  [data-model/README.md](../architecture/data-model/README.md) にバケット構成
-  （`avatars/{user_id}/{uuid}.webp`、2MB上限、public）として記載済み
-- **対応案（未検討）:** `20260908090000_create_post_images_storage.sql` と同型のマイグレーションを
-  avatars 用に作る。EXIF除去+WebP変換は `lib/storage/post-image-processing.ts` の
-  `processPostImage` がそのまま流用できる（投稿画像専用ロジックではない）
-- 参照: S_PROFILE_EDIT 実装時の着手判断（2026-09-21）
+- **課題（経緯）:** `/me/edit` で表示名・bio・ホームエリアは編集できるが、アバター画像の変更導線が無かった。
+  設計自体は [data-model/README.md](../architecture/data-model/README.md) にバケット構成
+  （`avatars/{user_id}/{uuid}.webp`、2MB上限、public）として記載済みだった
+- **対応内容:**
+  - `20261003120000_create_avatars_storage.sql` で `avatars` バケット＋RLS（`post-images` と同型）を追加
+  - `lib/storage/post-image-processing.ts` の `processPostImage` / `encodeWithinLimit` を
+    `ProcessImageOptions`（`maxEdgePx` / `maxBytes` / `qualities`）で引数化し、デフォルト値は
+    post用の現状値のまま維持。avatar用の薄いラッパー `lib/storage/avatar-image-processing.ts`
+    （長辺512px・2MB上限）から呼ぶ。着手前のメモでは「そのまま流用できる」としていたが、
+    実際には上限値がモジュールトップレベルの定数で固定されており引数化が必要だった
+  - `lib/storage/post-image-verify.ts` の `verifyNoGpsExif` にも `bucket` 引数（デフォルト
+    `post-images`）を追加し、`lib/storage/avatars.ts` 経由でアバターにも A10 と同じ
+    サーバー側GPS再検証を適用（owner-documentsと違い、アバターは個人の写真という性質上対象に含めた）
+  - `app/api/uploads/avatar/sign/route.ts`・`lib/validators/uploads.ts` の
+    `avatarUploadSignSchema`・`lib/storage/avatar-client.ts`（`uploadAvatar`）を owner-document
+    と同型で追加
+  - `app/_actions/profiles.ts` の `updateProfile` に `avatarUrl` を追加。DB更新成功後に
+    `lib/storage/public-url.ts` の `storagePathFromPublicUrl` で旧パスを逆算し、
+    `deleteAvatarFile` で削除する（D3対応案c）。削除失敗はログのみで更新自体は成功扱い
+  - アバター削除（「未設定に戻す」）はワイヤー（[mypage.md](../design/wireframes/mypage.md)
+    #S_PROFILE_EDIT）に記載が無いためスコープ外のまま据え置き
+- 参照: S_PROFILE_EDIT 実装時の着手判断（2026-09-21）・実装（2026-10-03）
 
 ### D46. `profiles.username` の「変更不可」が RLS/トリガーで守られていない（解消済み・2026-09-23）
 
@@ -1577,6 +1590,41 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   （`components/features/map/cafe-map.tsx`）
 - **決定期限:** なし。上記いずれかの機能要望が具体化した時点で着手
 - 参照: feat/s-map 実装時に決定（2026-09-26）
+
+### D64. S_PROFILE_EDIT でアバターを保存前に選び直す・画面を離れると孤立ファイルが残る ✅ 解消済み（2026-10-03）
+
+- **課題（経緯）:** `uploadAvatar`（`lib/storage/avatar-client.ts`）は選択した時点で `avatars` へ直PUTする。
+  保存（`updateProfile`）前にユーザーが別のファイルを選び直す、または保存せずに画面を離れると、
+  直前にアップロードした分がどこからも参照されないまま Storage に残る。D50（owner-documents の
+  離脱時孤立ファイル）と同型の問題だが、D50は一度きりの申請フローで発生頻度が低いのに対し、
+  アバターの選び直しは「プレビューを見て気に入らず選び直す」という通常の操作で毎回起こりうるため、
+  同じ「静観」判断は当てはまらないと判断した
+- **対応内容:** `profile-edit-form.tsx` で直前にアップロードした（まだ保存していない）パスを
+  `pendingAvatarPathRef` で保持し、1) 選び直し時に新しいアップロードが成功した時点で前のパスを削除
+  2) 保存せずアンマウントされた場合（クリーンアップ）に削除、の2経路でカバーする。保存が成功したら
+  ref を null に戻し、離脱時クリーンアップが保存済みの新アバターを巻き込んで消さないようにする。
+  削除は `lib/storage/avatar-client.ts` の `deleteUnsavedAvatarFile`（`avatars_objects_delete_own` RLS
+  によりブラウザから直接 remove できる、owner-document-client.ts と同じ型）
+- **既知の残課題:** `beforeunload`（ブラウザタブを閉じる・リロード）経路は捕捉できない
+  （既存の「変更検知」コメント参照）。この経路はD50と同じく発生頻度が低く、Storage容量への実害も
+  小さいため静観する
+- 参照: `/code-review` 指摘により実装時に追加対応（2026-10-03）
+
+### D65. S_PROFILE_EDIT の `updateProfile` が同一ユーザーの同時保存に対して原子性を持たない
+
+- **課題:** `updateProfile`（`app/_actions/profiles.ts`）はアバター差し替え時「現在の `avatar_url` を
+  読む → `profiles` を更新 → 読んだ値を元に旧ファイルを削除」の順で処理するが、読み取りと更新の間に
+  ロックが無い。同一ユーザーが2タブで同時に別々のアバターを保存すると、両方のタブが更新前の同じ
+  `avatar_url` を読んでしまい、後勝ちの更新で上書きされた方のファイルが `avatar_url` からも
+  削除処理からも参照されなくなり孤立する
+- **影響:** 同一ユーザーが同時に複数タブで同じ編集画面を開いて保存する、という低頻度の操作でのみ
+  発生する。実害は「Storageを静かに消費する」のみで、DBの整合性（`avatar_url` が指すファイルが
+  存在すること）は壊れない
+- **対応判断:** D3（Storageオーファン掃除方針）・D50と同じ「静観して問題ない規模」の判断を適用する。
+  原子性を持たせるには DB関数化（`avatar_url` の比較・更新・削除対象パスの算出をトランザクション化）
+  が必要だが、発生頻度・実害に対してコストが見合わない。D3の定期バッチ案（対応案a/b）が実装される
+  タイミングで、この経路の孤立ファイルもまとめて回収できる
+- 参照: `/code-review` 指摘により記録（2026-10-03）
 
 ## 削除・アーカイブ判断待ち
 
