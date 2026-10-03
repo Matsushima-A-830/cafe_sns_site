@@ -18,3 +18,16 @@ export function isStoragePublicUrl(url: string): boolean {
     return false
   }
 }
+
+/**
+ * 公開URLから指定バケット配下のオブジェクトパスを取り出す。旧アバター削除（D3）のように
+ * 「DBに保存したURLから storage.objects のパスを逆算して delete する」場面で使う。
+ * 自前の Storage が配信する公開URLでない、またはバケットが違う場合は null（安全側）
+ */
+export function storagePathFromPublicUrl(bucket: string, url: string): string | null {
+  if (!isStoragePublicUrl(url)) return null
+  const target = new URL(url)
+  const prefix = `${PUBLIC_OBJECT_PREFIX}${bucket}/`
+  if (!target.pathname.startsWith(prefix)) return null
+  return decodeURIComponent(target.pathname.slice(prefix.length))
+}

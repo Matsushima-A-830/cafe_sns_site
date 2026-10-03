@@ -56,3 +56,33 @@ test('ユーザーネームは変更できず、未変更時は保存ボタン�
   await expect(page.getByLabel('ユーザーネーム（変更不可）')).toHaveValue(`@${user.username}`)
   await expect(page.getByRole('button', { name: '保存' })).toBeDisabled()
 })
+
+// D45: processAvatarImage（createImageBitmap/canvas.toBlob によるEXIF除去・WebP変換）は
+// jsdom に無いため unit テストでは検証できず、ここが唯一実アップロードを通す場所
+test('アバター画像を変更すると avatars バケットへアップロードされ、リロード後も反映される', async ({
+  page,
+}) => {
+  const suffix = uniqueSuffix(`${test.info().project.name}-a`)
+  const user = await createOnboardedUser(suffix)
+  createdUserIds.push(user.userId)
+
+  await login(page, user, '/me/edit')
+
+  const saveButton = page.getByRole('button', { name: '保存' })
+  await expect(saveButton).toBeDisabled()
+
+  await page.getByLabel('変更', { exact: true }).setInputFiles('tests/e2e/fixtures/avatar.png')
+
+  // ProfileAvatar は alt="" の装飾画像（a11yツリーに乗らない）のため role では探せない。
+  // size-24 rounded-full はこのコンポーネント固有のクラスなので安定して拾える
+  const avatarImg = page.locator('img.rounded-full').first()
+  await expect(avatarImg).toHaveAttribute('src', /avatars/, { timeout: 15_000 })
+  await expect(saveButton).toBeEnabled()
+
+  await saveButton.click()
+  await expect(page).toHaveURL('/me')
+  await expect(page.locator('img.rounded-full').first()).toHaveAttribute('src', /avatars/)
+
+  await page.goto('/me/edit')
+  await expect(page.locator('img.rounded-full').first()).toHaveAttribute('src', /avatars/)
+})

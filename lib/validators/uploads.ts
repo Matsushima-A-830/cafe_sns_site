@@ -22,3 +22,15 @@ export const ownerDocumentUploadSignSchema = z.object({
 })
 
 export type OwnerDocumentUploadSignInput = z.infer<typeof ownerDocumentUploadSignSchema>
+
+/**
+ * avatars 版。entity ID が無いぶん post/owner-document 版より単純
+ * （{user_id}/{uuid}.webp は user_id をセッションから導出するため）。
+ * サイズ上限・MIME判定は validateAvatarUpload に一本化する
+ */
+export const avatarUploadSignSchema = z.object({
+  contentType: z.string().min(1, 'ファイル形式を指定してください'),
+  fileSize: z.number().int().positive('ファイルサイズを指定してください'),
+})
+
+export type AvatarUploadSignInput = z.infer<typeof avatarUploadSignSchema>

@@ -7,6 +7,8 @@ import { POST_IMAGE_BUCKET } from './post-images'
 // A10: 署名付きURL直PUTでサーバーがバイト列を検証できないため、クライアント側の
 // EXIF除去（processPostImage）が迂回された場合の保険。finalize直前に読み直して確認する
 //   docs/product/pending-items.md A10
+// bucket は post-images がデフォルトだが、同じ理由（個人の写真）で avatars からも
+// 呼ばれる（lib/storage/avatars.ts）ため引数化している
 
 type Client = SupabaseClient<Database>
 type CheckResult = Result<null, 'EXIF_STRIP_FAILED' | 'INTERNAL_ERROR'>
@@ -75,8 +77,8 @@ async function checkGps(bytes: ArrayBuffer): Promise<CheckResult> {
   }
 }
 
-async function checkOne(supabase: Client, path: string): Promise<CheckResult> {
-  const { data, error } = await supabase.storage.from(POST_IMAGE_BUCKET).download(path)
+async function checkOne(supabase: Client, bucket: string, path: string): Promise<CheckResult> {
+  const { data, error } = await supabase.storage.from(bucket).download(path)
   if (error || !data) return { ok: false, error: 'INTERNAL_ERROR', details: error?.message }
 
   let buffer: ArrayBuffer
@@ -100,8 +102,12 @@ async function checkOne(supabase: Client, path: string): Promise<CheckResult> {
   return checkGps(buffer)
 }
 
-export async function verifyNoGpsExif(supabase: Client, paths: string[]): Promise<CheckResult> {
-  const checks = await Promise.all(paths.map((path) => checkOne(supabase, path)))
+export async function verifyNoGpsExif(
+  supabase: Client,
+  paths: string[],
+  bucket: string = POST_IMAGE_BUCKET,
+): Promise<CheckResult> {
+  const checks = await Promise.all(paths.map((path) => checkOne(supabase, bucket, path)))
 
   // GPS検出は実害があるため、他の画像がダウンロード失敗（INTERNAL_ERROR）でも
   // 揉み消さずに優先して報告する

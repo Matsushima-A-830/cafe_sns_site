@@ -30,10 +30,25 @@ export type ProcessPostImageError =
   | 'FILE_TOO_LARGE'
   | 'EXIF_STRIP_FAILED'
 
-export function scaledSize(width: number, height: number): { width: number; height: number } {
+/**
+ * post 用の値をデフォルトにした上書き可能なオプション。avatar 用途（2MB上限・小さめの
+ * 長辺）など、EXIF除去・回転焼き込み・GPS再検証ロジック自体は同一だが上限値だけ異なる
+ * 呼び出し元のために引数化する（lib/storage/avatar-image-processing.ts が利用する）
+ */
+export type ProcessImageOptions = {
+  maxEdgePx?: number
+  maxBytes?: number
+  qualities?: readonly number[]
+}
+
+export function scaledSize(
+  width: number,
+  height: number,
+  maxEdgePx: number = MAX_EDGE_PX,
+): { width: number; height: number } {
   const longEdge = Math.max(width, height)
-  if (longEdge <= MAX_EDGE_PX) return { width, height }
-  const ratio = MAX_EDGE_PX / longEdge
+  if (longEdge <= maxEdgePx) return { width, height }
+  const ratio = maxEdgePx / longEdge
   // 0px のキャンバスは toBlob が null を返すため、極端なアスペクト比でも最低1pxを残す
   return {
     width: Math.max(1, Math.round(width * ratio)),
@@ -51,18 +66,20 @@ function toWebpBlob(canvas: HTMLCanvasElement, quality: number): Promise<Blob | 
  */
 export async function encodeWithinLimit(
   encode: (quality: number) => Promise<Blob | null>,
+  maxBytes: number = POST_IMAGE_MAX_BYTES,
+  qualities: readonly number[] = WEBP_QUALITIES,
 ): Promise<Result<Blob, ProcessPostImageError>> {
   let blob: Blob | null = null
-  for (const quality of WEBP_QUALITIES) {
+  for (const quality of qualities) {
     blob = await encode(quality)
-    if (blob && blob.size <= POST_IMAGE_MAX_BYTES) break
+    if (blob && blob.size <= maxBytes) break
   }
   // WebP 非対応ブラウザでは toBlob が PNG にフォールバックする。署名付きURL発行は
   // image/webp 固定（validatePostImageUpload）なので、型が違う時点で弾く
   if (!blob || blob.type !== POST_IMAGE_CONTENT_TYPE) {
     return { ok: false, error: 'UNSUPPORTED_MEDIA_TYPE' }
   }
-  if (blob.size > POST_IMAGE_MAX_BYTES) return { ok: false, error: 'FILE_TOO_LARGE' }
+  if (blob.size > maxBytes) return { ok: false, error: 'FILE_TOO_LARGE' }
   return { ok: true, data: blob }
 }
 
@@ -74,7 +91,12 @@ export async function encodeWithinLimit(
  */
 export async function processPostImage(
   file: File,
+  options: ProcessImageOptions = {},
 ): Promise<Result<ProcessedPostImage, ProcessPostImageError>> {
+  const maxEdgePx = options.maxEdgePx ?? MAX_EDGE_PX
+  const maxBytes = options.maxBytes ?? POST_IMAGE_MAX_BYTES
+  const qualities = options.qualities ?? WEBP_QUALITIES
+
   if (!file.type.startsWith('image/')) return { ok: false, error: 'UNSUPPORTED_MEDIA_TYPE' }
   if (file.size > SOURCE_MAX_BYTES) return { ok: false, error: 'FILE_TOO_LARGE' }
 
@@ -86,7 +108,7 @@ export async function processPostImage(
   }
 
   try {
-    const { width, height } = scaledSize(bitmap.width, bitmap.height)
+    const { width, height } = scaledSize(bitmap.width, bitmap.height, maxEdgePx)
     const canvas = document.createElement('canvas')
     canvas.width = width
     canvas.height = height
@@ -94,7 +116,11 @@ export async function processPostImage(
     if (!context) return { ok: false, error: 'EXIF_STRIP_FAILED' }
     context.drawImage(bitmap, 0, 0, width, height)
 
-    const encoded = await encodeWithinLimit((quality) => toWebpBlob(canvas, quality))
+    const encoded = await encodeWithinLimit(
+      (quality) => toWebpBlob(canvas, quality),
+      maxBytes,
+      qualities,
+    )
     if (!encoded.ok) return encoded
 
     const gps = await exifr.gps(encoded.data).catch(() => null)
