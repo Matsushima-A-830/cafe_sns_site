@@ -210,6 +210,35 @@ describe('posts の SELECT', () => {
     const { data } = await alice.client.from('posts').select('id').eq('id', id)
     expect(data).toEqual([])
   })
+
+  // D29: 停止・削除された投稿者の投稿はフィード・詳細から見えなくなる
+  it('作者が停止（suspended）されている投稿は第三者から見えない', async () => {
+    const id = await insertPost(suspendedUser.userId, { visibility: 'public' })
+
+    const { data } = await alice.client.from('posts').select('id').eq('id', id)
+    expect(data).toEqual([])
+  })
+
+  // posts_select_own（status を問わない別ポリシー）経由で作者本人には見える。
+  // ここが崩れると停止された本人が自分の投稿を編集・削除できなくなる
+  it('作者が停止（suspended）されていても作者本人には見える', async () => {
+    const id = await insertPost(suspendedUser.userId, { visibility: 'public' })
+
+    const { data } = await suspendedUser.client.from('posts').select('id').eq('id', id)
+    expect(data).toEqual([{ id }])
+  })
+
+  it('作者が削除（deleted）されている投稿は第三者から見えない', async () => {
+    const id = await insertPost(alice.userId, { visibility: 'public' })
+    await service.from('profiles').update({ status: 'deleted' }).eq('id', alice.userId)
+
+    try {
+      const { data } = await bob.client.from('posts').select('id').eq('id', id)
+      expect(data).toEqual([])
+    } finally {
+      await service.from('profiles').update({ status: 'active' }).eq('id', alice.userId)
+    }
+  })
 })
 
 describe('posts の INSERT', () => {

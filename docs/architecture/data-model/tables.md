@@ -489,7 +489,7 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 - `(published_at DESC) WHERE status='published' AND deleted_at IS NULL` — タイムライン
 
 **RLS:**
-- SELECT: `status='published' AND deleted_at IS NULL` かつ、**`visibility` を満たし**、閲覧者がブロックされていない（**posts_select**）。加えて、作者本人は `status` を問わず自分の投稿を常に読める（**posts_select_own**、後述）
+- SELECT: `status='published' AND deleted_at IS NULL` かつ、作者の `profiles.status='active'`（`is_profile_active()`、[pending-items D29](../../product/pending-items.md#d29-停止削除ブロック関係のプロフィールをすべて404にしている)）かつ、**`visibility` を満たし**、閲覧者がブロックされていない（**posts_select**）。加えて、作者本人は `status` を問わず自分の投稿を常に読める（**posts_select_own**、後述）
 - INSERT: `auth.uid() = author_id` かつ profile.status='active'
 - UPDATE: `auth.uid() = author_id`
 - DELETE: `auth.uid() = author_id`（論理削除運用）
@@ -502,6 +502,7 @@ CREATE POLICY posts_select ON public.posts FOR SELECT TO anon, authenticated
 USING (
   status = 'published'
   AND deleted_at IS NULL
+  AND is_profile_active(posts.author_id)
   AND (
     visibility = 'public'
     OR author_id = auth.uid()
@@ -515,6 +516,8 @@ USING (
   )
 );
 ```
+
+`is_profile_active(p_user_id)` は停止・削除された投稿者の投稿をフィード・詳細から除外するための関数（`20261003130000_posts_select_requires_active_author.sql`）。`is_active_user()` は呼び出し元本人固定のため使えず、別関数として追加した（D29）。
 
 **`posts_select_own`: 作者本人は `status` を問わず自分の投稿を読める**
 
