@@ -442,6 +442,16 @@ describe('RLS（投稿の可視性継承・D38）', () => {
     expect(data ?? []).toEqual([])
   })
 
+  // 投稿者が停止された投稿は posts_select から除外される（D29）。likes は
+  // posts_select を EXISTS 越しに継承しているため、ここでも見えなくなるはず
+  it('投稿者が停止（suspended）された投稿へのいいねは第三者から見えない', async () => {
+    const postId = await insertPost(suspended.userId, { visibility: 'public' })
+    await service.from('likes').insert({ user_id: stranger.userId, post_id: postId })
+
+    const { data } = await stranger.client.from('likes').select('user_id').eq('post_id', postId)
+    expect(data ?? []).toEqual([])
+  })
+
   it('論理削除済みの投稿へのいいねも第三者からは見えない', async () => {
     const postId = await insertPost(postAuthor.userId, { deleted_at: '2026-02-05T00:00:00Z' })
     await service.from('likes').insert({ user_id: stranger.userId, post_id: postId })

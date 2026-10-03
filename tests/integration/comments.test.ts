@@ -154,6 +154,18 @@ describe('RLS（可視性の継承）', () => {
     expect(data?.length).toBe(1)
   })
 
+  // 投稿者が停止された投稿は posts_select から除外される（D29）。comments は
+  // posts_select を EXISTS 越しに継承しているため、ここでも見えなくなるはず
+  it('投稿者が停止（suspended）された投稿のコメントは第三者から読めない', async () => {
+    const postId = await insertPost(suspended.userId, { visibility: 'public' })
+    await service
+      .from('comments')
+      .insert({ post_id: postId, author_id: commenter.userId, body: '見えないはず' })
+
+    const { data } = await other.client.from('comments').select('id').eq('post_id', postId)
+    expect(data ?? []).toEqual([])
+  })
+
   it('論理削除済みのコメントは誰からも読めない', async () => {
     const postId = await insertPost(author.userId)
     const { data: inserted } = await service
