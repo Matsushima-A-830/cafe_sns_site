@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { BottomNav } from '@/components/features/feed/bottom-nav'
 import { AuthNav } from './auth-nav'
 
@@ -12,11 +13,19 @@ export default function BrowsingLayout({ children }: { children: React.ReactNode
           </nav>
         </div>
       </header>
-      {/* pb-16(64px): モバイルのみ固定表示するボトムナビの高さぶん、本文末尾が隠れないよう空ける */}
-      <main className="flex-1 pb-16 md:pb-0">{children}</main>
+      <main className="flex-1">{children}</main>
       <footer className="border-t border-border-default bg-surface">
-        <div className="mx-auto max-w-6xl px-4 py-6 text-sm text-muted-foreground">
-          © 2026 カフェSNS
+        {/* pb-16(64px): モバイルのみ固定表示するボトムナビの高さぶん、footer末尾（リンク）が隠れないよう空ける */}
+        <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 pt-6 pb-16 text-sm text-muted-foreground md:pb-6">
+          <nav className="flex items-center gap-4">
+            <Link href="/terms" className="text-link hover:text-link-hover hover:underline">
+              利用規約
+            </Link>
+            <Link href="/privacy" className="text-link hover:text-link-hover hover:underline">
+              プライバシーポリシー
+            </Link>
+          </nav>
+          <p>© 2026 カフェSNS</p>
         </div>
       </footer>
       <BottomNav />
