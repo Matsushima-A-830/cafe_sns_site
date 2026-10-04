@@ -3,11 +3,12 @@
 import { Bell, Heart, MessageCircle, UserPlus } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { FollowButton } from '@/components/features/profiles/follow-button'
 import type { NotificationItem as NotificationItemData } from '@/lib/notifications/notification-list'
 import { isStoragePublicUrl } from '@/lib/storage/public-url'
 import { cn } from '@/lib/utils/cn'
-import { formatRelativeTime } from '@/lib/utils/format-date'
+import { formatPostDate, formatRelativeTime } from '@/lib/utils/format-date'
 
 /**
  * 通知1件（S_NOTIFICATIONS）。
@@ -24,6 +25,20 @@ const TYPE_ICONS: Record<string, typeof Heart> = {
   like: Heart,
   comment: MessageCircle,
   follow: UserPlus,
+}
+
+/**
+ * formatRelativeTime は new Date() を使うため SSR/hydrate 間でずれうる（D44）。
+ * マウント後にだけ相対時刻へ差し替える（regulars-view.tsx の LastActivityLabel と同方針）
+ */
+function NotificationTimeLabel({ isoString }: { isoString: string }) {
+  const [label, setLabel] = useState<string | null>(null)
+
+  useEffect(() => {
+    setLabel(formatRelativeTime(isoString))
+  }, [isoString])
+
+  return <>{label ?? formatPostDate(isoString)}</>
 }
 
 function notificationText(item: NotificationItemData): string {
@@ -90,7 +105,7 @@ export function NotificationItem({
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <p className="text-base text-foreground">{notificationText(item)}</p>
         <time dateTime={item.createdAt} className="text-sm text-muted-foreground">
-          {formatRelativeTime(item.createdAt)}
+          <NotificationTimeLabel isoString={item.createdAt} />
         </time>
       </div>
     </div>

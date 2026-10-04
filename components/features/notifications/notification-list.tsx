@@ -44,13 +44,21 @@ export function NotificationList({
   const [isPending, startTransition] = useTransition()
 
   function handleMarkRead(id: string) {
+    // 失敗時は該当 item だけ readAt を戻す。複数件を連続クリックしたとき、
+    // 配列全体を前の値に戻すと他の item の確定済み結果を上書きしてしまうため id 指定で戻す
     setItems((current) =>
       current.map((item) =>
         item.id === id ? { ...item, readAt: new Date().toISOString() } : item,
       ),
     )
     // 背景で確定させる。ページ遷移をブロックしないため await しない
-    void markNotificationAsRead({ notificationId: id })
+    void markNotificationAsRead({ notificationId: id }).then((result) => {
+      if (!result.ok) {
+        setItems((current) =>
+          current.map((item) => (item.id === id ? { ...item, readAt: null } : item)),
+        )
+      }
+    })
   }
 
   function handleMarkAllRead() {

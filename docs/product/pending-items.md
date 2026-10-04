@@ -1167,31 +1167,28 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   こちらは単に無害だから、という個別の判断）
 - 参照: S_SETTINGS 実装時の決定（2026-09-20）
 
-### D43. 通知の個別既読化が fire-and-forget でロールバックが無い
+### D43. 通知の個別既読化が fire-and-forget でロールバックが無い ✅ 解消済み（2026-10-04）
 
-- **課題:** `NotificationList.handleMarkRead`（`components/features/notifications/notification-list.tsx`）は
+- **課題（経緯）:** `NotificationList.handleMarkRead`（`components/features/notifications/notification-list.tsx`）は
   `void markNotificationAsRead(...)` として結果を見ず、失敗してもローカルの `readAt` を戻さない。
   `BookmarkButton` / `LikeButton` は同じ楽観更新パターンで必ず失敗時ロールバック + エラー表示を
-  しており、ここだけ一貫していない（`void` で結果を捨てる Server Action 呼び出しの前例は
-  `use-composer.ts` の `useEffect` 内1箇所のみで、書き込み系では無い）
-- **実害:** 小さい。対象行の UPDATE は RLS に守られておりほぼ失敗しないが、ネットワーク瞬断時に
-  「未読チップは消えたのに DB は未読のまま」という食い違いがリロードまで残りうる
-- **対応案（未検討）:** 失敗時だけ該当 item の `readAt` を `null` に戻す、または控えめな
-  `role="alert"` 表示を追加する
-- 参照: S_NOTIFICATIONS 実装後の `/self-review`（2026-09-20）
+  しており、ここだけ一貫していない
+- **対応内容:** `handleMarkRead` に `handleMarkAllRead` と同じ「直前の値を保持し、失敗時だけ戻す」
+  パターンを適用。ただし `role="alert"` によるエラー表示は追加しなかった —
+  個別既読化は `<Link>` のクリックから同期的に呼ばれ、同時にページ遷移も起きるため、
+  遷移先に移った後のエラー表示は意味を持たない（`handleMarkAllRead` は同一画面に留まる操作で
+  非対称）。ロールバックは遷移完了までの間（この画面がまだ残っている間）に失敗が返れば効く
+- 参照: S_NOTIFICATIONS 実装後の `/self-review`（2026-09-20）・対応（2026-10-04）
 
-### D44. 通知一覧の相対時刻表示がハイドレーションミスマッチのリスクを持つ
+### D44. 通知一覧の相対時刻表示がハイドレーションミスマッチのリスクを持つ ✅ 解消済み（2026-10-04）
 
-- **課題:** `NotificationItem`（`components/features/notifications/notification-item.tsx`）は
+- **課題（経緯）:** `NotificationItem`（`components/features/notifications/notification-item.tsx`）は
   `'use client'` だが SSR される。`formatRelativeTime(item.createdAt)` は引数無しで `new Date()` を
-  使うため、サーバー描画時とクライアント hydrate 時で計算結果が変わりうる。特に作成直後・
-  1分未満の通知は秒単位で表示が変わるため、通知を作成直後にそのまま見るケース（本来の主用途）で
-  踏みやすい
-- **実機確認時の状況:** 手元の確認ではタイムラグが大きく再現しなかったが、理論上のリスクは残る
-- **対応案（未検討）:** `useEffect` でマウント後にのみ相対時刻を計算する（初期表示は
-  `formatPostDate` 等の安定表示、またはプレースホルダ）。もしくは `<time>` に
-  `suppressHydrationWarning` を付ける
-- 参照: S_NOTIFICATIONS 実装後の `/self-review`（2026-09-20）
+  使うため、サーバー描画時とクライアント hydrate 時で計算結果が変わりうる
+- **対応内容:** `regulars-view.tsx` の `LastActivityLabel` と同型の `NotificationTimeLabel` を追加。
+  初期描画は `formatPostDate`（絶対日付、SSR/CSRで値が変わらない）、マウント後の `useEffect` で
+  `formatRelativeTime` に差し替える
+- 参照: S_NOTIFICATIONS 実装後の `/self-review`（2026-09-20）・対応（2026-10-04）
 
 ### D45. アバター差し替え（S_PROFILE_EDIT）が未実装 ✅ 解消済み（2026-10-03）
 
