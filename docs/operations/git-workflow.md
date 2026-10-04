@@ -203,7 +203,15 @@ feat: 気分入り口をS_HOMEに追加
 > ⚠️ **必須チェックにするワークフローに `paths` / `paths-ignore` を付けてはいけない。**
 > GitHub は path フィルタでスキップしたワークフローに合格ステータスを**合成しない**ため、
 > 条件に当たらない PR（例: docs のみ）が「Waiting for status to be reported」で永久に止まる。
-> このため `integration.yml` と `e2e.yml` からは path フィルタを外してある。
+> このため `ci.yml` / `integration.yml` / `e2e.yml` の `on:` には path フィルタを付けていない。
+>
+> **docs だけの PR で重い処理（lint/typecheck/test/build/Supabase起動/Playwright）を
+> 省きたい場合は、job 単位の `if` 条件で対応する（2026-10-04〜）。** 3ワークフローそれぞれに
+> `changes` ジョブを置き、変更ファイルが `docs/**` / `*.md` / `.claude/**` だけなら
+> `code=false` を出力して本体ジョブを `if:` でスキップする。`skipped` は GitHub 上では
+> 合格ステータスとして合成される（`paths-ignore` によるワークフロー全体の未実行とは扱いが異なる）ため、
+> 必須チェック化後も「Waiting for status to be reported」にはならない。
+> 変更検知自体が失敗した場合は安全側（`code=true`、スキップしない）に倒す。
 >
 > `migration-check.yml` は `supabase/**` に絞ったままなので、**必須チェックには含めない**。
 > マイグレーションが壊れていれば `Supabase Integration` の `db reset` が先に落ちるので、
