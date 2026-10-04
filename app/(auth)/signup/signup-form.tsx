@@ -80,7 +80,16 @@ export function SignupForm() {
               />
             )}
           />
-          <Label htmlFor="agreedToTerms">利用規約 と プライバシー に同意</Label>
+          <Label htmlFor="agreedToTerms">
+            <Link href="/terms" className="text-link hover:text-link-hover hover:underline">
+              利用規約
+            </Link>
+            {' と '}
+            <Link href="/privacy" className="text-link hover:text-link-hover hover:underline">
+              プライバシー
+            </Link>
+            {' に同意'}
+          </Label>
         </div>
         <FieldError>{errors.agreedToTerms?.message}</FieldError>
       </div>
