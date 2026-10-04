@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { NotificationItem as NotificationItemData } from '@/lib/notifications/notification-list'
+import { formatRelativeTime } from '@/lib/utils/format-date'
 import { NotificationItem } from './notification-item'
 
 vi.mock('@/app/_actions/follows', () => ({
@@ -154,5 +155,27 @@ describe('NotificationItem', () => {
     )
 
     expect(screen.getByText(/退会したユーザー があなたの投稿にいいねしました/)).toBeInTheDocument()
+  })
+
+  it('作成時刻は相対時刻表示になる（マウント後、D44）', () => {
+    // now を固定し、コンポーネント内部の計算とアサーション側の計算がズレないようにする
+    const fixedNow = new Date('2026-10-04T12:00:00.000Z')
+    vi.useFakeTimers()
+    vi.setSystemTime(fixedNow)
+    try {
+      const createdAt = new Date(fixedNow.getTime() - 60_000).toISOString()
+      render(
+        <NotificationItem
+          item={makeItem({ createdAt })}
+          viewerId={viewerId}
+          initialFollowingBack={false}
+          onMarkRead={vi.fn()}
+        />,
+      )
+
+      expect(screen.getByText(formatRelativeTime(createdAt, fixedNow))).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

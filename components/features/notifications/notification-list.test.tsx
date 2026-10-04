@@ -204,4 +204,74 @@ describe('NotificationList', () => {
       expect(markNotificationAsRead).toHaveBeenCalledWith({ notificationId: 'notif-1' }),
     )
   })
+
+  it('個別既読化が失敗したら未読チップを元に戻す', async () => {
+    markNotificationAsRead.mockResolvedValue({ ok: false, error: 'INTERNAL_ERROR' })
+    render(
+      <NotificationList
+        initialPage={makePage()}
+        filter="all"
+        viewerId={viewerId}
+        followingBackIds={new Set()}
+        emptyMessage=""
+      />,
+    )
+
+    await userEvent.click(screen.getByRole('link'))
+
+    await waitFor(() => expect(markNotificationAsRead).toHaveBeenCalled())
+    await waitFor(() => expect(screen.getByText('未読')).toBeInTheDocument())
+  })
+
+  it('片方の既読化が失敗しても、別の通知の既読化結果を上書きしない', async () => {
+    markNotificationAsRead.mockImplementation(({ notificationId }: { notificationId: string }) =>
+      Promise.resolve(
+        notificationId === 'notif-1'
+          ? { ok: false, error: 'INTERNAL_ERROR' }
+          : { ok: true, data: null },
+      ),
+    )
+
+    render(
+      <NotificationList
+        initialPage={makePage({
+          items: [
+            {
+              id: 'notif-1',
+              type: 'like',
+              entityType: 'post',
+              entityId: 'post-1',
+              readAt: null,
+              createdAt: new Date().toISOString(),
+              actor: { id: 'actor-1', username: 'actor1', displayName: '太郎', avatarUrl: null },
+              href: '/posts/post-1',
+            },
+            {
+              id: 'notif-2',
+              type: 'follow',
+              entityType: 'user',
+              entityId: 'actor-2',
+              readAt: null,
+              createdAt: new Date().toISOString(),
+              actor: { id: 'actor-2', username: 'actor2', displayName: '次郎', avatarUrl: null },
+              href: '/users/actor2',
+            },
+          ],
+        })}
+        filter="all"
+        viewerId={viewerId}
+        followingBackIds={new Set()}
+        emptyMessage=""
+      />,
+    )
+
+    await userEvent.click(screen.getByRole('link', { name: /いいねしました/ }))
+    await userEvent.click(screen.getByRole('link', { name: /フォローしました/ }))
+
+    await waitFor(() => expect(markNotificationAsRead).toHaveBeenCalledTimes(2))
+    // notif-1 は失敗して未読に戻る。notif-2 は成功しており、notif-1 のロールバックで
+    // 上書きされず既読のままであること（配列全体ではなく id 指定で戻す）を確認する
+    await waitFor(() => expect(screen.getAllByText('未読')).toHaveLength(1))
+    expect(screen.getAllByText('既読')).toHaveLength(1)
+  })
 })
