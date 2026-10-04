@@ -11,10 +11,6 @@ vi.mock('@/app/_actions/cafe-lists', () => ({
   removeCafeFromList: (input: unknown) => removeCafeFromList(input),
 }))
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: vi.fn() }),
-}))
-
 const cafeId = '11111111-1111-4111-8111-111111111111'
 const none = { favorite: false, want_to_go: false }
 

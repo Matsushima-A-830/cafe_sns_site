@@ -1081,14 +1081,15 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   トランザクションに参加するため、**`isPending` が RSC の往復が終わるまで真のまま**になる。
   その間、押下は `if (isPending) return` ガード（または `disabled`）に黙って捨てられる
 - **対象（2026-10-04 実測、2026-09-19時点の「6コンポーネント」から再調査で11ファイル・
-  14箇所に修正）:**
+  13箇所に修正）:**
   - **結果を使っていない（`refresh()` 自体を削除）:** `LikeButton` / `BookmarkButton` /
     `CafeListButtons` / `CafeListView` / `DraftList` / `CongestionSection`
     （いずれも `useState(initial...)` で props から1度しか初期化しない state を
     Server Action の戻り値で直しており、`refresh()` の再描画結果を使っていなかった）
   - **結果が必須（`refresh()` を `startTransition` の外に出す）:** `FollowButton`
-    （ヘッダのフォロワー数）/ `RegularsView` の `RegularCard`（メモ保存・取消）・
-    `CandidateCard`（認定）3箇所（候補↔認定済みのリスト移動を `refresh()` 頼みにしている）
+    （ヘッダのフォロワー数）/ `RegularsView` の `RegularCard`（メモ保存・取消の2箇所。
+    取消は常連→履歴のリスト移動を `refresh()` 頼みにしている）・`CandidateCard`
+    （認定。候補→常連のリスト移動を `refresh()` 頼みにしている）の計3箇所
   - **対象外（この画面に留まらず遷移するため実害が無い）:** `OwnerVerificationReviewActions` /
     `ReportReviewActions` / `app/(auth)/account/pending/pending-actions.tsx`。
     いずれも成功後に `router.push()` で別画面へ移動し、連打できる状態のまま留まらない

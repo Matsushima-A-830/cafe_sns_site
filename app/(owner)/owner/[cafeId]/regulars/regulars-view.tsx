@@ -21,9 +21,10 @@ import { useDeferredRefresh } from '@/lib/utils/use-deferred-refresh'
 
 /**
  * S_OWNER_REGULARS の3タブ（常連 / 認定候補 / 認定履歴）。
- * データはサーバーで取り切って渡し、操作後は router.refresh() でサーバーの
- * 最新状態を取り直す（このプロジェクトは revalidatePath を使わない方針。
- * app/_actions/cafe-business-hours.ts 等と同じ）
+ * データはサーバーで取り切って渡し、操作後は useDeferredRefresh（内部で
+ * router.refresh()）でサーバーの最新状態を取り直す（このプロジェクトは
+ * revalidatePath を使わない方針。app/_actions/cafe-business-hours.ts 等と同じ。
+ * refresh() を startTransition の中で直接呼ばないのは D37 参照）
  *   docs/design/wireframes/owner.md #S_OWNER_REGULARS
  */
 

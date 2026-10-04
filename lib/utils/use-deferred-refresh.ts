@@ -15,14 +15,15 @@ export function useDeferredRefresh() {
   const routerRef = useRef(router)
   routerRef.current = router
   const [tick, setTick] = useState(0)
-  const mounted = useRef(false)
+  // 真偽値のマウント済みフラグだと、StrictMode の開発時二重実行
+  // （mount effect → cleanup → mount effect）で「まだ処理していない tick か」を
+  // 見分けられず、2回目の呼び出しで誤って refresh() が走る。処理済みの tick 値そのもの
+  // を比較することで、同じ tick に対する再実行は常にスキップする
+  const processedTick = useRef(tick)
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: tick は発火トリガーのみ、routerRef 経由で読むため依存に router は不要
   useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true
-      return
-    }
+    if (tick === processedTick.current) return
+    processedTick.current = tick
     routerRef.current.refresh()
   }, [tick])
 

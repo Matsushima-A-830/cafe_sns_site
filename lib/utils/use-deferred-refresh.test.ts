@@ -1,4 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
+import { StrictMode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDeferredRefresh } from './use-deferred-refresh'
 
@@ -39,5 +40,23 @@ describe('useDeferredRefresh', () => {
     })
 
     expect(refresh).toHaveBeenCalledTimes(2)
+  })
+
+  // StrictMode は開発時、mount の effect を「実行 → cleanup → 実行」と二重に走らせる。
+  // 真偽値のフラグで「初回か」を判定すると、1回目の実行で true にした直後の2回目の
+  // 実行でガードをすり抜け、マウントのたびに refresh() が誤発火する
+  it('StrictMode の開発時二重実行でもマウント直後に refresh() しない', () => {
+    renderHook(() => useDeferredRefresh(), { wrapper: StrictMode })
+    expect(refresh).not.toHaveBeenCalled()
+  })
+
+  it('StrictMode下でも返り値の関数を呼べば refresh() する', () => {
+    const { result } = renderHook(() => useDeferredRefresh(), { wrapper: StrictMode })
+
+    act(() => {
+      result.current()
+    })
+
+    expect(refresh).toHaveBeenCalledTimes(1)
   })
 })
