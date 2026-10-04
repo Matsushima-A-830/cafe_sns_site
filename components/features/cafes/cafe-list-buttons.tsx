@@ -2,7 +2,6 @@
 
 import { Heart, MapPin } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { addCafeToList, removeCafeFromList } from '@/app/_actions/cafe-lists'
 import { Button } from '@/components/ui/button'
@@ -34,7 +33,6 @@ function ToggleButton({
   const [inList, setInList] = useState(initialInList)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
-  const router = useRouter()
 
   const label = CAFE_LIST_LABELS[listType]
   const Icon = ICONS[listType]
@@ -60,7 +58,6 @@ function ToggleButton({
         return
       }
       onChanged(previous ? `${label}から外しました` : `${label}に追加しました`)
-      router.refresh()
     })
   }
 

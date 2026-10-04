@@ -2,7 +2,6 @@
 
 import { Heart } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { likePost, unlikePost } from '@/app/_actions/likes'
 import { cn } from '@/lib/utils/cn'
@@ -39,7 +38,6 @@ export function LikeButton({
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState('')
   const [isPending, startTransition] = useTransition()
-  const router = useRouter()
 
   function handleClick() {
     // disabled にせず自前で弾く（下の aria-busy のコメント参照）
@@ -65,7 +63,6 @@ export function LikeButton({
       // 1度しか初期化されないため router.refresh() でも直らない
       setCount(result.data.likeCount)
       setStatus(previousLiked ? 'いいねを外しました' : 'いいねしました')
-      router.refresh()
     })
   }
 

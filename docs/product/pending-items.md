@@ -1074,32 +1074,32 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   それまでは現状維持。決めた内容は `tables.md #follows` に書く
 - 参照: `likes` の SELECT にブロックを反映した際、`follows` と揃っていないことが判明（2026-09-19）
 
-### D37. `router.refresh()` を `startTransition` の中で呼んでいる
+### D37. `router.refresh()` を `startTransition` の中で呼んでいる ✅ 解消済（2026-10-04）
 
 - **課題:** 楽観更新するコンポーネントが、Server Action の完了後に同じ
   `startTransition` の中で `router.refresh()` を呼んでいる。`refresh()` は
   トランザクションに参加するため、**`isPending` が RSC の往復が終わるまで真のまま**になる。
   その間、押下は `if (isPending) return` ガード（または `disabled`）に黙って捨てられる
-- **対象（2026-09-19 実測）:** `startTransition` の中で `refresh()` を呼ぶのは6コンポーネント。
-  `LikeButton` / `CafeListButtons` / `FollowButton` / `CongestionSection` / `DraftList` /
-  `CafeListView`（`login-form.tsx` も `refresh()` を呼ぶが `startTransition` の外なので対象外）
-- **2つの症状が重なっている:**
-  1. **押下が捨てられる時間が長い。** `aria-busy` に置き換えた側（`LikeButton` /
-     `CafeListButtons`）は視覚的な待機表示が無いので、ユーザーには「反応しない」としか映らない。
-     実機では短い無反応を確認した（ローカルのデータ量では軽微）
-  2. **`LikeButton` では refresh の結果が必ず捨てられる。** `PostFeed` は
-     `useState(initialPage.items)` で一覧を抱え、`LikeButton` も props から state を
-     1度しか初期化しない。サーバーの再描画コストを払って結果を捨てている
-     （投稿詳細でも同じ。件数のズレは Server Action の戻り値で直す設計にした）
-- **未確認:** 他の5コンポーネントで `refresh()` の結果が実際に使われているかは個別に見ていない。
-  `CongestionSection` のように「サーバー側の集計値を読み直す」ものは必要な可能性がある
-- **対応案:** a) `refresh()` を `startTransition` の外に出す（`isPending` が書き込みの完了で
-  終わる。最小の差分） b) 結果を使っていないコンポーネントでは `refresh()` 自体をやめる
-  c) 待機表示を足して「反応しない」に見えないようにする
-- **注意:** `refresh()` を外に出すと E2E の `waitIdle`（`aria-busy` が false に戻るのを待つ）が
-  書き込み完了だけを待つようになる。`cafe-list-toggle.spec.ts` / `likes.spec.ts` の
-  リロード前の待機が足りるかは直すときに確認が要る
-- 参照: `likes` 実装後の `/code-review` で指摘され、実機確認でも再現（2026-09-19）
+- **対象（2026-10-04 実測、2026-09-19時点の「6コンポーネント」から再調査で11ファイル・
+  14箇所に修正）:**
+  - **結果を使っていない（`refresh()` 自体を削除）:** `LikeButton` / `BookmarkButton` /
+    `CafeListButtons` / `CafeListView` / `DraftList` / `CongestionSection`
+    （いずれも `useState(initial...)` で props から1度しか初期化しない state を
+    Server Action の戻り値で直しており、`refresh()` の再描画結果を使っていなかった）
+  - **結果が必須（`refresh()` を `startTransition` の外に出す）:** `FollowButton`
+    （ヘッダのフォロワー数）/ `RegularsView` の `RegularCard`（メモ保存・取消）・
+    `CandidateCard`（認定）3箇所（候補↔認定済みのリスト移動を `refresh()` 頼みにしている）
+  - **対象外（この画面に留まらず遷移するため実害が無い）:** `OwnerVerificationReviewActions` /
+    `ReportReviewActions` / `app/(auth)/account/pending/pending-actions.tsx`。
+    いずれも成功後に `router.push()` で別画面へ移動し、連打できる状態のまま留まらない
+- **対応（採用した案）:** 新設の `lib/utils/use-deferred-refresh.ts`（`useDeferredRefresh`）で
+  `router.refresh()` を `startTransition` の外（コミット後の `useEffect`）に移した。
+  `isPending` は書き込み（Server Action）の完了だけで false に戻る
+- **E2E への影響:** `cafe-list-toggle.spec.ts` / `likes.spec.ts` の `waitIdle`（`aria-busy` が
+  false に戻るのを待つ）は対象コンポーネント（`CafeListButtons` / `LikeButton`）が
+  `refresh()` 自体を削除した側のため、書き込み完了でより早く false に戻るだけで壊れない
+- 参照: `likes` 実装後の `/code-review` で指摘され、実機確認でも再現（2026-09-19）。
+  修正は fix/d37-refresh-in-transition ブランチ
 
 ### D38. `likes_select_all` が投稿の可視性を継承していない ✅ 解消済（2026-09-23）
 

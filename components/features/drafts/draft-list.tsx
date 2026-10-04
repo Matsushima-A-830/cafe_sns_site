@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { type DraftSummary, deleteDraft, type LoadedDraft } from '@/app/_actions/drafts'
 import { Button } from '@/components/ui/button'
@@ -21,7 +20,6 @@ export function DraftList({ initialDrafts }: { initialDrafts: DraftSummary[] }) 
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState('')
   const [isPending, startTransition] = useTransition()
-  const router = useRouter()
 
   function handleConfirmDelete() {
     // disabled にせず自前で弾く（下の aria-busy のコメント参照）
@@ -46,7 +44,6 @@ export function DraftList({ initialDrafts }: { initialDrafts: DraftSummary[] }) 
         return
       }
       setStatus('下書きを削除しました')
-      router.refresh()
     })
   }
 
