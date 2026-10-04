@@ -1,6 +1,9 @@
 name: E2E
 
-# paths-ignore は付けない（理由は integration.yml と同じ）
+# ワークフロー自体の trigger には paths-ignore を付けない（理由は integration.yml と同じ。
+# 詳細は docs/operations/git-workflow.md #ブランチ保護）。docs だけの変更で Playwright を
+# 省きたい場合は job 単位の if 条件（changes ジョブ）でスキップする。
+# skipped は必須ステータスチェックを満たす
 #
 # push: main は付けない。webkit 検証は nightly.yml に移したため、マージ直後に
 # full セットを回すのは冗長で、1マージあたり 11 分の課金分をそのまま捨てることになる
@@ -19,8 +22,53 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ci.yml の changes ジョブと同じ判定。workflow_call（nightly からの呼び出し）には
+  # pull_request コンテキストが無く差分比較ができないため、この判定自体を走らせない
+  # （playwright 側の if で workflow_call を常に実行対象にする）
+  changes:
+    name: Detect changes
+    if: github.event_name != 'workflow_call'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Check for non-docs changes
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if ! git diff --name-only "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/changed.txt"; then
+            echo "::warning::git diff に失敗。安全側に倒して code=true とする"
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "変更ファイル:"
+          cat "$RUNNER_TEMP/changed.txt"
+
+          code=false
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            case "$f" in
+              docs/*|*.md|.claude/*) ;;
+              *) code=true ;;
+            esac
+          done < "$RUNNER_TEMP/changed.txt"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "code 判定: $code"
+
   playwright:
     name: Playwright
+    needs: changes
+    if: >-
+      always() &&
+      (github.event_name == 'workflow_call' ||
+       needs.changes.result != 'success' ||
+       needs.changes.outputs.code == 'true')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
