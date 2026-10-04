@@ -2,7 +2,6 @@
 
 import { Bookmark } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { bookmarkPost, unbookmarkPost } from '@/app/_actions/bookmarks'
 import { cn } from '@/lib/utils/cn'
@@ -40,7 +39,6 @@ export function BookmarkButton({
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState('')
   const [isPending, startTransition] = useTransition()
-  const router = useRouter()
 
   function handleClick() {
     // disabled にせず自前で弾く（下の aria-busy のコメント参照）
@@ -68,7 +66,6 @@ export function BookmarkButton({
       // 1度しか初期化されないため router.refresh() でも直らない
       setCount(result.data.bookmarkCount)
       setStatus(previousBookmarked ? '保存を解除しました' : '保存しました')
-      router.refresh()
     })
   }
 

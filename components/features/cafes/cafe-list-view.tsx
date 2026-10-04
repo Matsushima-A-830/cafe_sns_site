@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { removeCafeFromList } from '@/app/_actions/cafe-lists'
 import { Button } from '@/components/ui/button'
@@ -29,7 +28,6 @@ export function CafeListView({
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState('')
   const [isPending, startTransition] = useTransition()
-  const router = useRouter()
 
   const label = CAFE_LIST_LABELS[listType]
 
@@ -50,7 +48,6 @@ export function CafeListView({
         return
       }
       setStatus(`${entry.name}を${label}から外しました`)
-      router.refresh()
     })
   }
 

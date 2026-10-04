@@ -11,8 +11,10 @@ vi.mock('@/app/_actions/follows', () => ({
   unfollowUser: (input: unknown) => unfollowUser(input),
 }))
 
+const refresh = vi.fn()
+
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: vi.fn() }),
+  useRouter: () => ({ refresh }),
 }))
 
 const followeeId = '11111111-1111-4111-8111-111111111111'
@@ -20,6 +22,7 @@ const followeeId = '11111111-1111-4111-8111-111111111111'
 beforeEach(() => {
   followUser.mockReset()
   unfollowUser.mockReset()
+  refresh.mockReset()
 })
 
 describe('FollowButton', () => {
@@ -82,6 +85,19 @@ describe('FollowButton', () => {
       expect(screen.getByRole('button', { name: 'フォロー中' })).toBeInTheDocument(),
     )
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  // D37: refresh() を startTransition の外（useDeferredRefresh）で呼ぶことで、
+  // isPending は書き込み完了だけで false に戻る。実際のタイミング保証は
+  // lib/utils/use-deferred-refresh.test.ts でフック単体を検証する
+  it('書き込み成功後に refresh() する', async () => {
+    unfollowUser.mockResolvedValue({ ok: true, data: null })
+    const user = userEvent.setup()
+
+    render(<FollowButton followeeId={followeeId} initialFollowing={true} />)
+    await user.click(screen.getByRole('button', { name: 'フォロー中' }))
+
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
   })
 
   it('失敗したら元の状態に戻し、理由を伝える', async () => {

@@ -11,10 +11,6 @@ vi.mock('@/app/_actions/drafts', () => ({
   deleteDraft: (input: unknown) => deleteDraft(input),
 }))
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: vi.fn() }),
-}))
-
 const bodyJson = {
   type: 'doc',
   content: [{ type: 'paragraph', content: [{ type: 'text', text: '本文の冒頭' }] }],

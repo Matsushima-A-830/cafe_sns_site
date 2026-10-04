@@ -1,7 +1,6 @@
 'use client'
 
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
 import { useEffect, useState, useTransition } from 'react'
 import { awardRegular, revokeRegular, updateRegularNote } from '@/app/_actions/regular-customers'
 import { Button } from '@/components/ui/button'
@@ -18,12 +17,14 @@ import { isStoragePublicUrl } from '@/lib/storage/public-url'
 import { cn } from '@/lib/utils/cn'
 import { errorMessage } from '@/lib/utils/error-messages'
 import { formatPostDate, formatRelativeTime } from '@/lib/utils/format-date'
+import { useDeferredRefresh } from '@/lib/utils/use-deferred-refresh'
 
 /**
  * S_OWNER_REGULARS の3タブ（常連 / 認定候補 / 認定履歴）。
- * データはサーバーで取り切って渡し、操作後は router.refresh() でサーバーの
- * 最新状態を取り直す（このプロジェクトは revalidatePath を使わない方針。
- * app/_actions/cafe-business-hours.ts 等と同じ）
+ * データはサーバーで取り切って渡し、操作後は useDeferredRefresh（内部で
+ * router.refresh()）でサーバーの最新状態を取り直す（このプロジェクトは
+ * revalidatePath を使わない方針。app/_actions/cafe-business-hours.ts 等と同じ。
+ * refresh() を startTransition の中で直接呼ばないのは D37 参照）
  *   docs/design/wireframes/owner.md #S_OWNER_REGULARS
  */
 
@@ -171,7 +172,7 @@ function ActiveRegularsTab({ cafeId, regulars }: { cafeId: string; regulars: Reg
 }
 
 function RegularCard({ cafeId, regular }: { cafeId: string; regular: RegularCustomer }) {
-  const router = useRouter()
+  const requestRefresh = useDeferredRefresh()
   const [noteOpen, setNoteOpen] = useState(false)
   const [revokeOpen, setRevokeOpen] = useState(false)
   const [note, setNote] = useState(regular.note ?? '')
@@ -189,7 +190,7 @@ function RegularCard({ cafeId, regular }: { cafeId: string; regular: RegularCust
         return
       }
       setNoteOpen(false)
-      router.refresh()
+      requestRefresh()
     })
   }
 
@@ -204,7 +205,7 @@ function RegularCard({ cafeId, regular }: { cafeId: string; regular: RegularCust
         return
       }
       setRevokeOpen(false)
-      router.refresh()
+      requestRefresh()
     })
   }
 
@@ -333,7 +334,7 @@ function CandidateCard({
   cafeName: string
   candidate: RegularCandidate
 }) {
-  const router = useRouter()
+  const requestRefresh = useDeferredRefresh()
   const [open, setOpen] = useState(false)
   const [note, setNote] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -350,7 +351,7 @@ function CandidateCard({
         return
       }
       setOpen(false)
-      router.refresh()
+      requestRefresh()
     })
   }
 

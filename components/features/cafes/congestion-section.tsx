@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { reportCongestion } from '@/app/_actions/congestion'
 import { Button } from '@/components/ui/button'
@@ -80,7 +79,6 @@ export function CongestionSection({
   const [summary, setSummary] = useState(initialSummary)
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
-  const router = useRouter()
 
   function handleReport(level: number) {
     // disabled にせず自前で弾く（下の aria-busy のコメント参照）
@@ -106,7 +104,6 @@ export function CongestionSection({
       }
       // 他人の報告も混ざった平均に置き換える
       setSummary(result.data)
-      router.refresh()
     })
   }
 

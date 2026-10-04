@@ -11,10 +11,6 @@ vi.mock('@/app/_actions/likes', () => ({
   unlikePost: (input: unknown) => unlikePost(input),
 }))
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: vi.fn() }),
-}))
-
 const postId = '11111111-1111-4111-8111-111111111111'
 
 function setup(props: Partial<Parameters<typeof LikeButton>[0]> = {}) {
