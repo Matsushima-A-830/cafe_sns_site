@@ -110,26 +110,55 @@ Tailwind の height/width で指定、整数px:
 - 投稿サムネイルは 4:5（Instagram 準拠）or 1:1
 - ヒーロー画像は 16:9 or 21:9
 
+### フォント
+
+| セマンティック | Tailwindユーティリティ | 実体 | 用途 |
+|---|---|---|---|
+| 本文 | `font-sans`（デフォルト） | Plus Jakarta Sans → Noto Sans JP | 本文・ラベル・UI全般 |
+| 見出し | `font-heading` | Epilogue → Noto Sans JP | 任意の見出しに明示指定する場合（`h1`〜`h4` は globals.css の基底スタイルで自動適用） |
+
+和文（ひらがな・カタカナ・漢字）は `Plus Jakarta Sans` / `Epilogue` に字形が無いため、
+自動で `Noto Sans JP`（latin サブセットのみ self-host、和文はシステムフォント）にフォールバックする。
+
 ---
 
 ## 3. カラーパレット
 
-### メインパレット: Brown（コーヒー・ミルク・木材）
+**出典:** Stitch デザイン "Warm Editorial Cafe Journal"（[プロジェクト](https://stitch.withgoogle.com/projects/2492152006717702977)）を
+本プロジェクトのセマンティックトークン構造に移植したもの。ロースト・エスプレッソ × テラコッタ × セージの
+エディトリアルな配色で、カフェの写真・ラテアートが主役になるよう UI 面は低彩度に抑える。
+
+### メインパレット: Brown（ロースト・エスプレッソ）
 
 Tailwind CSS のカスタムカラーとして `brown` を定義:
 
 | トークン | HEX | 用途 |
 |---|---|---|
-| `brown-50` | `#FFF8F1` | 最淡背景（ページ背景） |
-| `brown-100` | `#FFF1E3` | カード背景 |
-| `brown-200` | `#ECD2B8` | ボーダー淡 |
-| `brown-300` | `#D9B38C` | アクセント淡 |
-| `brown-400` | `#BA8F6B` | アクセント |
-| `brown-500` | `#9A6B4A` | プライマリ（ボタン等） |
-| `brown-600` | `#7B533A` | プライマリ濃（hover） |
-| `brown-700` | `#5B3A2A` | テキスト濃 |
-| `brown-800` | `#452B1E` | テキスト特濃 |
-| `brown-900` | `#2E1C12` | **`#000000` の代替**（最も濃い黒に近い茶） |
+| `brown-50` | `#FCF9F2` | 最淡背景（ページ背景・オートミルク） |
+| `brown-100` | `#F6F3EC` | カード背景・非活性面 |
+| `brown-200` | `#EDE8DE` | ボーダー淡（ヘアライン） |
+| `brown-300` | `#D3C3C0` | ボーダー強・入力欄枠 |
+| `brown-400` | `#AE8D87` | プレースホルダー・非活性アイコン |
+| `brown-500` | `#8D7B75` | キャプション・メタ情報（ヘーゼルナッツグレー） |
+| `brown-600` | `#504442` | 副情報テキスト |
+| `brown-700` | `#3E2723` | **プライマリ**（ロースト・エスプレッソ、主要ボタン） |
+| `brown-800` | `#2B1613` | プライマリ hover |
+| `brown-900` | `#1C1C18` | **`#000000` の代替**（最も濃い黒に近い茶、主要テキスト） |
+
+### アクセント基礎スケール: terracotta / sage
+
+CTA・リンク・成功状態など、brown 単色では表現できないインタラクティブ要素に使う:
+
+| トークン | HEX | 用途 |
+|---|---|---|
+| `terracotta-100` | `#FFDBD0` | タグ・バッジの淡い背景 |
+| `terracotta-300` | `#FE997A` | バッジ強調色（装飾専用。地に対し約3.5:1しか出ないため**テキストには使わない**） |
+| `terracotta-400` | `#C86D51` | 装飾アクセント専用（枠線・アイコン等）。地(`#FCF9F2`/白)に対し約3.5:1で**AA未達のためテキスト色として使わない** |
+| `terracotta-500` | `#97472E` | **セカンダリ**（CTA・リンク・テイスティングタグ）。地に対し約6.1:1、白文字でも約6.5:1でAA適合 |
+| `terracotta-600` | `#7A3A25` | セカンダリ hover |
+| `sage-100` | `#D3E8D1` | 成功系の淡い背景 |
+| `sage-400` | `#768A76` | セージアクセント（植物・抹茶モチーフ） |
+| `sage-500` | `#5B7B63` | **成功**（`success`）、いいね系の状態色 |
 
 ### セマンティックトークン（推奨: この命名で使う）
 
@@ -158,13 +187,14 @@ Tailwind CSS のカスタムカラーとして `brown` を定義:
 
 | セマンティック | Tailwindユーティリティ | 意味 |
 |---|---|---|
-| `bg-primary` | 内部で `brown-500` | 主要ボタン背景 |
-| `bg-primary-hover` | 内部で `brown-600` | 主要ボタン hover |
+| `bg-primary` | 内部で `brown-700` | 主要ボタン背景（ロースト・エスプレッソ） |
+| `bg-primary-hover` | 内部で `brown-800` | 主要ボタン hover |
 | `text-primary-foreground` | 内部で `brown-50` | 主要ボタン上のテキスト |
-| `bg-secondary` | 内部で `cream-100` | 副次ボタン背景 |
-| `text-secondary-foreground` | 内部で `brown-800` | 副次ボタン上のテキスト |
-| `text-link` | 内部で `brown-600` | リンク色 |
-| `text-link-hover` | 内部で `brown-700` | リンク hover |
+| `bg-secondary` | 内部で `terracotta-500` | 副次ボタン・CTA背景（`terracotta-400`はAA未達のため使わない） |
+| `bg-secondary-hover` | 内部で `terracotta-600` | 副次ボタン hover |
+| `text-secondary-foreground` | 内部で `white` | 副次ボタン上のテキスト |
+| `text-link` | 内部で `terracotta-500` | リンク色（`terracotta-400`はAA未達のため使わない） |
+| `text-link-hover` | 内部で `terracotta-600` | リンク hover |
 
 #### 構造系
 
@@ -173,17 +203,17 @@ Tailwind CSS のカスタムカラーとして `brown` を定義:
 | `border-border-default` | 内部で `brown-200` | 標準ボーダー |
 | `border-border-strong` | 内部で `brown-300` | 強調ボーダー |
 | `bg-input` | 内部で `white` | 入力欄背景 |
-| `border-border-input` | 内部で `brown-200` | 入力欄ボーダー |
-| `ring-ring-focus` | 内部で `brown-400` | フォーカスリング |
+| `border-border-input` | 内部で `brown-300` | 入力欄ボーダー |
+| `ring-ring-focus` | 内部で `terracotta-400` | フォーカスリング（フォーム focus 時の枠色） |
 
 #### 状態系
 
 | セマンティック | Tailwindユーティリティ | 意味 |
 |---|---|---|
-| `bg-success` / `text-success-foreground` | 内部で `#4A7C59` / `white` | 成功トースト |
-| `bg-warning` / `text-warning-foreground` | 内部で `#C77F3E` / `white` | 警告トースト |
+| `bg-success` / `text-success-foreground` | 内部で `sage-500`(`#5B7B63`) / `white` | 成功トースト・いいね状態 |
+| `bg-warning` / `text-warning-foreground` | 内部で `#D97736` / `white` | 警告トースト |
 | `bg-danger` / `text-danger-foreground` | 内部で `#A94438` / `white` | 危険操作・エラー |
-| `bg-info` / `text-info-foreground` | 内部で `#5B7C99` / `white` | 情報通知 |
+| `bg-info` / `text-info-foreground` | 内部で `#5E548E` / `white` | 情報通知（訪問済みバッジ等） |
 
 ### 使い分けの目安
 
@@ -208,24 +238,24 @@ Tailwind CSS のカスタムカラーとして `brown` を定義:
 <div className="bg-brown-500 text-brown-50">   {/* 何のボタン？→ bg-primary text-primary-foreground を使うべき */}
 ```
 
-### 補色（ミルク・クリーム）
+### 補色（オートミルク・クリーム）
 
-セカンダリとして使用:
+`background` と同系統の、より明るい背景バリエーション:
 
 | トークン | HEX | 用途 |
 |---|---|---|
-| `cream-50` | `#FFFCF7` | ホワイト系背景 |
-| `cream-100` | `#FFF8ED` | 温かみのある背景 |
-| `cream-200` | `#FDECD1` | 淡いアクセント |
+| `cream-50` | `#FFFDF9` | 最も明るいホワイト系背景 |
+| `cream-100` | `#FCF9F2` | ページ背景（`background` と同値） |
+| `cream-200` | `#F6F3EC` | カード内の控えめな区切り面 |
 
-### アクセント（控えめに）
+### アクセント（terracotta / sage を主役に）
 
 | 用途 | トークン | HEX |
 |---|---|---|
-| 成功 | `success` | `#4A7C59`（深緑・オリーブ） |
-| 警告 | `warning` | `#C77F3E`（ハニー・キャラメル） |
+| 成功 | `success` | `#5B7B63`（ディープセージ） |
+| 警告 | `warning` | `#D97736`（アンバー・テラコッタ） |
 | 危険 | `danger` | `#A94438`（ワインレッド） |
-| 情報 | `info` | `#5B7C99`（アシッドブルー） |
+| 情報 | `info` | `#5E548E`（京都トワイライト・インディゴ） |
 
 これらもすべて暖色寄り、彩度控えめ。純色（`#FF0000` 等）は使用しない。
 
@@ -254,20 +284,30 @@ Tailwind CSS のカスタムカラーとして `brown` を定義:
 
 @theme {
   /* ===== 基礎スケール ===== */
-  --color-brown-50:  #FFF8F1;
-  --color-brown-100: #FFF1E3;
-  --color-brown-200: #ECD2B8;
-  --color-brown-300: #D9B38C;
-  --color-brown-400: #BA8F6B;
-  --color-brown-500: #9A6B4A;
-  --color-brown-600: #7B533A;
-  --color-brown-700: #5B3A2A;
-  --color-brown-800: #452B1E;
-  --color-brown-900: #2E1C12;
+  --color-brown-50:  #FCF9F2;
+  --color-brown-100: #F6F3EC;
+  --color-brown-200: #EDE8DE;
+  --color-brown-300: #D3C3C0;
+  --color-brown-400: #AE8D87;
+  --color-brown-500: #8D7B75;
+  --color-brown-600: #504442;
+  --color-brown-700: #3E2723;
+  --color-brown-800: #2B1613;
+  --color-brown-900: #1C1C18;
 
   --color-cream-50:  #FFFDF9;
-  --color-cream-100: #FFF8F1;
-  --color-cream-200: #FFF1E3;
+  --color-cream-100: #FCF9F2;
+  --color-cream-200: #F6F3EC;
+
+  --color-terracotta-100: #FFDBD0;
+  --color-terracotta-300: #FE997A;
+  --color-terracotta-400: #C86D51;
+  --color-terracotta-500: #97472E;
+  --color-terracotta-600: #7A3A25;
+
+  --color-sage-100: #D3E8D1;
+  --color-sage-400: #768A76;
+  --color-sage-500: #5B7B63;
 
   /* ===== セマンティック（実装時はこちらを優先） ===== */
   /* レイアウト */
@@ -278,38 +318,56 @@ Tailwind CSS のカスタムカラーとして `brown` を定義:
 
   /* テキスト */
   --color-foreground:         var(--color-brown-900);
-  --color-muted-foreground:   var(--color-brown-700);
+  --color-muted-foreground:   var(--color-brown-600);
   --color-subtle:             var(--color-brown-500);
 
   /* インタラクティブ */
-  --color-primary:              var(--color-brown-500);
-  --color-primary-hover:        var(--color-brown-600);
+  --color-primary:              var(--color-brown-700);
+  --color-primary-hover:        var(--color-brown-800);
   --color-primary-foreground:   var(--color-brown-50);
-  --color-secondary:            var(--color-cream-100);
-  --color-secondary-foreground: var(--color-brown-800);
-  --color-link:                 var(--color-brown-600);
-  --color-link-hover:           var(--color-brown-700);
+  --color-secondary:            var(--color-terracotta-500);
+  --color-secondary-hover:      var(--color-terracotta-600);
+  --color-secondary-foreground: #FFFFFF;
+  --color-link:                 var(--color-terracotta-500);
+  --color-link-hover:           var(--color-terracotta-600);
 
   /* 構造 */
   --color-border-default: var(--color-brown-200);
   --color-border-strong:  var(--color-brown-300);
   --color-input:          #FFFFFF;
-  --color-border-input:   var(--color-brown-200);
-  --color-ring-focus:     var(--color-brown-400);
+  --color-border-input:   var(--color-brown-300);
+  --color-ring-focus:     var(--color-terracotta-400);
 
   /* 状態 */
-  --color-success:            #4A7C59;
+  --color-success:            var(--color-sage-500);
   --color-success-foreground: #FFFFFF;
-  --color-warning:            #C77F3E;
+  --color-warning:            #D97736;
   --color-warning-foreground: #FFFFFF;
   --color-danger:             #A94438;
   --color-danger-foreground:  #FFFFFF;
-  --color-info:               #5B7C99;
+  --color-info:               #5E548E;
   --color-info-foreground:    #FFFFFF;
+
+  /* ===== 角丸 (ceramic roundness) ===== */
+  --radius-sm:  0.25rem;
+  --radius-md:  0.5rem;
+  --radius-lg:  0.75rem;
+  --radius-xl:  1rem;
+  --radius-2xl: 1.5rem;
+
+  /* ===== 影（暖色の拡散シャドウ。灰色の硬いドロップシャドウは使わない） ===== */
+  --shadow-elevation-1: 0 4px 20px -2px rgb(62 39 35 / 0.06), 0 2px 6px -1px rgb(62 39 35 / 0.03);
+  --shadow-elevation-2: 0 12px 32px -4px rgb(62 39 35 / 0.12), 0 4px 12px -2px rgb(62 39 35 / 0.04);
+
+  /* ===== フォント =====
+     本文: Plus Jakarta Sans（欧文・数字）→ Noto Sans JP（和文はシステムフォールバック）
+     見出し: Epilogue → Noto Sans JP */
+  --font-sans:    var(--font-plus-jakarta-sans), var(--font-noto-sans-jp), system-ui, sans-serif;
+  --font-heading: var(--font-epilogue), var(--font-noto-sans-jp), system-ui, sans-serif;
 }
 ```
 
-これにより Tailwind の `bg-primary`, `text-foreground`, `border-border-default` などが自動的に使えるようになる。
+これにより Tailwind の `bg-primary`, `text-foreground`, `border-border-default`, `rounded-xl`, `shadow-elevation-1`, `font-heading` などが自動的に使えるようになる。
 
 **ユーティリティ名は `--color-` を取り除いた残り全部。** `--color-border-default` から生えるのは
 `border-border-default` であって `border-default` ではない（`border-default` は `--color-default` を探し、
@@ -319,6 +377,22 @@ currentColor＝ほぼ黒で描画される）。同様に `--color-ring-focus` �
 `border-border-input` を使う。この綴り間違いは `scripts/check-design-system.sh` が検出する
 
 **本プロジェクトは Tailwind v4 のみ。** `tailwind.config.ts` は使わず、色の定義は `app/globals.css` の `@theme` が唯一の情報源とする（パレット変更時の二重管理を避けるため）。
+
+### globals.css の例外: 見出しタグの基底フォント
+
+原則「グローバルCSSは `@theme` 定義のみ」だが、見出し（`h1`〜`h4`）に `font-heading`（Epilogue）を
+コンポーネント側で毎回指定させるのは 201 ファイル規模で現実的でないため、`app/globals.css` に
+以下の基底スタイルのみ例外的に許可する。新しいグローバル規則を増やす場合はこのセクションに追記すること。
+
+```css
+h1, h2, h3, h4 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+}
+```
+
+個別の見出しサイズ（`text-2xl` 等）はコンポーネント側で指定する。この基底スタイルはフォントファミリーと
+太さのみを担当する。
 
 ---
 
@@ -398,14 +472,17 @@ MVP初期は **未対応**。導入時は以下の方針:
 
 ### コントラスト比
 
-- **本文テキスト:** `text-brown-900` on `bg-brown-50` → WCAG AA以上を目指す
-- **ミュートテキスト:** `text-brown-500` on `bg-brown-50` → 副情報用のみ、重要情報には使わない
+- **本文テキスト:** `text-brown-900`(`#1C1C18`) on `bg-brown-50`(`#FCF9F2`) → WCAG AA以上を目指す
+- **ミュートテキスト:** `text-brown-500`(`#8D7B75`) on `bg-brown-50` → 副情報用のみ、重要情報には使わない
+- **リンク・セカンダリ:** `text-link` / `text-secondary`(`terracotta-500` = `#97472E`) on `bg-background`/`white` → 約6.1:1でAA適合。
+  `terracotta-400`(`#C86D51`)は地に対し約3.5:1、白文字を乗せても約3.6:1しか出ず**AA未達**なので、
+  テキスト色（`text-link`・`text-secondary`・ボタン背景+白文字）には使わない。装飾（バッジ背景・枠線）専用に留める
 - カラーコントラストは https://webaim.org/resources/contrastchecker/ 等で検証
 
 ### focus リング
 
 - shadcn/ui のデフォルト（`ring-2 ring-ring ring-offset-2`）を使う
-- `--ring: var(--color-brown-400)` で暖色に統一
+- `--ring: var(--color-terracotta-400)` で暖色に統一
 
 ---
 

@@ -28,7 +28,7 @@ export function PostCard({
   const imageUrl = post.image && isStoragePublicUrl(post.image.url) ? post.image.url : null
 
   return (
-    <article className="flex h-full flex-col overflow-hidden rounded-lg border border-border-default bg-surface">
+    <article className="flex h-full flex-col overflow-hidden rounded-2xl border border-border-default bg-surface shadow-elevation-1">
       {imageUrl && (
         <Link
           href={href}
@@ -87,7 +87,7 @@ export function PostCard({
               <li key={tag.id}>
                 <Link
                   href={`/explore?tag=${encodeURIComponent(tag.slug)}`}
-                  className="inline-block rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
+                  className="inline-block rounded-md border border-border-default bg-muted px-2 py-1 text-xs text-muted-foreground hover:border-secondary hover:text-secondary focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
                 >
                   #{tag.label}
                 </Link>
@@ -96,7 +96,7 @@ export function PostCard({
           </ul>
         )}
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 border-t border-border-default pt-3">
           <LikeButton
             postId={post.id}
             initialLiked={post.likedByViewer}

@@ -99,8 +99,10 @@ export function BookmarkButton({
         aria-busy={isPending}
         onClick={handleClick}
         className={cn(
-          'inline-flex w-fit items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none',
-          bookmarked ? 'text-primary' : 'text-muted-foreground',
+          'inline-flex h-9 w-fit items-center gap-2 rounded-full border px-3 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none active:scale-95',
+          bookmarked
+            ? 'border-primary bg-primary text-primary-foreground'
+            : 'border-border-default bg-muted text-muted-foreground hover:border-primary/40',
         )}
       >
         <Bookmark
