@@ -97,8 +97,10 @@ export function LikeButton({
         aria-busy={isPending}
         onClick={handleClick}
         className={cn(
-          'inline-flex w-fit items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none',
-          liked ? 'text-primary' : 'text-muted-foreground',
+          'inline-flex h-9 w-fit items-center gap-2 rounded-full border px-3 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none active:scale-95',
+          liked
+            ? 'border-secondary/20 bg-terracotta-100 text-secondary'
+            : 'border-border-default bg-muted text-muted-foreground hover:border-secondary/40',
         )}
       >
         <Heart aria-hidden="true" className="h-4 w-4" fill={liked ? 'currentColor' : 'none'} />

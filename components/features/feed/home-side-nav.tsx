@@ -31,8 +31,10 @@ export function HomeSideNav({ current, isAuthed }: { current: string; isAuthed: 
               href={href}
               aria-current={key === current ? 'page' : undefined}
               className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-3 text-base hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none',
-                key === current ? 'font-bold text-foreground' : 'text-muted-foreground',
+                'flex items-center gap-3 rounded-full px-3 py-3 text-base transition-colors focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none',
+                key === current
+                  ? 'bg-terracotta-100 font-bold text-secondary'
+                  : 'text-muted-foreground hover:bg-muted',
               )}
             >
               <Icon aria-hidden="true" className="size-6 shrink-0" />
@@ -45,7 +47,7 @@ export function HomeSideNav({ current, isAuthed }: { current: string; isAuthed: 
           <li>
             <Link
               href="/new"
-              className="flex items-center gap-3 rounded-md bg-primary px-3 py-3 text-base font-bold text-primary-foreground hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
+              className="flex items-center gap-3 rounded-full bg-primary px-3 py-3 text-base font-bold text-primary-foreground shadow-elevation-1 hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none"
             >
               <PencilLine aria-hidden="true" className="size-6 shrink-0" />
               <span className="sr-only lg:not-sr-only">投稿する</span>

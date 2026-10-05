@@ -55,11 +55,26 @@ export function BottomNav() {
   return (
     <nav
       aria-label="モバイルナビゲーション"
-      className="fixed inset-x-0 bottom-0 z-10 border-t border-border-default bg-surface md:hidden"
+      className="fixed inset-x-0 bottom-0 z-10 border-t border-border-default bg-surface/95 shadow-elevation-2 backdrop-blur-xl md:hidden"
     >
-      <ul className="flex items-stretch justify-around">
+      <ul className="flex h-16 items-center justify-around px-4">
         {items.map(({ href, label, Icon, emphasize }) => {
           const isCurrent = href === '/' ? pathname === '/' : pathname.startsWith(href)
+
+          if (emphasize) {
+            return (
+              <li key={href} className="flex -translate-y-3 items-center justify-center">
+                <Link
+                  href={href}
+                  aria-current={isCurrent ? 'page' : undefined}
+                  aria-label={label}
+                  className="flex size-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground shadow-elevation-1 transition-transform focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none active:scale-95"
+                >
+                  <Icon aria-hidden="true" className="size-6" />
+                </Link>
+              </li>
+            )
+          }
 
           return (
             <li key={href} className="flex-1">
@@ -67,17 +82,12 @@ export function BottomNav() {
                 href={href}
                 aria-current={isCurrent ? 'page' : undefined}
                 className={cn(
-                  'flex flex-col items-center gap-1 border-t-2 px-2 py-2 text-xs',
+                  'flex flex-col items-center gap-1 py-2 text-xs transition-colors',
                   'focus-visible:ring-2 focus-visible:ring-ring-focus focus-visible:outline-none',
-                  isCurrent
-                    ? 'border-primary font-bold text-foreground'
-                    : 'border-transparent text-muted-foreground',
+                  isCurrent ? 'font-bold text-primary' : 'text-muted-foreground',
                 )}
               >
-                <Icon
-                  aria-hidden="true"
-                  className={cn('size-6', emphasize && 'size-8 text-primary')}
-                />
+                <Icon aria-hidden="true" className="size-6" />
                 {label}
               </Link>
             </li>

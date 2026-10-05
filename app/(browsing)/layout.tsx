@@ -5,9 +5,11 @@ import { AuthNav } from './auth-nav'
 export default function BrowsingLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-full flex-col">
-      <header className="border-b border-border-default bg-surface">
+      <header className="sticky top-0 z-20 border-b border-border-default bg-surface/90 shadow-elevation-1 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <div className="text-xl font-bold whitespace-nowrap text-foreground">カフェSNS</div>
+          <div className="font-heading text-xl font-bold whitespace-nowrap text-primary">
+            カフェSNS
+          </div>
           <nav className="flex items-center gap-4 text-sm text-muted-foreground">
             <AuthNav />
           </nav>

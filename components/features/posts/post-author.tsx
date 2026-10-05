@@ -29,12 +29,12 @@ export function PostAuthor({
           alt=""
           width={40}
           height={40}
-          className="size-10 rounded-full object-cover"
+          className="size-10 rounded-full object-cover ring-2 ring-primary/10"
         />
       ) : (
         <span
           aria-hidden="true"
-          className="flex size-10 items-center justify-center rounded-full bg-muted text-base text-muted-foreground"
+          className="flex size-10 items-center justify-center rounded-full bg-muted text-base text-muted-foreground ring-2 ring-primary/10"
         >
           {author.displayName.slice(0, 1)}
         </span>

@@ -65,7 +65,7 @@ function CafeHero({ cafe }: { cafe: CafeDetail }) {
     return (
       <div
         aria-hidden="true"
-        className="flex h-48 w-full items-center justify-center rounded-lg bg-muted text-base text-muted-foreground md:h-64"
+        className="flex h-48 w-full items-center justify-center rounded-2xl bg-muted text-base text-muted-foreground md:h-64"
       >
         写真はまだありません
       </div>
@@ -80,7 +80,7 @@ function CafeHero({ cafe }: { cafe: CafeDetail }) {
       width={1200}
       height={480}
       priority
-      className="h-48 w-full rounded-lg object-cover md:h-64"
+      className="h-48 w-full rounded-2xl object-cover shadow-elevation-1 md:h-64"
     />
   )
 }
