@@ -235,6 +235,16 @@ anon の直接読み出しで盗まれメールを介さず承認を偽装でき
 - UPDATE: `verified_owner_id = auth.uid()`（`status='active'` 必須）or `created_by = auth.uid() and verified_owner_id is null`（`status='active'` 必須、未認証オーナー期間中の本人編集。[pending-items B8](../../product/pending-items.md#b8-登録者本人がカフェ情報を編集できない未認証オーナー期間中--解消済2026-09-20)） or admin
 - DELETE: admin のみ
 
+**SELECT RLS のバイパス（本人の自店閲覧）:** 上記 SELECT は `status='active'` しか見せないため、
+素朴な select だとカフェ本人（`verified_owner_id`）が closed/hidden にした瞬間、自分でも
+見えなくなってしまう（「臨時休業を告知したいまさにその状況で告知できない」という本末転倒）。
+以下の security definer 関数が本人に限り status を問わず個別にバイパスする（ポリシー自体は変えない）:
+- `get_owned_cafe()` — `{id, name}`。マイページ「自分の店舗」導線・S_POST_OFFICIAL のカフェ解決用
+- `get_owned_cafe_for_edit(p_cafe_id)` — 編集フォームのフル列。S_OWNER_CAFE_EDIT のプリフィル用
+- `get_owned_cafe_for_dashboard(p_cafe_id)` — `{id, name}`。S_OWNER_DASHBOARD の本人確認＋表示名用
+
+`getCafeDetail`（S_CAFE_DETAIL）はまだ未対応（[pending-items D55](../../product/pending-items.md#d55-認証済みオーナーが自分のカフェを-closedhidden-にすると自分でも閲覧できなくなる)）。
+
 ---
 
 ## areas

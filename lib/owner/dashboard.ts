@@ -5,10 +5,14 @@ import type { Database } from '@/types/database'
 
 /**
  * S_OWNER_DASHBOARD の読み取り。
- * - cafes の SELECT RLS は status='active' なら誰でも見せる設計なので、
- *   verified_owner_id === 呼び出し元本人 をここで明示的に検証する
- * - 省くと role='owner' を持つ誰でも他人のカフェの経営情報を閲覧できてしまう
- *   （closed/hidden カフェをオーナー本人が読めない既知の別ギャップは pending-items D55）
+ * カフェ本体は get_owned_cafe_for_edit と同じ理由で get_owned_cafe_for_dashboard
+ * （security definer）経由で取る — cafes の SELECT RLS（cafes_select_active_authenticated）
+ * は status='active' しか見せないため、素朴な select だとカフェが closed/hidden の間は
+ * オーナー本人もダッシュボードを開けなくなる（閉店告知をした直後に締め出される、という
+ * 本末転倒）。RPC の where 句が verified_owner_id === 呼び出し元本人を保証するため、
+ * ここでの再チェックは不要
+ *   supabase/migrations/20261005113413_get_owned_cafe_for_dashboard.sql
+ *   docs/product/pending-items.md D55
  */
 
 type Client = SupabaseClient<Database>
@@ -122,13 +126,12 @@ export async function getOwnerDashboard(
   } = await supabase.auth.getUser()
   if (!user) return null
 
-  const { data: cafe, error: cafeError } = await supabase
-    .from('cafes')
-    .select('id, name, verified_owner_id')
-    .eq('id', cafeId)
-    .maybeSingle()
+  const { data: cafeRows, error: cafeError } = await supabase.rpc('get_owned_cafe_for_dashboard', {
+    p_cafe_id: cafeId,
+  })
   if (cafeError) throw new Error(`カフェの取得に失敗しました: ${cafeError.message}`)
-  if (!cafe || cafe.verified_owner_id !== user.id) return null
+  const cafe = cafeRows?.[0]
+  if (!cafe) return null
 
   const weekStart = startOfJstWeek(now)
   const lastWeekStart = new Date(weekStart.getTime() - WEEK_MS)
