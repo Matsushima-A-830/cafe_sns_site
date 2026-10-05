@@ -1335,6 +1335,13 @@ export type Database = {
           name: string
         }[]
       }
+      get_owned_cafe_for_dashboard: {
+        Args: { p_cafe_id: string }
+        Returns: {
+          id: string
+          name: string
+        }[]
+      }
       get_owned_cafe_for_edit: {
         Args: { p_cafe_id: string }
         Returns: {
@@ -1378,6 +1385,7 @@ export type Database = {
       is_cafe_owner: { Args: { p_cafe_id: string }; Returns: boolean }
       is_post_author: { Args: { p_post_id: string }; Returns: boolean }
       is_post_cafe_owner: { Args: { p_post_id: string }; Returns: boolean }
+      is_profile_active: { Args: { p_user_id: string }; Returns: boolean }
       nearby_cafes: {
         Args: {
           p_area_code?: string

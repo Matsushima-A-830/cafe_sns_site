@@ -15,6 +15,7 @@ import {
 //  3. 今週/先週の投稿数・いいね・保存の集計が published_at の週境界（JST月曜起点）で正しく分かれること
 //  4. 承認済み申請の reviewed_at が verifiedSince に載ること
 //  5. 最新の投稿が cafeId で絞り込まれていること
+//  6. status=closed/hidden でも本人は取得できる（D55: get_owned_cafe_for_dashboard 経由のRLSバイパス）
 
 const service = serviceRoleClient()
 const anon = anonClient()
@@ -148,6 +149,28 @@ describe('getOwnerDashboard', () => {
 
   it('存在しないカフェは null', async () => {
     expect(await getOwnerDashboard(typed(owner.client), crypto.randomUUID(), NOW)).toBeNull()
+  })
+
+  it('status=closed でも本人は取得できる（落とし穴1: D55と同じ罠を再現しない）', async () => {
+    const closedCafeId = await insertCafe({
+      name: '閉店カフェ',
+      status: 'closed',
+      verified_owner_id: owner.userId,
+    })
+    expect(await getOwnerDashboard(typed(owner.client), closedCafeId, NOW)).toMatchObject({
+      cafe: { id: closedCafeId, name: '閉店カフェ' },
+    })
+  })
+
+  it('status=hidden でも本人は取得できる（落とし穴1: D55と同じ罠を再現しない）', async () => {
+    const hiddenCafeId = await insertCafe({
+      name: '非表示カフェ',
+      status: 'hidden',
+      verified_owner_id: owner.userId,
+    })
+    expect(await getOwnerDashboard(typed(owner.client), hiddenCafeId, NOW)).toMatchObject({
+      cafe: { id: hiddenCafeId, name: '非表示カフェ' },
+    })
   })
 
   it('本人には今週/先週の集計・認証日・最新投稿を返す', async () => {
