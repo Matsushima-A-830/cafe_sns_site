@@ -152,9 +152,10 @@ CTA・リンク・成功状態など、brown 単色では表現できないイ�
 | トークン | HEX | 用途 |
 |---|---|---|
 | `terracotta-100` | `#FFDBD0` | タグ・バッジの淡い背景 |
-| `terracotta-300` | `#FE997A` | バッジ強調色 |
-| `terracotta-400` | `#C86D51` | **セカンダリ**（CTA・リンク・テイスティングタグ） |
-| `terracotta-500` | `#97472E` | セカンダリ hover |
+| `terracotta-300` | `#FE997A` | バッジ強調色（装飾専用。地に対し約3.5:1しか出ないため**テキストには使わない**） |
+| `terracotta-400` | `#C86D51` | 装飾アクセント専用（枠線・アイコン等）。地(`#FCF9F2`/白)に対し約3.5:1で**AA未達のためテキスト色として使わない** |
+| `terracotta-500` | `#97472E` | **セカンダリ**（CTA・リンク・テイスティングタグ）。地に対し約6.1:1、白文字でも約6.5:1でAA適合 |
+| `terracotta-600` | `#7A3A25` | セカンダリ hover |
 | `sage-100` | `#D3E8D1` | 成功系の淡い背景 |
 | `sage-400` | `#768A76` | セージアクセント（植物・抹茶モチーフ） |
 | `sage-500` | `#5B7B63` | **成功**（`success`）、いいね系の状態色 |
@@ -189,11 +190,11 @@ CTA・リンク・成功状態など、brown 単色では表現できないイ�
 | `bg-primary` | 内部で `brown-700` | 主要ボタン背景（ロースト・エスプレッソ） |
 | `bg-primary-hover` | 内部で `brown-800` | 主要ボタン hover |
 | `text-primary-foreground` | 内部で `brown-50` | 主要ボタン上のテキスト |
-| `bg-secondary` | 内部で `terracotta-400` | 副次ボタン・CTA背景 |
-| `bg-secondary-hover` | 内部で `terracotta-500` | 副次ボタン hover |
+| `bg-secondary` | 内部で `terracotta-500` | 副次ボタン・CTA背景（`terracotta-400`はAA未達のため使わない） |
+| `bg-secondary-hover` | 内部で `terracotta-600` | 副次ボタン hover |
 | `text-secondary-foreground` | 内部で `white` | 副次ボタン上のテキスト |
-| `text-link` | 内部で `terracotta-400` | リンク色 |
-| `text-link-hover` | 内部で `terracotta-500` | リンク hover |
+| `text-link` | 内部で `terracotta-500` | リンク色（`terracotta-400`はAA未達のため使わない） |
+| `text-link-hover` | 内部で `terracotta-600` | リンク hover |
 
 #### 構造系
 
@@ -302,6 +303,7 @@ CTA・リンク・成功状態など、brown 単色では表現できないイ�
   --color-terracotta-300: #FE997A;
   --color-terracotta-400: #C86D51;
   --color-terracotta-500: #97472E;
+  --color-terracotta-600: #7A3A25;
 
   --color-sage-100: #D3E8D1;
   --color-sage-400: #768A76;
@@ -323,11 +325,11 @@ CTA・リンク・成功状態など、brown 単色では表現できないイ�
   --color-primary:              var(--color-brown-700);
   --color-primary-hover:        var(--color-brown-800);
   --color-primary-foreground:   var(--color-brown-50);
-  --color-secondary:            var(--color-terracotta-400);
-  --color-secondary-hover:      var(--color-terracotta-500);
+  --color-secondary:            var(--color-terracotta-500);
+  --color-secondary-hover:      var(--color-terracotta-600);
   --color-secondary-foreground: #FFFFFF;
-  --color-link:                 var(--color-terracotta-400);
-  --color-link-hover:           var(--color-terracotta-500);
+  --color-link:                 var(--color-terracotta-500);
+  --color-link-hover:           var(--color-terracotta-600);
 
   /* 構造 */
   --color-border-default: var(--color-brown-200);
@@ -472,6 +474,9 @@ MVP初期は **未対応**。導入時は以下の方針:
 
 - **本文テキスト:** `text-brown-900`(`#1C1C18`) on `bg-brown-50`(`#FCF9F2`) → WCAG AA以上を目指す
 - **ミュートテキスト:** `text-brown-500`(`#8D7B75`) on `bg-brown-50` → 副情報用のみ、重要情報には使わない
+- **リンク・セカンダリ:** `text-link` / `text-secondary`(`terracotta-500` = `#97472E`) on `bg-background`/`white` → 約6.1:1でAA適合。
+  `terracotta-400`(`#C86D51`)は地に対し約3.5:1、白文字を乗せても約3.6:1しか出ず**AA未達**なので、
+  テキスト色（`text-link`・`text-secondary`・ボタン背景+白文字）には使わない。装飾（バッジ背景・枠線）専用に留める
 - カラーコントラストは https://webaim.org/resources/contrastchecker/ 等で検証
 
 ### focus リング

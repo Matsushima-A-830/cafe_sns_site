@@ -25,11 +25,14 @@
   --color-cream-100: #fcf9f2;
   --color-cream-200: #f6f3ec;
 
-  /* ===== terracotta 基礎スケール (CTA・リンク・タグ) ===== */
+  /* ===== terracotta 基礎スケール (CTA・リンク・タグ) =====
+     terracotta-400 は装飾（バッジ・枠線）専用。地(#FCF9F2/白)に対し約3.5:1しか出ず
+     WCAG AA(4.5:1)を割るため、テキスト色には terracotta-500 以降だけを使う */
   --color-terracotta-100: #ffdbd0;
   --color-terracotta-300: #fe997a;
   --color-terracotta-400: #c86d51;
   --color-terracotta-500: #97472e;
+  --color-terracotta-600: #7a3a25;
 
   /* ===== sage 基礎スケール (成功・いいね等) ===== */
   --color-sage-100: #d3e8d1;
@@ -51,11 +54,12 @@
   --color-primary: var(--color-brown-700);
   --color-primary-hover: var(--color-brown-800);
   --color-primary-foreground: var(--color-brown-50);
-  --color-secondary: var(--color-terracotta-400);
-  --color-secondary-hover: var(--color-terracotta-500);
+  /* text-secondary / bg-secondary+白文字 の両方でAA(4.5:1)を満たす濃さにする（terracotta-400ではNG） */
+  --color-secondary: var(--color-terracotta-500);
+  --color-secondary-hover: var(--color-terracotta-600);
   --color-secondary-foreground: #ffffff;
-  --color-link: var(--color-terracotta-400);
-  --color-link-hover: var(--color-terracotta-500);
+  --color-link: var(--color-terracotta-500);
+  --color-link-hover: var(--color-terracotta-600);
 
   /* ===== セマンティック: 構造 ===== */
   --color-border-default: var(--color-brown-200);
