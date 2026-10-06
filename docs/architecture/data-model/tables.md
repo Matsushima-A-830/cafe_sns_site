@@ -242,8 +242,10 @@ anon の直接読み出しで盗まれメールを介さず承認を偽装でき
 - `get_owned_cafe()` — `{id, name}`。マイページ「自分の店舗」導線・S_POST_OFFICIAL のカフェ解決用
 - `get_owned_cafe_for_edit(p_cafe_id)` — 編集フォームのフル列。S_OWNER_CAFE_EDIT のプリフィル用
 - `get_owned_cafe_for_dashboard(p_cafe_id)` — `{id, name}`。S_OWNER_DASHBOARD の本人確認＋表示名用
-
-`getCafeDetail`（S_CAFE_DETAIL）はまだ未対応（[pending-items D55](../../product/pending-items.md#d55-認証済みオーナーが自分のカフェを-closedhidden-にすると自分でも閲覧できなくなる)）。
+- `get_owned_cafe_detail(p_cafe_id)` — S_CAFE_DETAIL のフル列（`area_label` は
+  `areas` を明示的に left join して直接返す。埋め込み join は素の SQL 関数で再現できないため）。
+  素朴な select が `null` を返したときだけ呼ぶフォールバックで、RLSポリシー自体は複製しない
+  （[pending-items D55](../../product/pending-items.md#d55-認証済みオーナーが自分のカフェを-closedhidden-にすると自分でも閲覧できなくなる-解消済み2026-10-06)）
 
 ---
 

@@ -1376,7 +1376,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - 参照: カフェ経営者ダッシュボード（S_OWNER_DASHBOARD）実装時に記録（2026-09-21・`/code-review` 指摘）／
   ライブラリ選定・S_OWNER_ANALYTICS実装（2026-09-23）
 
-### D55. 認証済みオーナーが自分のカフェを closed/hidden にすると自分でも閲覧できなくなる
+### D55. 認証済みオーナーが自分のカフェを closed/hidden にすると自分でも閲覧できなくなる ✅ 解消済み（2026-10-06）
 
 - **課題:** `cafes` の SELECT RLS（`cafes_select_active_authenticated`）は
   `status = 'active' or is_admin()` のみで `verified_owner_id` を見ない。`cafe_business_hours` は
@@ -1397,29 +1397,22 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **解消済み（2026-10-05）:** **`getOwnerDashboard`（`lib/owner/dashboard.ts`）** も同じパターンで
   `get_owned_cafe_for_dashboard(p_cafe_id)`（security definer、`{id, name}` のみ返す）経由に修正。
   S_OWNER_DASHBOARD はカフェが closed/hidden でも本人から開ける
-- **現状の動作:** `getOwnedCafe`・`getOwnedCafeForEdit`・`getOwnerDashboard`
-  いずれも closed/hidden で本人から見える。残るは **`getCafeDetail`（S_CAFE_DETAIL）**
-  のみ — カフェを closed/hidden にした瞬間、本人から見ても S_CAFE_DETAIL が404になり、
-  再度 active に戻す手段も本人には無い（admin 頼みになる）
-- **`getCafeDetail` が他の3関数と同じパターンでは解決しない理由:** `CAFE_COLUMNS`
-  （`lib/cafes/cafe-detail.ts`）は `areas!cafes_area_code_fkey (label)` という PostgREST
-  の埋め込み join を使っており、素の SQL 関数（`language sql`）では同じ埋め込みを
-  再現できない。新しい security definer 関数は `areas` を明示的に JOIN して
-  `area_label text` 列を直接返す形にする必要があり、呼び出し元のマッピングも
-  通常 select 経由と RPC 経由で分岐が要る。さらに `getCafeDetail` は
-  `anon`/`authenticated` 双方から4箇所（`app/(browsing)/cafes/[id]/page.tsx` 本題のほか
-  `app/(owner)/owner/claim/[cafeId]/page.tsx`・`app/(user)/report/[targetType]/[id]/page.tsx`・
-  `app/_actions/reports.ts`）で呼ばれる共有関数のため、オーナーバイパス分岐を入れると
-  全呼び出し元に一律で効く点の影響確認も必要
-- **対応方針:** `getCafeDetail` も個別の security definer RPC に寄せる方針を踏襲する
-  （RLSポリシー自体に `or verified_owner_id = auth.uid()` を足す案は、既存3関数の設計方針と
-  矛盾する大きな変更になるため見送り）。「カフェ本体を先に確定させてから営業時間・画像を
-  取りに行く」という既存の順序保証（hidden なカフェの付随データが漏れないようにする設計）も
-  崩さないこと
+- **解消済み（2026-10-06）:** **`getCafeDetail`（`lib/cafes/cafe-detail.ts`）** も解消。
+  `CAFE_COLUMNS` の埋め込み join（`areas!cafes_area_code_fkey (label)`）は素の SQL 関数で
+  再現できないため、`get_owned_cafe_detail(p_cafe_id)`（security definer）は `areas` を
+  明示的に left join して `area_label` を直接返す形にした。`anon`/他人/存在しないIDは
+  従来どおり素朴な select で `null`、本人（`verified_owner_id`）が closed/hidden の
+  ときだけ素朴な select が `null` を返した後にこの RPC へフォールバックする2段構え
+  （RLSポリシー全体を複製せず、`status`・`is_admin()` 判定は素朴な select 側に残す）。
+  未ログインは本人である可能性が無いため、RPC の `authenticated` 限定の EXECUTE 権限に
+  弾かれる前に `auth.getUser()` で弾いてフォールバックを素通りさせる
+- **現状の動作:** `getOwnedCafe`・`getOwnedCafeForEdit`・`getOwnerDashboard`・`getCafeDetail`
+  いずれも closed/hidden で本人から見える。D55 は全面解消
 - 参照: カフェ経営者ダッシュボード（S_OWNER_DASHBOARD）実装時に記録（2026-09-21・`/code-review` 指摘）／
   `getOwnedCafe` 解消（公式投稿 S_POST_OFFICIAL 実装時、2026-09-22・`/code-review` 指摘）／
   `getOwnedCafeForEdit` 解消（S_OWNER_CAFE_EDIT 実装時、2026-09-22）／
-  `getOwnerDashboard` 解消（2026-10-05、本項目単独対応）
+  `getOwnerDashboard` 解消（2026-10-05、本項目単独対応）／
+  `getCafeDetail` 解消（2026-10-06、本項目単独対応・最終）
 
 ### D56. S_POST_OFFICIAL の未対応点（「もっと見る」ページング・通知fan-outの上限・下書き）
 

@@ -1335,6 +1335,23 @@ export type Database = {
           name: string
         }[]
       }
+      get_owned_cafe_detail: {
+        Args: { p_cafe_id: string }
+        Returns: {
+          address: string
+          area_label: string
+          cafe_lat: number
+          cafe_lng: number
+          city: string
+          description: string
+          id: string
+          name: string
+          phone: string
+          prefecture: string
+          verified_owner_id: string
+          website: string
+        }[]
+      }
       get_owned_cafe_for_dashboard: {
         Args: { p_cafe_id: string }
         Returns: {

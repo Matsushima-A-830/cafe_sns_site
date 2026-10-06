@@ -14,7 +14,12 @@ import { OwnerPostsSection } from '@/components/features/cafes/owner-posts-secti
 import { WalkingTimeBadge } from '@/components/features/cafes/walking-time-badge'
 import { PostFeed } from '@/components/features/posts/post-feed'
 import { jstDayOfWeek } from '@/lib/cafes/business-hours'
-import { type CafeDetail, getCafeDetail, getCafePostCount } from '@/lib/cafes/cafe-detail'
+import {
+  type CafeDetail,
+  getCachedUser,
+  getCafeDetail,
+  getCafePostCount,
+} from '@/lib/cafes/cafe-detail'
 import { getCafeCongestion } from '@/lib/cafes/congestion'
 import { getCafeListMembership } from '@/lib/cafes/user-cafe-lists'
 import { getPostList } from '@/lib/posts/post-list'
@@ -144,7 +149,7 @@ export default async function CafeDetailPage({ params }: PageProps) {
   const supabase = await getSupabase()
   const {
     data: { user },
-  } = await supabase.auth.getUser()
+  } = await getCachedUser(supabase)
 
   // 表示に要る残りは往復を直列にしない（CLAUDE.md パフォーマンス「N+1回避」）
   const [postCount, congestion, page, membership, ownerPosts] = await Promise.all([
