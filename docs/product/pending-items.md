@@ -1315,16 +1315,19 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   が必要になったら着手。MVPの申請数では静観して問題ない規模と判断
 - 参照: オーナー認証申請（S_OWNER_CLAIM/S_OWNER_PENDING）実装時に記録（2026-09-21）
 
-### D51. `(owner)` ルートグループに `not-found.tsx` が無く、404が英語既定のまま
+### D51. `(owner)` ルートグループに `not-found.tsx` が無く、404が英語既定のまま（解消済 2026-10-06）
 
-- **課題:** `S_OWNER_DASHBOARD`（`app/(owner)/owner/[cafeId]/page.tsx`）は他人のカフェへのアクセスを
-  `notFound()` で弾くが、`(owner)` ルートグループには `S_CAFE_DETAIL` が持つような専用の
-  `not-found.tsx`（`app/(browsing)/cafes/[id]/not-found.tsx` 参照）が無い。
-  Next.js既定の英語404（"This page could not be found."）にフォールバックする。
-  `owner/claim/[cafeId]` と `owner/pending` も同じ `notFound()` を使っており、この状態は
-  ダッシュボード実装前から存在していた
-- **現状の動作:** ステータスコードは正しく404になる（実害なし）。表示だけが他画面と不揃い
-- **対応方針:** `app/(owner)/not-found.tsx` を1つ用意し、3画面（claim/pending/dashboard）で共有する
+- **課題:** `(owner)` ルートグループには `S_CAFE_DETAIL` が持つような専用の
+  `not-found.tsx`（`app/(browsing)/cafes/[id]/not-found.tsx` 参照）が無く、
+  Next.js既定の英語404（"This page could not be found."）にフォールバックしていた。
+  対象は `notFound()` を呼ぶ6画面: `owner/claim/[cafeId]`・`owner/pending`・
+  `owner/[cafeId]`（S_OWNER_DASHBOARD）・`owner/[cafeId]/edit`（S_OWNER_CAFE_EDIT）・
+  `owner/[cafeId]/analytics`（S_OWNER_ANALYTICS）・`owner/[cafeId]/regulars`（S_OWNER_REGULARS）。
+  後者3つはダッシュボード実装後（D52解消時）に追加されたもので、当初の記録（2026-09-21）が
+  「3画面」としていたのは実態とズレていた
+- **対応:** `app/(owner)/not-found.tsx` を1つ用意し、レイアウト境界により6画面すべてで共有する。
+  カフェ自体が存在しない・認証申請が存在しない・他人のカフェ（403を404として返す設計）の
+  3種類の原因すべてに当てはまる汎用文言にした（「カフェ」を主語にしない）
 - 参照: カフェ経営者ダッシュボード（S_OWNER_DASHBOARD）実装時に記録（2026-09-21）
 
 ### D52. S_OWNER_DASHBOARD のメニュー5項目のうち遷移先があるものが無い
