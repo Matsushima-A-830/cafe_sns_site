@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { cache } from 'react'
 import type { BusinessHour } from '@/lib/cafes/business-hours'
 import { getPostImagePublicUrl } from '@/lib/storage/post-images'
 import { isStoragePublicUrl } from '@/lib/storage/public-url'
@@ -12,6 +13,14 @@ import type { Database } from '@/types/database'
  */
 
 type Client = SupabaseClient<Database>
+
+/**
+ * 1リクエスト内で同じ supabase インスタンスに対して呼べば auth.getUser() の
+ * Auth サーバーへの往復を1回に重複排除する（getSupabase/loadCafe と同じ cache() パターン、
+ * app/(browsing)/cafes/[id]/page.tsx 参照）。本人判定後にページ側も同じユーザーを
+ * 必要とするため、呼び出し元と共有できるようここで export する
+ */
+export const getCachedUser = cache((supabase: Client) => supabase.auth.getUser())
 
 /**
  * 公開してよい列だけを列挙する。external_ids（外部サービスのID）・metadata・created_by は
@@ -56,6 +65,42 @@ type CafeRow = {
   cafe_lat: number | null
   cafe_lng: number | null
   areas: { label: string } | null
+}
+
+/** get_owned_cafe_detail RPC の行。埋め込み join が使えないため area_label を直接持つ */
+type OwnedCafeDetailRow = {
+  id: string
+  name: string
+  prefecture: string
+  city: string
+  address: string | null
+  phone: string | null
+  website: string | null
+  description: string | null
+  verified_owner_id: string | null
+  cafe_lat: number | null
+  cafe_lng: number | null
+  area_label: string | null
+}
+
+type CafeCore = Omit<CafeDetail, 'heroImageUrl' | 'businessHours'>
+
+function toCafeCore(cafe: CafeRow | OwnedCafeDetailRow, areaLabel: string | null): CafeCore {
+  return {
+    id: cafe.id,
+    name: cafe.name,
+    // エリア名が無いカフェ（area_code 未設定）は市区町村で代替する（composer と同じ）
+    areaLabel: areaLabel ?? `${cafe.prefecture}${cafe.city}`,
+    address: cafe.address,
+    phone: cafe.phone,
+    website: cafe.website,
+    description: cafe.description,
+    isVerified: cafe.verified_owner_id !== null,
+    location:
+      cafe.cafe_lat !== null && cafe.cafe_lng !== null
+        ? { lat: cafe.cafe_lat, lng: cafe.cafe_lng }
+        : null,
+  }
 }
 
 type BusinessHourRow = {
@@ -117,7 +162,12 @@ async function resolveHeroImageUrl(supabase: Client, cafeId: string): Promise<st
  * `status='active'`（admin のみ例外）で行を絞るため、closed / hidden と存在しないIDは
  * どちらも0件になり、呼び出し元は notFound() に落とすだけでよい。
  * 逆に cafe_business_hours_select_all は `using (true)` なので、営業時間から先に引くと
- * hidden なカフェのものまで読めてしまう。必ずカフェ本体を先に確定させる
+ * hidden なカフェのものまで読めてしまう。必ずカフェ本体を先に確定させる。
+ *
+ * 素朴な select が null を返した場合（closed/hidden で RLS に落とされた、または
+ * 存在しない）、get_owned_cafe_detail（security definer）で本人のカフェかだけ
+ * 追加確認する。anon・他人のカフェ・存在しないIDはそこでも null のまま
+ *   docs/product/pending-items.md D55
  */
 export async function getCafeDetail(supabase: Client, cafeId: string): Promise<CafeDetail | null> {
   // 形が不正だと PostgREST の 22P02（invalid input syntax for uuid）になるので先に弾く
@@ -130,38 +180,48 @@ export async function getCafeDetail(supabase: Client, cafeId: string): Promise<C
     .maybeSingle()
 
   if (error) throw new Error(`カフェの取得に失敗しました: ${error.message}`)
-  if (!data) return null
 
-  const cafe = data as unknown as CafeRow
+  const cafeRow = data as unknown as CafeRow | null
+  const cafeCore = cafeRow
+    ? toCafeCore(cafeRow, cafeRow.areas?.label ?? null)
+    : await resolveOwnedCafeCore(supabase, cafeId)
+  if (!cafeCore) return null
 
   const [hours, heroImageUrl] = await Promise.all([
     supabase
       .from('cafe_business_hours')
       .select('day_of_week, opens_at, closes_at, is_closed, notes')
-      .eq('cafe_id', cafe.id)
+      .eq('cafe_id', cafeCore.id)
       .order('day_of_week', { ascending: true }),
-    resolveHeroImageUrl(supabase, cafe.id),
+    resolveHeroImageUrl(supabase, cafeCore.id),
   ])
 
   if (hours.error) throw new Error(`営業時間の取得に失敗しました: ${hours.error.message}`)
 
   return {
-    id: cafe.id,
-    name: cafe.name,
-    // エリア名が無いカフェ（area_code 未設定）は市区町村で代替する（composer と同じ）
-    areaLabel: cafe.areas?.label ?? `${cafe.prefecture}${cafe.city}`,
-    address: cafe.address,
-    phone: cafe.phone,
-    website: cafe.website,
-    description: cafe.description,
+    ...cafeCore,
     heroImageUrl,
-    isVerified: cafe.verified_owner_id !== null,
     businessHours: (hours.data ?? []).map(toBusinessHour),
-    location:
-      cafe.cafe_lat !== null && cafe.cafe_lng !== null
-        ? { lat: cafe.cafe_lat, lng: cafe.cafe_lng }
-        : null,
   }
+}
+
+/**
+ * 素朴な select が RLS に落とされたときだけ呼ぶ、本人の closed/hidden カフェ向けフォールバック。
+ * RPC の EXECUTE 権限は authenticated にしか付けていないため、anon のまま呼ぶと
+ * permission denied になる。未ログインは本人である可能性が無いので先に弾いて素通りさせる
+ */
+async function resolveOwnedCafeCore(supabase: Client, cafeId: string): Promise<CafeCore | null> {
+  const {
+    data: { user },
+  } = await getCachedUser(supabase)
+  if (!user) return null
+
+  const { data, error } = await supabase.rpc('get_owned_cafe_detail', { p_cafe_id: cafeId })
+  if (error) throw new Error(`カフェの取得に失敗しました: ${error.message}`)
+
+  const cafe = data?.[0]
+  if (!cafe) return null
+  return toCafeCore(cafe, cafe.area_label)
 }
 
 /**

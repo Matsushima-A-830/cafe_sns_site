@@ -33,6 +33,7 @@ const publishedAt = (offsetMinutes: number) =>
 
 let author: AuthedUser
 let reporter: AuthedUser
+let owner: AuthedUser
 
 const cafeIds: string[] = []
 const postIds: string[] = []
@@ -77,6 +78,7 @@ let otherCafeId: string
 beforeAll(async () => {
   author = await createAuthedProfile({ username: 'author_cafe_detail' })
   reporter = await createAuthedProfile({ username: 'reporter_cafe_detail' })
+  owner = await createAuthedProfile({ username: 'owner_cafe_detail' })
 
   activeCafeId = await insertCafe({
     name: '表参道ロースタリー',
@@ -85,8 +87,16 @@ beforeAll(async () => {
     website: 'https://example.com',
     description: '静かな喫茶店',
   })
-  closedCafeId = await insertCafe({ name: '閉店した店', status: 'closed' })
-  hiddenCafeId = await insertCafe({ name: '非公開の店', status: 'hidden' })
+  closedCafeId = await insertCafe({
+    name: '閉店した店',
+    status: 'closed',
+    verified_owner_id: owner.userId,
+  })
+  hiddenCafeId = await insertCafe({
+    name: '非公開の店',
+    status: 'hidden',
+    verified_owner_id: owner.userId,
+  })
   otherCafeId = await insertCafe({ name: '別の店' })
 
   // 平日 08:00-22:00 / 日曜定休 / 金曜は深夜営業。
@@ -130,6 +140,7 @@ afterAll(async () => {
   if (cafeIds.length > 0) await service.from('cafes').delete().in('id', cafeIds)
   await author?.cleanup()
   await reporter?.cleanup()
+  await owner?.cleanup()
 })
 
 describe('getCafeDetail', () => {
@@ -149,6 +160,19 @@ describe('getCafeDetail', () => {
   it('closed / hidden は RLS が落とすので null になる（アプリ層で status を書いていない）', async () => {
     expect(await getCafeDetail(typed(anon), closedCafeId)).toBeNull()
     expect(await getCafeDetail(typed(anon), hiddenCafeId)).toBeNull()
+  })
+
+  it('closed / hidden でも本人（verified_owner_id）からは get_owned_cafe_detail 経由で見える（D55）', async () => {
+    const closed = await getCafeDetail(typed(owner.client), closedCafeId)
+    expect(closed).toMatchObject({ id: closedCafeId, name: '閉店した店' })
+
+    const hidden = await getCafeDetail(typed(owner.client), hiddenCafeId)
+    expect(hidden).toMatchObject({ id: hiddenCafeId, name: '非公開の店' })
+  })
+
+  it('closed / hidden は本人以外の認証済みユーザーからは見えない（null）のまま', async () => {
+    expect(await getCafeDetail(typed(reporter.client), closedCafeId)).toBeNull()
+    expect(await getCafeDetail(typed(reporter.client), hiddenCafeId)).toBeNull()
   })
 
   it('存在しないIDは null', async () => {
