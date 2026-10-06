@@ -1315,7 +1315,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   が必要になったら着手。MVPの申請数では静観して問題ない規模と判断
 - 参照: オーナー認証申請（S_OWNER_CLAIM/S_OWNER_PENDING）実装時に記録（2026-09-21）
 
-### D51. `(owner)` ルートグループに `not-found.tsx` が無く、404が英語既定のまま（解消済 2026-10-06）
+### D51. `(owner)` ルートグループに `not-found.tsx` が無く、404が英語既定のまま ✅ 解消済み（2026-10-06）
 
 - **課題:** `(owner)` ルートグループには `S_CAFE_DETAIL` が持つような専用の
   `not-found.tsx`（`app/(browsing)/cafes/[id]/not-found.tsx` 参照）が無く、

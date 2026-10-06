@@ -1,6 +1,5 @@
 // (owner) グループ全体（claim/pending/dashboard/edit/analytics/regulars）の 404。
-// カフェが存在しない・認証申請が存在しない・他人のカフェへのアクセス（403を404として返す設計）
-// のいずれもここへ落とす（区別して伝えると「本人のものではない」ことが漏れる）
+// カフェ不存在・申請不存在・他人のカフェ（403を404化）を区別せず落とす（存在が漏れるため）
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { errorMessage } from '@/lib/utils/error-messages'
