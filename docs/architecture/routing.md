@@ -130,6 +130,7 @@ app/
 │
 ├── (owner)/                         # 経営者
 │   ├── layout.tsx                   # 経営者ダッシュボードシェル
+│   ├── not-found.tsx                # グループ共通404（claim/pending/dashboard/edit/analytics/regulars）
 │   └── owner/
 │       ├── claim/
 │       │   └── [cafeId]/

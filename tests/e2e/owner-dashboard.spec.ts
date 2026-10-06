@@ -91,11 +91,11 @@ test('他人のカフェのダッシュボードは role=owner でも404にな�
   await service.from('profiles').update({ role: 'owner' }).eq('id', otherOwner.userId)
 
   await login(page, otherOwner, '/')
-  // (owner) route group には not-found.tsx が無く（owner/claim・owner/pending と同じ状態）、
-  // Next.js既定の英語404にフォールバックする。文言の日本語化は D51 で別途扱う。
-  // ここでは 404 ステータスとダッシュボードの中身が出ないことを確認する
+  // (owner) route group 共通の not-found.tsx（D51）が受け止める。
+  // 403を404として返す設計のため、他人のカフェも「存在しない」と同じ表示になる
   const response = await page.goto(`/owner/${cafe.id}`)
   expect(response?.status()).toBe(404)
+  await expect(page.getByRole('heading', { name: '対象が見つかりませんでした' })).toBeVisible()
   await expect(page.getByText('今週のサマリー')).toHaveCount(0)
 })
 
