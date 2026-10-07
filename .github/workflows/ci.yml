@@ -115,11 +115,14 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [changes, lint-typecheck-test]
+    # lint-typecheck-test の完了を待たない。両ジョブは互いに独立しているため、
+    # 直列にすると (lint/typecheck/test の時間) + (build の時間) が待ち時間に
+    # 乗ってしまう。必須ステータスチェックはどちらも個別に見るので、並列化しても
+    # 「lint が壊れていてもマージできる」ことにはならない
+    needs: [changes]
     if: >-
       always() &&
-      (needs.changes.result != 'success' || needs.changes.outputs.code == 'true') &&
-      needs.lint-typecheck-test.result == 'success'
+      (needs.changes.result != 'success' || needs.changes.outputs.code == 'true')
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v6
@@ -128,6 +131,19 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+
+      # e2e.yml と同じ仕組み。NEXT_PUBLIC_* がダミー値で e2e.yml とは異なるため、
+      # キャッシュキーの namespace を分けて混ざらないようにする
+      # （Next.js の webpack/turbopack キャッシュは env 変更での無効化が弱く、
+      # 混ぜると別ジョブのビルドにダミー/実値が紛れ込む恐れがある）
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-nextjs-ci-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-ci-${{ hashFiles('pnpm-lock.yaml') }}-
+
       - name: Next.js build
         run: pnpm build
         env:
