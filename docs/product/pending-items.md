@@ -1150,9 +1150,9 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   `tests/integration/badges-check.test.ts` の `likes_given: フォロワー限定投稿へのいいねも...`
 - 参照: `comments` 実装の引き継ぎ調査で発見（2026-09-20）
 
-### D39. コメントUI（comment-list / comment-form）が実機未確認のまま（解消済・2026-10-07）
+### D39. コメントUI（comment-list / comment-form）が実機未確認のまま ✅ 解消済（2026-10-07）
 
-- **課題（解消済）:** S_POST_DETAIL に埋め込んだコメントスレッド（`comment-list.tsx` /
+- **課題:** S_POST_DETAIL に埋め込んだコメントスレッド（`comment-list.tsx` /
   `comment-form.tsx`）はコンポーネントテスト（22件、モック経由）と DB/BE の統合テストで
   検証したのみで、ブラウザでの実機確認ができていなかった
 - **対応:** `tests/e2e/comments.spec.ts` を新規追加し、4プロジェクト（chromium / webkit /
