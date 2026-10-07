@@ -1,5 +1,5 @@
-import exifr from 'exifr'
 import type { Result } from '@/types/result'
+import { detectGpsExif } from './exif-gps-check'
 import { POST_IMAGE_CONTENT_TYPE, POST_IMAGE_MAX_BYTES } from './post-images'
 
 /**
@@ -85,9 +85,11 @@ export async function encodeWithinLimit(
 
 /**
  * EXIF を剥がして WebP に変換する。canvas への再描画でメタデータは構造的に落ちるが、
- * 位置情報の流出は取り返しがつかないため、出力を exifr で読み直して GPS が
+ * 位置情報の流出は取り返しがつかないため、出力を detectGpsExif で読み直して GPS が
  * 残っていないことまで確認する（CLAUDE.md セキュリティと安全）。
- * 回転情報も同時に失われるため、デコード時に imageOrientation で焼き込む
+ * 回転情報も同時に失われるため、デコード時に imageOrientation で焼き込む。
+ * 読み直し自体が失敗した場合は fail-open にする（サーバー側の verifyNoGpsExif が
+ * finalize 直前の保険として効くため、ここでアップロード自体を止める必要はない）
  */
 export async function processPostImage(
   file: File,
@@ -123,8 +125,8 @@ export async function processPostImage(
     )
     if (!encoded.ok) return encoded
 
-    const gps = await exifr.gps(encoded.data).catch(() => null)
-    if (gps) return { ok: false, error: 'EXIF_STRIP_FAILED' }
+    const detection = await detectGpsExif(await encoded.data.arrayBuffer())
+    if (detection.ok && detection.data) return { ok: false, error: 'EXIF_STRIP_FAILED' }
 
     return { ok: true, data: { blob: encoded.data, width, height } }
   } finally {
