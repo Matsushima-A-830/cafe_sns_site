@@ -1737,6 +1737,24 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - モデレーションランブック（[docs/operations/moderation-runbook.md](../operations/moderation-runbook.md)）
 - 参照: D66段階公開の決定（2026-10-08）
 
+### D68. S_POST_BLOG に「アイキャッチ画像」欄が無く、ブログ投稿は一覧でサムネイルが出ない
+
+- **課題:** [wireframes/composer.md #S_POST_BLOG](../design/wireframes/composer.md#s_post_blogブログ投稿)
+  のモバイル/PC両レイアウトに「アイキャッチ画像 [+ 画像を追加]」が独立したサイドバー項目として
+  描かれているが、`components/features/composer/blog-composer.tsx` にはこの項目が無い
+  （`image-picker.tsx` を import していない。S_POST_SHORT のみ写真欄を持つ）
+- **実害:** `components/features/composer/tiptap-editor.tsx` の本文埋め込み画像は
+  `post_images` 行を作らない設計（同ファイルのコメント参照）。ブログ投稿は写真欄
+  （`post_images`）に書き込む経路が存在しないため、本文に画像を何枚入れても
+  `post_images[0]` を見る `lib/posts/post-list.ts:200,218` は常に `null` を返し、
+  投稿カード（`post-card.tsx:28`）にサムネイルが**一切表示されない**
+- **対応方針（未決）:** a) アイキャッチ画像欄を実装し`post_images`へ登録する
+  b) 本文内の最初の画像をカードのサムネイルとして流用する（`post_images`は使わず、
+  本文JSONから抽出する別ロジックが要る） c) MVPは割り切ってブログ投稿はカードに
+  サムネイルを出さない仕様として `wireframes/composer.md` 側を修正する
+- **決定期限:** 未定。BlogComposerの実機確認（D34）を優先し、その後に判断する
+- 参照: D34（BlogComposer実機確認）着手前の調査で発覚（2026-10-08）
+
 ## 削除・アーカイブ判断待ち
 
 現時点で「削除する」と決めた項目はなし。追加・変更発生時にここに追記。
