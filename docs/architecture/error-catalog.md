@@ -47,6 +47,7 @@
 | `GUARDIAN_EMAIL_SELF_FORBIDDEN` | 保護者メールが未成年本人のアカウントメールと同一（自己承認の迂回を防ぐ） | submitGuardianConsent / updateGuardianEmail |
 | `ACCOUNT_SUSPENDED` | 停止中アカウント | すべて |
 | `ACCOUNT_DELETED` | 削除済みアカウント | login |
+| `BETA_SIGNUP_CLOSED` | 検証ベータの新規登録締切後（[pending-items D67](../product/pending-items.md#d67-招待制検証ベータの技術的準備)） | signup |
 
 ### 投稿 / コメント
 

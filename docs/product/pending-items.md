@@ -1730,6 +1730,11 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
     リンクする
   - モデレーションフローの内部runbook化（`docs/operations/`配下。通報一次対応の目標時間等を記述）
 - **決定期限:** 2026-10-15（検証ベータ公開日）
+- **実装状況（2026-10-08）: 4点すべて実装済み。**
+  - `app/robots.ts`（`lib/constants/beta.ts` の `BETA_SIGNUP_CLOSES_AT` と連動、締切後は恒久設計に自動切替）
+  - `signUp`（`app/_actions/auth.ts`）の締切チェック + `/signup` ページの終了案内（`BETA_SIGNUP_CLOSED`）
+  - 削除依頼受付窓口（`/takedown`、`/terms`からリンク）
+  - モデレーションランブック（[docs/operations/moderation-runbook.md](../operations/moderation-runbook.md)）
 - 参照: D66段階公開の決定（2026-10-08）
 
 ## 削除・アーカイブ判断待ち

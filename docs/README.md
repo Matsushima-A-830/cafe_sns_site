@@ -54,6 +54,7 @@ docs/
 | **[deployment.md](./operations/deployment.md)** ⭐️ | 環境構成・CI/CD・監視・ドメイン・AWS移行 |
 | ⏳ [ci-outage-stacked-prs.md](./operations/ci-outage-stacked-prs.md) | **時限措置（〜2026-10-01）**: GitHub Actions予算切れ期間のスタックPR運用 |
 | [agent-pipeline.md](./operations/agent-pipeline.md) | 無人実行（nightly）・自動レビュー・無人マージのステージと安全弁 |
+| [moderation-runbook.md](./operations/moderation-runbook.md) | 通報・削除依頼の一次対応手順（目標対応時間・判定基準） |
 
 ### 🌱 Seed（初期投入データ）
 

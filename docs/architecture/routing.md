@@ -420,7 +420,7 @@ Server Actionsで代替できないものだけを Route Handlers で実装。
 | `loading.tsx` | 各主要ルート | Suspense fallback（スケルトンUI） |
 | `error.tsx` | 各グループのlayout付近 | エラーバウンダリ |
 | `not-found.tsx` | `app/`, `posts/[id]/`, `cafes/[id]/` 等 | 404画面 |
-| `robots.ts` | `app/robots.ts` | クローラ制御。管理・オーナー画面はDisallow |
+| `robots.ts` | `app/robots.ts` | クローラ制御。管理・オーナー画面はDisallow（検証ベータ期間中は`lib/constants/beta.ts`の締切と連動して全面Disallow。[pending-items D67](../product/pending-items.md#d67-招待制検証ベータの技術的準備)） |
 | `sitemap.ts` | `app/sitemap.ts` | 公開投稿・カフェを含む動的サイトマップ |
 | `manifest.ts` | `app/manifest.ts` | PWA用（アプリ化を見据えて早めに用意） |
 
