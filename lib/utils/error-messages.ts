@@ -19,6 +19,7 @@ const messages: Partial<Record<ErrorCode, string>> = {
   BIRTHDATE_REQUIRED: '生年月日を入力してください',
   ACCOUNT_SUSPENDED: 'このアカウントは停止されています',
   ACCOUNT_DELETED: 'このアカウントは削除されています',
+  BETA_SIGNUP_CLOSED: '検証ベータの新規登録期間は終了しました',
   AREA_CODE_UNKNOWN: '選択したエリアが見つかりませんでした',
   CONSENT_REQUIRED: '保護者の同意が必要です',
   CONSENT_TOKEN_INVALID: '同意リンクが無効か、有効期限が切れています',
