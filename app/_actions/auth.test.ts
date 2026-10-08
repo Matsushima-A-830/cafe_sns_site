@@ -1,7 +1,8 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   refreshConsentStatus,
   resendGuardianConsentEmail,
+  signUp,
   submitGuardianConsent,
   updateGuardianEmail,
 } from './auth'
@@ -46,6 +47,45 @@ afterEach(() => {
   vi.clearAllMocks()
   generateGuardianConsentTokenMock.mockReturnValue(TOKEN)
   sendGuardianConsentEmailMock.mockResolvedValue({ ok: true })
+})
+
+describe('signUp', () => {
+  const validInput = {
+    email: 'new-user@example.com',
+    password: 'password1',
+    passwordConfirm: 'password1',
+    agreedToTerms: true,
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('締切前は登録できる', async () => {
+    vi.setSystemTime(new Date('2026-11-30T23:59:58+09:00'))
+    const signUpMock = vi.fn().mockResolvedValue({ error: null })
+    createClientMock.mockResolvedValue({ auth: { signUp: signUpMock } })
+
+    const result = await signUp(validInput)
+
+    expect(result).toEqual({ ok: true, data: { email: validInput.email } })
+    expect(signUpMock).toHaveBeenCalled()
+  })
+
+  it('締切後は BETA_SIGNUP_CLOSED を返し、Supabaseへは到達しない', async () => {
+    vi.setSystemTime(new Date('2026-12-01T00:00:00+09:00'))
+    const signUpMock = vi.fn()
+    createClientMock.mockResolvedValue({ auth: { signUp: signUpMock } })
+
+    const result = await signUp(validInput)
+
+    expect(result).toEqual({ ok: false, error: 'BETA_SIGNUP_CLOSED' })
+    expect(signUpMock).not.toHaveBeenCalled()
+  })
 })
 
 describe('submitGuardianConsent', () => {

@@ -1,6 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { isBetaSignupClosed } from '@/lib/constants/beta'
 import { sendGuardianConsentEmail } from '@/lib/email/guardian-consent'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -40,6 +41,9 @@ function isGuardianEmailSelf(guardianEmail: string, ownEmail: string | undefined
 }
 
 export async function signUp(input: unknown): Promise<Result<{ email: string }>> {
+  // /signup ページ側の表示切替だけだとServer Actionを直接叩かれた場合に抜ける（D67）
+  if (isBetaSignupClosed()) return { ok: false, error: 'BETA_SIGNUP_CLOSED' }
+
   const parsed = signupSchema.safeParse(input)
   if (!parsed.success) return { ok: false, error: 'INVALID_INPUT', details: parsed.error.flatten() }
 
