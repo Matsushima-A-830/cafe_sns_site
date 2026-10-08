@@ -1074,14 +1074,16 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - `tests/e2e/composer-blog.spec.ts` を新規追加（公開〜詳細表示／タイトル・本文どちらか空だと
     公開不可／本文埋め込み画像の公開〜詳細表示／下書き保存→リロード→復元／プレビュー）。
     chromium・webkit・mobile-safari で実行し green
-  - **実機確認で重大なバグが見つかった:** TiptapEditor の `onUpdate` が `editor.getJSON()` を
-    そのまま `onChange` に渡していたため、本文に挿入した画像が**一度も投稿として残っていなかった**
+  - **実機確認で重大なバグが見つかった:** TiptapEditor の `editor.getJSON()` をそのまま
+    `fields.bodyJson` に積んでいたため、本文に挿入した画像が**一度も投稿として残っていなかった**
     （公開・下書き保存のどちらでも消える）。原因は ProseMirror のノード `attrs` が
     `Object.create(null)` ベースでプロトタイプを持たず、Server Actions（React Flight）が
     プレーンオブジェクトと認識できず無言で欠落させていたこと（`image.attrs.src` が消え、
     `PostBody` が「配信元が想定外」と判定して描画しない）。見出しレベルや番号付きリストの
     開始番号も同じ経路で欠落するはずだが未検証。`JSON.parse(JSON.stringify(...))` で
-    プレーンオブジェクトへ変換し直して修正した（`tiptap-editor.tsx`）
+    プレーンオブジェクトへ変換し直して修正した。本文編集のたびに走らせたくないため、TiptapEditor
+    側ではなく `use-composer.ts` の `toPlainBodyJson()`（自動保存・投稿確定の直前のみ呼ばれる）に
+    置いた（`/code-review` 指摘：全キー入力ごとの再シリアライズは避けるべき）
   - jsdom のユニットテスト（`use-composer.test.tsx` 等）は Server Actions の実シリアライズを
     経由しないため、このバグを検出できる経路が無かった。D34 がそもそも
     「実ブラウザでしか起きないことが覆われていない」という課題である実例になった
