@@ -65,7 +65,12 @@ export function TiptapEditor({
         'aria-label': '本文',
       },
     },
-    onUpdate: ({ editor: instance }) => onChange(instance.getJSON() as Record<string, unknown>),
+    // editor.getJSON() のノード attrs は Object.create(null) ベースで
+    // プロトタイプが無く、Server Actions（React Flight）がプレーンオブジェクトと
+    // 認識できず無言で欠落する（image の src が消え、投稿詳細に画像が出ない）。
+    // JSON の往復でプレーンオブジェクトへ変換し直す
+    onUpdate: ({ editor: instance }) =>
+      onChange(JSON.parse(JSON.stringify(instance.getJSON())) as Record<string, unknown>),
   })
 
   if (!editor) {
