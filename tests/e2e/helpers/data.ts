@@ -137,7 +137,7 @@ export type E2ECafe = { id: string; name: string }
  */
 export async function createActiveCafe(
   suffix: string,
-  overrides: { location?: string } = {},
+  overrides: { location?: string; area_code?: string } = {},
 ): Promise<E2ECafe> {
   const service = serviceRoleClient()
   const name = `E2E珈琲店 ${suffix}`
@@ -183,10 +183,15 @@ export async function createPendingOwnerVerification(
 export type E2EPost = { id: string; excerpt: string }
 
 /**
- * 公開中の短文投稿。`published_at` は posts_set_published_at トリガーが補う。
+ * 公開中の短文投稿。`published_at` は posts_set_published_at トリガーが補うが、
+ * 明示的に渡せば上書きしない（並び順を固定したいページング検証用）
  * 抜粋は一覧・詳細のどちらでも投稿を名指しで掴めるよう、suffix を混ぜて一意にする
  */
-export async function createPublishedPost(authorId: string, suffix: string): Promise<E2EPost> {
+export async function createPublishedPost(
+  authorId: string,
+  suffix: string,
+  overrides: { publishedAt?: string; cafeId?: string } = {},
+): Promise<E2EPost> {
   const service = serviceRoleClient()
   const excerpt = `E2Eいいねの投稿 ${suffix}`
 
@@ -198,12 +203,75 @@ export async function createPublishedPost(authorId: string, suffix: string): Pro
         type: 'doc',
         content: [{ type: 'paragraph', content: [{ type: 'text', text: excerpt }] }],
       },
+      ...(overrides.publishedAt ? { published_at: overrides.publishedAt } : {}),
+      ...(overrides.cafeId ? { cafe_id: overrides.cafeId } : {}),
     })
     .select('id')
     .single()
 
   if (error || !data) throw new Error(`E2E 投稿の作成に失敗: ${error?.message}`)
   return { id: data.id as string, excerpt }
+}
+
+/** スラッグから厳選タグのIDを引く。docs/seed/curated-tags-initial-set.md のタグはseedではなくmigrationで入る */
+export async function getTagIdBySlug(slug: string): Promise<string> {
+  const service = serviceRoleClient()
+  const { data, error } = await service.from('tags').select('id').eq('slug', slug).single()
+  if (error || !data) throw new Error(`E2E タグの取得に失敗 (slug=${slug}): ${error?.message}`)
+  return data.id as string
+}
+
+/**
+ * テスト専用の使い捨てタグを作る。
+ *  - 「おすすめ」タブのスコアリングは user_interest_tags / post_tags の一致を見るだけで
+ *    投稿の作者やテストを区別しない
+ *  - 'solo-time' 等の実在の厳選タグを使うと、並行実行中の別テスト（同じタグを使う別ファイル・
+ *    同じファイルの別ブラウザプロジェクト）のデータまで一致数に乗ってランキング検証が崩れる
+ *  - スラッグをテストごとに一意にすれば、一致は自分のテストが作った行だけに閉じる
+ */
+export async function createTestTag(suffix: string): Promise<{ id: string; slug: string }> {
+  const service = serviceRoleClient()
+  const slug = `e2e-${randomToken(10)}`
+  const { data, error } = await service
+    .from('tags')
+    .insert({ slug, label: `E2Eテストタグ ${suffix}`, category: 'mood' })
+    .select('id')
+    .single()
+  if (error || !data) throw new Error(`E2E テストタグの作成に失敗: ${error?.message}`)
+  return { id: data.id as string, slug }
+}
+
+/** S_HOME/S_EXPLORE「おすすめ」タブのスコアリング対象にする（user_interest_tags） */
+export async function addInterestTag(userId: string, tagSlugOrId: string): Promise<void> {
+  const service = serviceRoleClient()
+  const tagId = await resolveTagId(tagSlugOrId)
+  const { error } = await service
+    .from('user_interest_tags')
+    .insert({ user_id: userId, tag_id: tagId })
+  if (error) throw new Error(`E2E 興味タグの登録に失敗: ${error.message}`)
+}
+
+/** 投稿にタグを付ける（post_tags）。mood チップ絞り込み・おすすめスコアリングの前提データ用 */
+export async function tagPost(postId: string, tagSlugOrId: string): Promise<void> {
+  const service = serviceRoleClient()
+  const tagId = await resolveTagId(tagSlugOrId)
+  const { error } = await service.from('post_tags').insert({ post_id: postId, tag_id: tagId })
+  if (error) throw new Error(`E2E 投稿タグの登録に失敗: ${error.message}`)
+}
+
+/** UUID ならそのままID、そうでなければスラッグとして引く（createTestTag の戻り値とcurated slug両対応） */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+async function resolveTagId(tagSlugOrId: string): Promise<string> {
+  return UUID_PATTERN.test(tagSlugOrId) ? tagSlugOrId : getTagIdBySlug(tagSlugOrId)
+}
+
+/** フォロー中タブの前提データ用。follows は RLS insert を本人限定にしているため service role で直接作る */
+export async function followUser(followerId: string, followeeId: string): Promise<void> {
+  const service = serviceRoleClient()
+  const { error } = await service
+    .from('follows')
+    .insert({ follower_id: followerId, followee_id: followeeId })
+  if (error) throw new Error(`E2E フォロー関係の作成に失敗: ${error.message}`)
 }
 
 /**
