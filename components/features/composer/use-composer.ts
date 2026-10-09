@@ -58,13 +58,22 @@ function isBlank(fields: ComposerFields): boolean {
   )
 }
 
+/** TiptapEditor の editor.getJSON() が返す node attrs は Object.create(null) ベースで
+ * プロトタイプを持たず、Server Actions（React Flight）がプレーンオブジェクトと
+ * 認識できず無言で欠落する（image の src が消える）。Server Action へ渡す直前に
+ * JSON往復でプレーンオブジェクト化する（D34）。本文編集のたびには走らせたくないため、
+ * 呼び出し頻度の低い自動保存・投稿確定の直前のみで行う */
+function toPlainBodyJson(bodyJson: Record<string, unknown>): Record<string, unknown> {
+  return JSON.parse(JSON.stringify(bodyJson))
+}
+
 function toPayload(postId: string, postType: PostType, fields: ComposerFields): DraftPayload {
   return {
     v: DRAFT_PAYLOAD_VERSION,
     post_id: postId,
     post_type: postType,
     title: fields.title.trim().length > 0 ? fields.title : null,
-    body_json: fields.bodyJson,
+    body_json: toPlainBodyJson(fields.bodyJson),
     tag_ids: fields.tagIds,
     image_paths: fields.images.map((image) => image.path),
     cafe_id: fields.cafe?.id ?? null,
@@ -257,7 +266,7 @@ export function useComposer(postType: PostType) {
       postId,
       postType,
       ...(postType === 'blog' ? { title: current.title } : {}),
-      bodyJson: current.bodyJson,
+      bodyJson: toPlainBodyJson(current.bodyJson),
       cafeId: current.cafe?.id,
       tagIds: current.tagIds,
       imagePaths: current.images.map((image) => image.path),

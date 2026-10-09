@@ -997,7 +997,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 | 画面 | 実装PR | 実機確認 | E2E |
 |---|---|---|---|
 | `/new` `/new/short` `/new/success`（composer・短文） | #29 / #30 | ✅（2026-10-07） | ✅ `composer-short.spec.ts` |
-| `/new/blog`（composer・ブログ、Tiptap） | #29 / #30 | ❌ | ❌ |
+| `/new/blog`（composer・ブログ、Tiptap） | #29 / #30 | ✅（2026-10-09） | ✅ `composer-blog.spec.ts` |
 | `/posts/[id]`（S_POST_DETAIL） | #32 | △ いいね導線のみ（2026-09-19） | △ `likes.spec.ts` がいいね導線のみ |
 | `/`（S_HOME） | #33 | △ カード表示のみ（2026-09-19） | △ `smoke.spec.ts` が h1 と title を見るだけ |
 | `/explore`（S_EXPLORE） | #33 | △ カードのいいねのみ（2026-09-19） | ❌ |
@@ -1070,7 +1070,26 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - `login()` ヘルパーの `next` 厳密URL一致は、mount直後に `?draft=` をURLへ付け足す
     composer系画面では使えない（ログインは `/` で済ませてから `page.goto()` する）
   - BlogComposer（`/new/blog`、Tiptap）は今回スコープ外のまま。残作業として残す
-- 参照: D34対応案b着手（2026-10-07）
+- **対応案b完了（2026-10-09、composer=S_POST_BLOG）:**
+  - `tests/e2e/composer-blog.spec.ts` を新規追加（公開〜詳細表示／タイトル・本文どちらか空だと
+    公開不可／本文埋め込み画像の公開〜詳細表示／下書き保存→リロード→復元／プレビュー）。
+    chromium・webkit・mobile-safari で実行し green
+  - **実機確認で重大なバグが見つかった:** TiptapEditor の `editor.getJSON()` をそのまま
+    `fields.bodyJson` に積んでいたため、本文に挿入した画像が**一度も投稿として残っていなかった**
+    （公開・下書き保存のどちらでも消える）。原因は ProseMirror のノード `attrs` が
+    `Object.create(null)` ベースでプロトタイプを持たず、Server Actions（React Flight）が
+    プレーンオブジェクトと認識できず無言で欠落させていたこと（`image.attrs.src` が消え、
+    `PostBody` が「配信元が想定外」と判定して描画しない）。見出しレベルや番号付きリストの
+    開始番号も同じ経路で欠落するはずだが未検証。`JSON.parse(JSON.stringify(...))` で
+    プレーンオブジェクトへ変換し直して修正した。本文編集のたびに走らせたくないため、TiptapEditor
+    側ではなく `use-composer.ts` の `toPlainBodyJson()`（自動保存・投稿確定の直前のみ呼ばれる）に
+    置いた（`/code-review` 指摘：全キー入力ごとの再シリアライズは避けるべき）
+  - jsdom のユニットテスト（`use-composer.test.tsx` 等）は Server Actions の実シリアライズを
+    経由しないため、このバグを検出できる経路が無かった。D34 がそもそも
+    「実ブラウザでしか起きないことが覆われていない」という課題である実例になった
+  - D68（アイキャッチ画像欄が無い）とは別の問題。D68は「サムネイルが出ない」UX上の未決、
+    今回の件は「本文中の画像そのものが保存されていない」という正確性バグ
+- 参照: D34対応案b着手（2026-10-07）・完了（2026-10-09）
 
 ### D35. ～~いいねの返報性通知が作れない（`notifications` 未作成）~~（解消）
 
