@@ -76,23 +76,21 @@ test('フォロー中タブは未ログイン時は出ず、ログイン後は�
   const stranger = await createOnboardedUser(`stranger-${suffix}`)
   createdUserIds.push(viewer.userId, followee.userId, stranger.userId)
 
-  // 発見タブ（新着フォールバック）はareaCodeで絞れる唯一のスコープだが、area_codeは
-  // 固定の既存エリアしか選べずテストごとに一意にできない（同じコードを使う他テスト・
-  // 他ブラウザプロジェクトと共有される）。area絞り込みに加えて、誰も使わないであろう
-  // 10年先の未来日時にしておき、万一他の投稿と混ざっても published_at desc の先頭付近に
-  // 必ず残るようにする（explore-tabs.spec.ts と同じ手法）
+  // 発見タブ（新着フォールバック）はareaCodeで絞れる唯一のスコープ。並行実行中の他テストの
+  // 投稿と混ざって12件の1ページ目からあふれるのを防ぐため、このテスト専用のエリアに紐づける。
+  // 「誰も使わないであろう未来日時」で念のための耐性を足す案は採らない — explore-tabs.spec.ts
+  // の新着タブ検証（area指定なしの全件対象）を同じ未来日時の投稿で汚染してしまうため
+  // （Agent Reviewで指摘・2026-10-09）。area_codeはこのテスト専用の値（他specは使わない）で、
+  // 同時実行は最大4ブラウザプロジェクト×2件=8件とPOST_LIST_PAGE_SIZE(12)に対して十分余裕がある
   const area = 'JP-13-harajuku'
   const cafe = await createActiveCafe(suffix, { area_code: area })
   createdCafeIds.push(cafe.id)
 
-  const base = Date.now() + 10 * 365 * 24 * 60 * 60 * 1000
   const followeePost = await createPublishedPost(followee.userId, `followee-${suffix}`, {
     cafeId: cafe.id,
-    publishedAt: new Date(base).toISOString(),
   })
   const strangerPost = await createPublishedPost(stranger.userId, `stranger-${suffix}`, {
     cafeId: cafe.id,
-    publishedAt: new Date(base + 60_000).toISOString(),
   })
   createdPostIds.push(followeePost.id, strangerPost.id)
 
