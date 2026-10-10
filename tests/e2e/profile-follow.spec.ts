@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page, test } from '@playwright/test'
+import { serviceRoleClient } from '../helpers/supabase'
 import {
   awardRegularDirect,
   cleanup,
@@ -26,11 +27,22 @@ import { login } from './helpers/login'
 
 const createdUserIds: string[] = []
 const createdCafeIds: string[] = []
+// regular_customers.awarded_by は on delete restrict。cleanup() は userIds を
+// 配列の順に削除するだけなので、awardedBy に使ったユーザーが先に消されると
+// 外部キー違反になる。順序に依存しないよう、常にここで明示的に先に消す
+const createdRegularCustomers: { userId: string; cafeId: string }[] = []
 
 test.afterAll(async () => {
+  if (createdRegularCustomers.length > 0) {
+    const service = serviceRoleClient()
+    for (const { userId, cafeId } of createdRegularCustomers) {
+      await service.from('regular_customers').delete().eq('user_id', userId).eq('cafe_id', cafeId)
+    }
+  }
   await cleanup({ userIds: createdUserIds, cafeIds: createdCafeIds })
   createdUserIds.length = 0
   createdCafeIds.length = 0
+  createdRegularCustomers.length = 0
 })
 
 function followButton(page: Page): Locator {
@@ -104,6 +116,7 @@ test('行きつけの認定があるとタブが出て、行きつけカフェ�
 
   // awardedBy は任意の profile id でよい（FK制約のみ）。viewer自身を使い回す
   await awardRegularDirect(author.userId, cafe.id, viewer.userId)
+  createdRegularCustomers.push({ userId: author.userId, cafeId: cafe.id })
 
   await login(page, viewer, `/users/${author.username}`)
 
