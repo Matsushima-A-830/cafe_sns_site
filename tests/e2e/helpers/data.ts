@@ -190,7 +190,7 @@ export type E2EPost = { id: string; excerpt: string }
 export async function createPublishedPost(
   authorId: string,
   suffix: string,
-  overrides: { publishedAt?: string; cafeId?: string } = {},
+  overrides: { publishedAt?: string; cafeId?: string; visibility?: 'public' | 'followers' } = {},
 ): Promise<E2EPost> {
   const service = serviceRoleClient()
   const excerpt = `E2Eいいねの投稿 ${suffix}`
@@ -205,6 +205,7 @@ export async function createPublishedPost(
       },
       ...(overrides.publishedAt ? { published_at: overrides.publishedAt } : {}),
       ...(overrides.cafeId ? { cafe_id: overrides.cafeId } : {}),
+      ...(overrides.visibility ? { visibility: overrides.visibility } : {}),
     })
     .select('id')
     .single()
@@ -272,6 +273,24 @@ export async function followUser(followerId: string, followeeId: string): Promis
     .from('follows')
     .insert({ follower_id: followerId, followee_id: followeeId })
   if (error) throw new Error(`E2E フォロー関係の作成に失敗: ${error.message}`)
+}
+
+/**
+ * 「行きつけ」タブの前提データ用。UI操作（S_OWNER_REGULARSで認定ボタンを押す）を経由せず、
+ * service role で regular_customers 行を直接作る。RLS の insert ポリシーは
+ * オーナー本人限定（regular_customers_insert_owner）だが、ここでは画面に出す行だけが要るため
+ * 迂回してよい。awardedBy には任意の profiles.id を渡せる（FK制約のみ）
+ */
+export async function awardRegularDirect(
+  userId: string,
+  cafeId: string,
+  awardedBy: string,
+): Promise<void> {
+  const service = serviceRoleClient()
+  const { error } = await service
+    .from('regular_customers')
+    .insert({ user_id: userId, cafe_id: cafeId, awarded_by: awardedBy })
+  if (error) throw new Error(`E2E 常連認定の作成に失敗: ${error.message}`)
 }
 
 /**

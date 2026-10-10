@@ -1001,7 +1001,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 | `/posts/[id]`（S_POST_DETAIL） | #32 | ✅（2026-10-07、D39でコメント導線まで確認） | ✅ `likes.spec.ts`（いいね）+ `comments.spec.ts`（コメント投稿・返信・削除・公式バッジ・ページング） |
 | `/`（S_HOME） | #33 | ✅（2026-10-09、ムードチップ・発見⇄フォロー中タブ・おすすめページングを確認） | ✅ `home-feed.spec.ts` |
 | `/explore`（S_EXPLORE） | #33 | ✅（2026-10-09、おすすめ⇄新着タブを確認。「近くのカフェ」は既存の`explore-nearby.spec.ts`） | ✅ `explore-tabs.spec.ts` |
-| `/users/[username]`（S_USER_PROFILE_PUBLIC） | #34 | △ カード表示のみ（2026-09-19） | △ 同上（カードのいいね表示のみ） |
+| `/users/[username]`（S_USER_PROFILE_PUBLIC） | #34 | ✅（2026-10-09、FollowButton⇄PostFeed協調・行きつけタブを確認） | ✅ `profile-follow.spec.ts` |
 | `/signup/*` `/onboarding/*` | 初期 | ❌ | ✅ `signup-onboarding.spec.ts` が4ブラウザで完走 |
 | `/cafes/[id]`（S_CAFE_DETAIL） | #37 | ✅ | ✅ `cafe-list-toggle.spec.ts` |
 | `/me`（S_MYPAGE） | #39 | ✅ | ✅ 同上 |
@@ -1120,6 +1120,22 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
     本当に無い画面」1箇所だけに留め、安全策の重ね掛けで別specを汚染しないようにする
   - 残課題: `/users/[username]`（S_USER_PROFILE_PUBLIC）・`/me/favorites`・`/me/want-to-go`・
     `/me/drafts` は未着手のまま
+- **S_USER_PROFILE_PUBLIC 対応（2026-10-09）:**
+  - `tests/e2e/profile-follow.spec.ts` を新規追加。本題は FollowButton（クライアント側の
+    自分のUIだけの楽観更新）と PostFeed（`key={`${profile.id}:${following}`}` による親の
+    再マウント）という非対称な更新設計が、「フォロー→`visibility='followers'`の投稿が実際に
+    見えるようになる」まで実ブラウザで本当に繋がっているかの確認。
+    クリック→Server Action→`router.refresh()`→RSC往復→`following`再計算→PostFeed再マウント、
+    の一連は**意図どおり正しく繋がっていた**（バグなし）。フォロー解除で再び見えなくなること、
+    未ログイン時のログイン導線、自分のプロフィールでの「マイページへ」導線、行きつけタブの
+    表示/非表示も合わせて確認。4ブラウザ（chromium/webkit/mobile-chrome/mobile-safari）で green
+  - **検証方法の注意点:** `aria-busy` は Server Action の完了しか示さず、`router.refresh()` は
+    その後の `useEffect`（`use-deferred-refresh.ts`）で非同期に呼ばれるため待ち手段にならない。
+    投稿の表示/非表示そのものを Playwright の自動リトライ（`toBeVisible()` / `not.toBeVisible()`）
+    で待つことで、5段のリレー全体を暗黙に検証できる
+  - `tests/e2e/helpers/data.ts` に `createPublishedPost` の `visibility` override と、
+    `regular_customers` をUI操作を経由せず直接作る `awardRegularDirect` を追加
+  - 残課題: `/me/favorites`・`/me/want-to-go`・`/me/drafts` は未着手のまま
 
 ### D35. ～~いいねの返報性通知が作れない（`notifications` 未作成）~~（解消）
 
