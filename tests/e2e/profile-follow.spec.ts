@@ -1,4 +1,4 @@
-import { expect, type Locator, test } from '@playwright/test'
+import { expect, type Locator, type Page, test } from '@playwright/test'
 import {
   awardRegularDirect,
   cleanup,
@@ -33,7 +33,7 @@ test.afterAll(async () => {
   createdCafeIds.length = 0
 })
 
-function followButton(page: import('@playwright/test').Page): Locator {
+function followButton(page: Page): Locator {
   return page.getByRole('button', { name: /^フォロー(中)?$/ })
 }
 
