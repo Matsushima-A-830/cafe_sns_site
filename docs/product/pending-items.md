@@ -986,7 +986,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - 参照: S_MYPAGE 実装のレビューで判明（2026-09-18）／対象の数え漏れを訂正（2026-09-19）／
   残り4件を解消（2026-09-23）
 
-### D34. 実機（ブラウザ）で一度も確認していない画面が残っている
+### D34. 実機（ブラウザ）で一度も確認していない画面が残っている ✅ 解消済（2026-10-11）
 
 - **課題:** PR #37（S_CAFE_DETAIL）以降は Playwright MCP での実機確認が定着し、PR #42 で
   「確認した内容を E2E spec に残す」仕組みも入った。**それ以前の PR #29〜#34 で実装した画面は
@@ -1005,7 +1005,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 | `/signup/*` `/onboarding/*` | 初期 | ❌ | ✅ `signup-onboarding.spec.ts` が4ブラウザで完走 |
 | `/cafes/[id]`（S_CAFE_DETAIL） | #37 | ✅ | ✅ `cafe-list-toggle.spec.ts` |
 | `/me`（S_MYPAGE） | #39 | ✅ | ✅ 同上 |
-| `/me/favorites` `/me/want-to-go` `/me/drafts` | #39 | 記録なし | ❌ |
+| `/me/favorites` `/me/want-to-go` `/me/drafts` | #39 | ✅（2026-10-11） | ✅ `cafe-list-page.spec.ts` + `drafts.spec.ts` |
 
 - **とくに危ないもの — composer の画像処理と自動保存:**
   ロジック自体はユニット/コンポーネントテストで厚く覆われている
@@ -1136,6 +1136,25 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - `tests/e2e/helpers/data.ts` に `createPublishedPost` の `visibility` override と、
     `regular_customers` をUI操作を経由せず直接作る `awardRegularDirect` を追加
   - 残課題: `/me/favorites`・`/me/want-to-go`・`/me/drafts` は未着手のまま
+- **`/me/favorites` `/me/want-to-go` `/me/drafts` 対応（2026-10-11）— D34完全解消:**
+  - `tests/e2e/cafe-list-page.spec.ts`（お気に入り/行きたい一覧共通）と
+    `tests/e2e/drafts.spec.ts`（下書き一覧）を新規追加。4ブラウザ（chromium/webkit/
+    mobile-chrome/mobile-safari）で green。これでD34に残っていた最後の3画面が解消し、
+    実機未確認画面は0件になった
+  - **わかったこと（実装は意図どおり、バグなし）:** `CafeListView`（一覧の「外す」）と
+    `DraftList`（削除）はどちらも `router.refresh()` を呼ばない単純な楽観更新で、
+    D37で`refresh()`自体を削除した側（上記D37参照）。ボタン自体が楽観更新で即座にDOMから
+    消えるため、`cafe-list-toggle.spec.ts`の`waitIdle`（`aria-busy`で待つ）パターンは
+    そのままでは使えない。完了を待つには `aria-live="polite"` の完了メッセージ
+    （「〜から外しました」「下書きを削除しました」）を待ってから `reload()` する必要がある
+    ——これを端折って即 `reload()` すると、書き込みがまだDBに届いておらず
+    削除/解除前の状態に戻って見える（実際にテスト作成時に一度再現した。`likes.spec.ts`と同根）
+  - `listDrafts()` が `author_id` で絞らずRLSだけに委ねている設計（意図どおり）も、
+    2ユーザーで下書きを作り片方でログインして確認する形で実証した
+  - `tests/e2e/helpers/data.ts` に `addToCafeList`（service roleで`user_cafe_lists`に直接追加）
+    と `createDraftDirect`（`draftPayloadSchema`と同形のpayloadで`drafts`に直接追加）を追加
+  - 参照: `/me`・composer・S_HOME/S_EXPLORE・S_USER_PROFILE_PUBLICのE2E化を終えた
+    引き継ぎで着手（2026-10-11）
 
 ### D35. ～~いいねの返報性通知が作れない（`notifications` 未作成）~~（解消）
 
