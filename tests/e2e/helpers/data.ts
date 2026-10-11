@@ -294,6 +294,62 @@ export async function awardRegularDirect(
 }
 
 /**
+ * 「お気に入り」「行きたい」の前提データ用。S_CAFE_DETAIL のトグルボタン経由の追加は
+ * cafe-list-toggle.spec.ts で検証済みのため、一覧ページ（S_FAVORITES / S_WANT_TO_GO）の
+ * テストでは service role で直接 user_cafe_lists 行を作ってよい
+ */
+export async function addToCafeList(
+  userId: string,
+  cafeId: string,
+  listType: 'favorite' | 'want_to_go',
+  note?: string,
+): Promise<void> {
+  const service = serviceRoleClient()
+  const { error } = await service
+    .from('user_cafe_lists')
+    .insert({ user_id: userId, cafe_id: cafeId, list_type: listType, note: note ?? null })
+  if (error) throw new Error(`E2E カフェリストへの追加に失敗: ${error.message}`)
+}
+
+export type E2EDraft = { clientDraftKey: string }
+
+/**
+ * 下書き一覧（S_DRAFTS）の前提データ用。composer を経由せず service role で直接作る。
+ * payload は draftPayloadSchema（lib/validators/drafts.ts）と同じ形に合わせる —
+ * ズレると listDrafts() が stale 扱いにして一覧に「古い形式の下書き」と出てしまう
+ */
+export async function createDraftDirect(
+  userId: string,
+  suffix: string,
+  overrides: { postType?: 'short' | 'blog'; title?: string | null; bodyText?: string } = {},
+): Promise<E2EDraft> {
+  const service = serviceRoleClient()
+  const clientDraftKey = `e2e${randomToken(20)}`
+  const bodyText = overrides.bodyText ?? `E2E下書きの本文 ${suffix}`
+
+  const { error } = await service.from('drafts').insert({
+    author_id: userId,
+    client_draft_key: clientDraftKey,
+    payload: {
+      v: 1,
+      post_id: crypto.randomUUID(),
+      post_type: overrides.postType ?? 'blog',
+      title: overrides.title ?? `E2E下書きのタイトル ${suffix}`,
+      body_json: {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: bodyText }] }],
+      },
+      tag_ids: [],
+      image_paths: [],
+      cafe_id: null,
+      visibility: 'public',
+    },
+  })
+  if (error) throw new Error(`E2E 下書きの作成に失敗: ${error.message}`)
+  return { clientDraftKey }
+}
+
+/**
  * テストが作った行を消す。`user_cafe_lists` は profiles / cafes の双方から、
  * `posts` と `likes` は profiles から `on delete cascade` で落ちるので
  * 個別に消さなくてよい
