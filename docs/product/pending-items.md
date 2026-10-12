@@ -867,7 +867,8 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **影響3は解消済み（2026-10-12）:** `20261012081715_delete_follows_on_profile_inactive.sql` で
   `profiles.status` が active から外れたら両方向の `follows` を削除するトリガーを追加した
   （対応案 d）。`follows_insert_own` は INSERT 時しか見ないままだが、離脱後はこのトリガーが
-  都度後始末するため `getProfileCounts` が停止・削除ユーザーを数え続ける問題は解消
+  都度後始末するため `getProfileCounts` が停止・削除ユーザーを数え続ける問題は解消。
+  同マイグレーションには適用前から非active だったプロフィール向けの一度限りのバックフィルも含む
 - **既知の狭いレース（許容）:** read committed では「`follows` INSERT のポリシー評価」と
   「`blocks` INSERT + トリガーの delete」が交差したとき、双方が相手の未コミット行を見ないため
   ブロック済みペアに `follows` 行が1件残りうる。次のブロック/解除まで自己修復しない

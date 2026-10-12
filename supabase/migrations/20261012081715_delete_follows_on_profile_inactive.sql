@@ -29,3 +29,11 @@ create trigger profiles_delete_follows_on_inactive
   for each row
   when (old.status = 'active' and new.status is distinct from 'active')
   execute function public.delete_follows_on_profile_inactive();
+
+-- バックフィル: このマイグレーション適用前に既に active から外れていたプロフィール
+-- （admin-reports.ts の suspend_user 等）の follows は上のトリガーの対象外のため、
+-- 既存データも一度だけ掃除する
+delete from public.follows
+using public.profiles
+where (public.follows.follower_id = public.profiles.id or public.follows.followee_id = public.profiles.id)
+  and public.profiles.status <> 'active';
