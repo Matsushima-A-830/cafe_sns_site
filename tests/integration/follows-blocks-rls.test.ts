@@ -252,3 +252,50 @@ describe('blocks 作成時の follows 解除', () => {
     expect(after.data).toEqual([])
   })
 })
+
+// 20261012: status が active から外れたら follows を両方向削除するトリガー。
+// INSERT 時のガードだけだと「フォロー後に相手が停止」で行が残り続ける（D29 対応案 d）
+describe('profiles.status が active から外れたときの follows 解除', () => {
+  let one: AuthedUser
+  let two: AuthedUser
+  let outsider: AuthedUser
+
+  beforeAll(async () => {
+    one = await createAuthedProfile({ username: 'one_suspend_cleanup' })
+    two = await createAuthedProfile({ username: 'two_suspend_cleanup' })
+    outsider = await createAuthedProfile({ username: 'outsider_suspend_cleanup' })
+
+    await service.from('follows').insert([
+      { follower_id: one.userId, followee_id: two.userId },
+      { follower_id: two.userId, followee_id: one.userId },
+      { follower_id: outsider.userId, followee_id: two.userId },
+    ])
+  })
+
+  afterAll(async () => {
+    await one?.cleanup()
+    await two?.cleanup()
+    await outsider?.cleanup()
+  })
+
+  it('相互フォローの両方向が消え、無関係な第三者のフォローは残る', async () => {
+    const before = await service
+      .from('follows')
+      .select('follower_id, followee_id')
+      .in('follower_id', [one.userId, two.userId, outsider.userId])
+    expect(before.data).toHaveLength(3)
+
+    const { error } = await service
+      .from('profiles')
+      .update({ status: 'suspended' })
+      .eq('id', one.userId)
+    expect(error).toBeNull()
+
+    const after = await service
+      .from('follows')
+      .select('follower_id, followee_id')
+      .in('follower_id', [one.userId, two.userId, outsider.userId])
+    // one 絡みの2件（one→two, two→one）は消え、outsider→two だけ残る
+    expect(after.data).toEqual([{ follower_id: outsider.userId, followee_id: two.userId }])
+  })
+})
