@@ -6,5 +6,5 @@ test('ホームが描画される', async ({ page }) => {
   await page.goto('/')
 
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-  await expect(page).toHaveTitle(/カフェSNS/)
+  await expect(page).toHaveTitle(/ミツカフェ/)
 })

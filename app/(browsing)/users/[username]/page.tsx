@@ -55,7 +55,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const profile = await loadProfile(username)
   if (!profile) return { title: 'ユーザーが見つかりません' }
 
-  // ルートの template が「 | カフェSNS」を付ける
+  // ルートの template が「 | ミツカフェ」を付ける
   return {
     title: profile.displayName,
     description: profile.bio ?? `@${profile.username}さんのプロフィール`,

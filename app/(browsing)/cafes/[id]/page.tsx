@@ -53,7 +53,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const description =
     cafe.description ?? `${cafe.areaLabel ?? ''}のカフェ「${cafe.name}」の投稿・営業時間・混雑度`
 
-  // ルートの template が「 | カフェSNS」を付ける
+  // ルートの template が「 | ミツカフェ」を付ける
   return {
     title: cafe.name,
     description,
