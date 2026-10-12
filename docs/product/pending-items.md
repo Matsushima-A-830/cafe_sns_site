@@ -863,12 +863,11 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   `posts_select` に `is_profile_active(posts.author_id)` 条件を追加し、停止・削除済みユーザーの
   投稿がフィード・投稿詳細・画像・タグ・コメント・いいねから見えなくなった（`posts_select_own` は
   意図的に変更していない。作者本人が自分の投稿を編集・削除できる経路を壊さないため）
-- **影響2・3は未解消:** 投稿カードの作者リンクが404になりうる点（許容方針のまま）、および
-  `follows_insert_own` が INSERT 時しか `status='active'` を見ないため、フォロー後に相手が
-  停止・削除されても `follows` 行が残り `getProfileCounts` のフォロー数・フォロワー数に
-  数え続ける点は対応案 d) 未着手のまま残る
-- **対応案（d のみ未検討のまま残存）:** d) `profiles.status` が active から外れたら `follows`
-  を両方向とも切るトリガー
+- **影響2は未解消:** 投稿カードの作者リンクが404になりうる点（許容方針のまま）
+- **影響3は解消済み（2026-10-12）:** `20261012081715_delete_follows_on_profile_inactive.sql` で
+  `profiles.status` が active から外れたら両方向の `follows` を削除するトリガーを追加した
+  （対応案 d）。`follows_insert_own` は INSERT 時しか見ないままだが、離脱後はこのトリガーが
+  都度後始末するため `getProfileCounts` が停止・削除ユーザーを数え続ける問題は解消
 - **既知の狭いレース（許容）:** read committed では「`follows` INSERT のポリシー評価」と
   「`blocks` INSERT + トリガーの delete」が交差したとき、双方が相手の未コミット行を見ないため
   ブロック済みペアに `follows` 行が1件残りうる。次のブロック/解除まで自己修復しない

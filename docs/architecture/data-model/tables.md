@@ -175,6 +175,11 @@ anon の直接読み出しで盗まれメールを介さず承認を偽装でき
 
 **RLS:** SELECT 全ユーザー可 / INSERT・DELETE は本人（follower_id）のみ
 
+**トリガー:**
+- `blocks_delete_follows`（blocks AFTER INSERT）: ブロック成立時に両方向のフォローを解除する
+- `profiles_delete_follows_on_inactive`（profiles AFTER UPDATE OF status）: `status` が
+  `active` から外れたら、本人が関わる両方向のフォローを解除する（D29 対応案 d）
+
 ---
 
 ## blocks
