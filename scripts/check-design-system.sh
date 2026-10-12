@@ -12,6 +12,10 @@ else
   mapfile -t files < <(find app components -type f \( -name '*.tsx' -o -name '*.ts' -o -name '*.css' \) 2>/dev/null)
 fi
 
+# Next.js のメタデータアイコン生成規約 (icon.tsx 等) は ImageResponse (Satori) 経由で、
+# Tailwind クラスを解釈できずインライン style しか受け付けない。デザインシステム対象外
+mapfile -t files < <(printf '%s\n' "${files[@]}" | grep -vE '/(icon|apple-icon|opengraph-image|twitter-image)\.tsx$')
+
 [ "${#files[@]}" -eq 0 ] && exit 0
 
 status=0
