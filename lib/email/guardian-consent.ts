@@ -14,9 +14,9 @@ export async function sendGuardianConsentEmail(input: {
 
   return sendEmail({
     to: input.guardianEmail,
-    subject: '【カフェSNS】お子様のアカウント利用に関する同意のお願い',
+    subject: '【ミツカフェ】お子様のアカウント利用に関する同意のお願い',
     html: `
-      <p>お子様が「カフェSNS」への登録を申請しています。</p>
+      <p>お子様が「ミツカフェ」への登録を申請しています。</p>
       <p>利用を許可される場合は、以下のリンクをクリックしてください。</p>
       <p><a href="${confirmUrl}">${confirmUrl}</a></p>
       <p>このリンクの有効期限は7日間です。心当たりがない場合はこのメールを破棄してください。</p>

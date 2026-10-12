@@ -13,7 +13,9 @@ export default function PrivacyPage() {
       <p className="mt-2 text-sm text-muted-foreground">最終更新日: 2026年10月4日</p>
 
       <div className={RICH_TEXT_CLASS}>
-        <p>カフェSNS（以下「本サービス」）は、利用者の個人情報を以下の方針に基づき取り扱います。</p>
+        <p>
+          ミツカフェ（以下「本サービス」）は、利用者の個人情報を以下の方針に基づき取り扱います。
+        </p>
 
         <h2>第1条 取得する情報</h2>
         <ul>

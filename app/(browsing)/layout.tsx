@@ -8,7 +8,7 @@ export default function BrowsingLayout({ children }: { children: React.ReactNode
       <header className="sticky top-0 z-20 border-b border-border-default bg-surface/90 shadow-elevation-1 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
           <div className="font-heading text-xl font-bold whitespace-nowrap text-primary">
-            カフェSNS
+            ミツカフェ
           </div>
           <nav className="flex items-center gap-4 text-sm text-muted-foreground">
             <AuthNav />
@@ -27,7 +27,7 @@ export default function BrowsingLayout({ children }: { children: React.ReactNode
               プライバシーポリシー
             </Link>
           </nav>
-          <p>© 2026 カフェSNS</p>
+          <p>© 2026 ミツカフェ</p>
         </div>
       </footer>
       <BottomNav />

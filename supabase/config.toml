@@ -256,7 +256,7 @@ otp_expiry = 3600
 # S_SIGNUP step2 は6桁コード入力のUIなので、デフォルトのマジックリンクテンプレートでは
 # {{ .Token }} が画面に出ない。確認コードを本文に載せるテンプレートに差し替える
 [auth.email.template.confirmation]
-subject = "【カフェSNS】確認コードのお知らせ"
+subject = "【ミツカフェ】確認コードのお知らせ"
 content_path = "./supabase/templates/confirmation.html"
 
 # Uncomment to customize email template
