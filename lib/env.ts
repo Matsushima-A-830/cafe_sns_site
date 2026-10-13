@@ -10,6 +10,7 @@ export const publicEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
   NEXT_PUBLIC_SITE_URL: z.string().url(),
   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: optionalString(),
+  NEXT_PUBLIC_FEEDBACK_FORM_URL: optionalString(),
 })
 
 // クライアントバンドルに含まれてよい値のみ。SUPABASE_SERVICE_ROLE_KEY 等は lib/env.server.ts
@@ -19,4 +20,5 @@ export const env = publicEnvSchema.parse({
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+  NEXT_PUBLIC_FEEDBACK_FORM_URL: process.env.NEXT_PUBLIC_FEEDBACK_FORM_URL,
 })

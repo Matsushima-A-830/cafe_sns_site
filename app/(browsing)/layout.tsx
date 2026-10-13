@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { BottomNav } from '@/components/features/feed/bottom-nav'
+import { env } from '@/lib/env'
 import { AuthNav } from './auth-nav'
 
 export default function BrowsingLayout({ children }: { children: React.ReactNode }) {
@@ -26,6 +27,16 @@ export default function BrowsingLayout({ children }: { children: React.ReactNode
             <Link href="/privacy" className="text-link hover:text-link-hover hover:underline">
               プライバシーポリシー
             </Link>
+            {env.NEXT_PUBLIC_FEEDBACK_FORM_URL && (
+              <a
+                href={env.NEXT_PUBLIC_FEEDBACK_FORM_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-link hover:text-link-hover hover:underline"
+              >
+                フィードバック
+              </a>
+            )}
           </nav>
           <p>© 2026 ミツカフェ</p>
         </div>
