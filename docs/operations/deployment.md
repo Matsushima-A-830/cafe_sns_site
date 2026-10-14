@@ -257,6 +257,32 @@ jobs:
 > ⚠️ このサンプルは実ファイル [`.github/workflows/deploy-migration.yml`](../../.github/workflows/deploy-migration.yml) の要約。
 > 齟齬が出たら実ファイルを正として、こちらを直す。
 
+## 初回本番セットアップ時に Dashboard で手動設定が必要なもの（重要）
+
+**`supabase/config.toml` の `[auth]` 系設定は `supabase db push`（マイグレーション適用）では
+本番に一切同期されない。** `config.toml` はローカルの `supabase start` 専用の設定ファイルであり、
+ホスティング先の Supabase Cloud プロジェクトには別途 Dashboard から手動で設定する必要がある
+（2026-10-14 の初回デプロイで3箇所同時に踏んで判明）。
+
+マイグレーション（テーブル・RLS・関数）は `db push` で届くが、**Auth の挙動設定は届かない**、
+という区別を常に意識すること。初回セットアップ時は以下を**順番に**確認する:
+
+| # | 設定項目 | config.toml の該当箇所 | Dashboard での設定先 |
+|---|---|---|---|
+| 1 | 確認メールのテンプレート（6桁コード） | `[auth.email.template.confirmation]` | Authentication → Emails → Templates → **Confirm sign up** |
+| 2 | カスタムSMTP（Resendリレー） | （config.tomlには無い。本番専用設定） | Authentication → Emails → **SMTP Settings**。Host: `smtp.resend.com` / Port: `587` / Username: `resend` / Password: Resend API Key |
+| 3 | Email OTP の桁数・有効期限 | `otp_length = 6` / `otp_expiry = 3600` | Authentication → Sign In / Providers → **Email** → Email OTP length / expiration |
+| 4 | Site URL / Redirect URLs | `site_url` | Authentication → **URL Configuration**。本番URLに変更しないと `http://localhost:3000` のまま残る |
+| 5 | Custom Access Token Hook | `[auth.hook.custom_access_token]` | Authentication → **Auth Hooks**（関数自体はマイグレーションで作成済みだが、Hookとしての登録は別） |
+
+**カスタムSMTP未設定時の罠:** Supabase組み込みのメール送信は、未認証ドメイン（`onboarding@resend.dev`等）
+からの送信だと「Resendアカウント登録メールアドレス宛にしか届かない」というResend側の制約がある。
+**自分のメールアドレスでのテストだけでは気づけない。** 他人のメールアドレスで一度はテストすること。
+
+**恒久対応の検討:** `deploy-migration.yml` に `supabase config push` ステップを追加すれば、
+`config.toml` の変更も自動的に本番へ同期できる可能性がある（未検証。追加する場合は
+Auth設定の意図しない上書きが無いか事前にdevプロジェクトで検証してから）。
+
 ## 本番の最初の admin を作る
 
 `profiles.role` の変更は admin 限定（`is_admin()`）なので、本番には admin を作る経路が無い。

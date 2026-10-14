@@ -1889,11 +1889,40 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **実装内容:** `NEXT_PUBLIC_FEEDBACK_FORM_URL`（任意環境変数、`lib/env.ts`）を追加し、
   `app/(browsing)/layout.tsx` のフッターに「フィードバック」リンクを追加した。未設定時は
   リンクを表示しない設計のため、フォーム未作成の現時点でもコードは安全に動作する
-- **未対応（要対応）:** Google Forms自体はまだ作成していない。質問項目案（総合満足度・
-  気分検索[幹A]の評価・気分タグ要望・オーナー連携[幹C]の評価・不具合報告・NPS・自由記述・
-  任意連絡先の計9問）は作成済み。フォーム作成後、Vercelの本番環境変数に
-  `NEXT_PUBLIC_FEEDBACK_FORM_URL` を設定する
-- **決定期限:** 検証ベータ公開前
+- **解消済み（2026-10-15）:** Google Forms「"ミツカフェ"-MVP-FBフォーム」を作成し、
+  Vercel本番環境変数 `NEXT_PUBLIC_FEEDBACK_FORM_URL` に設定済み。フッターのリンクで実際に
+  遷移・表示できることを本番環境で確認した
+
+### D72. 初回本番デプロイで判明したAuth設定の本番非同期問題（2026-10-15解消）
+
+- **課題:** `supabase/config.toml` の `[auth]` 系設定（確認メールテンプレート・OTP桁数・
+  Site URL等）が `supabase db push`（マイグレーション適用）では本番Supabaseプロジェクトに
+  一切同期されないことが、初回本番デプロイ（`cafe-sns-prod`、Vercelプロジェクト`mitsu-cafe`）
+  で3箇所同時に判明した
+- **実害:** 本番でサインアップすると、①確認メールが6桁コード前提のカスタムテンプレートではなく
+  Supabaseデフォルトのマジックリンク形式で届く、②カスタムSMTP未設定のため
+  `onboarding@resend.dev`からの送信がResend側の未認証ドメイン制限（送信先がResend
+  アカウント登録メールアドレスに限定される）に阻まれ`POST /auth/v1/signup`が500で落ちる、
+  ③Email OTPの桁数が本番のデフォルト値のまま（ローカルでは`otp_length=6`想定）、
+  ④Site URLが`http://localhost:3000`のまま、という4点が同時に発生した
+- **解消済み（2026-10-15）:** ①Dashboardで確認メールテンプレートを手動設定
+  ②独自ドメイン`mitsu-cafe.com`をCloudflareで取得しResendで認証（DKIM/SPF自動設定）、
+  SupabaseのカスタムSMTPをResendリレー（`smtp.resend.com:587`）に設定
+  ③Email OTP lengthは確認の結果`6`で一致していた（当初8桁に見えたのは誤認）
+  ④Site URL/Redirect URLsを本番URLに更新。いずれも対応完了し、本番で他人のメールアドレスに
+  よるサインアップ成功を確認した
+- **恒久対応（未着手）:** `deploy-migration.yml`に`supabase config push`ステップを追加すれば
+  自動同期できる可能性がある。追加する際はdevプロジェクトで事前検証してから（意図しない
+  Auth設定の上書きリスクがあるため）
+- **その他の既知の未確認事項（今回スコープ外）:**
+  - `[auth.hook.custom_access_token]`（JWTカスタムクレイム用フック）がDashboard側の
+    Auth Hooksとして登録されているか未確認。関数自体はマイグレーション済みで存在するが、
+    Hookとしての有効化は別設定
+  - PreviewデプロイとProductionデプロイが同じSupabaseプロジェクト（`cafe-sns-prod`）を
+    共有している（Vercel環境変数が両方に同じ値を設定されているため）。今後PRを作成すると
+    Previewデプロイが本番データに対してテスト操作を行うリスクがある。別途devプロジェクトを
+    作成しPreview用に切り替える必要がある
+- 参照: docs/operations/deployment.md「初回本番セットアップ時にDashboardで手動設定が必要なもの」
 
 ## 削除・アーカイブ判断待ち
 
