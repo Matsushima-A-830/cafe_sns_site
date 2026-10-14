@@ -1914,10 +1914,18 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **恒久対応（未着手）:** `deploy-migration.yml`に`supabase config push`ステップを追加すれば
   自動同期できる可能性がある。追加する際はdevプロジェクトで事前検証してから（意図しない
   Auth設定の上書きリスクがあるため）
+- **重大な追加実害（2026-10-15発覚・解消）:** `[auth.hook.custom_access_token]`
+  （JWTカスタムクレイム用フック）がDashboard側のAuth Hooksとして**登録されていなかった**。
+  関数自体はマイグレーション済みで存在するが、Hookとしての有効化は別設定であり、未登録の
+  まま運用されていた。この結果、JWTに`onboarded`/`role`/`status`のクレイムが一切載らず、
+  **オンボーディングを完了済みのユーザーでも`/me`アクセス時に`/onboarding/profile`へ
+  無限に差し戻される**という、全ユーザーに影響する重大な不具合が起きていた
+  （`profiles.onboarded_at`は設定済みなのに`middleware`がJWTクレイムだけを見て
+  「未完了」と誤認するため）。Dashboard → Authentication → Auth Hooks →
+  Customize Access Token (JWT) Claims hook を有効化（Postgres / schema: public /
+  function: custom_access_token_hook）して解消。**既存セッションは再ログインしないと
+  新しいクレイムが反映されない**点に注意（JWTは発行時点の内容を保持し続けるため）
 - **その他の既知の未確認事項（今回スコープ外）:**
-  - `[auth.hook.custom_access_token]`（JWTカスタムクレイム用フック）がDashboard側の
-    Auth Hooksとして登録されているか未確認。関数自体はマイグレーション済みで存在するが、
-    Hookとしての有効化は別設定
   - PreviewデプロイとProductionデプロイが同じSupabaseプロジェクト（`cafe-sns-prod`）を
     共有している（Vercel環境変数が両方に同じ値を設定されているため）。今後PRを作成すると
     Previewデプロイが本番データに対してテスト操作を行うリスクがある。別途devプロジェクトを
