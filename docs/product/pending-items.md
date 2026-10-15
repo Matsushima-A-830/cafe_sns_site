@@ -1925,12 +1925,49 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   Customize Access Token (JWT) Claims hook を有効化（Postgres / schema: public /
   function: custom_access_token_hook）して解消。**既存セッションは再ログインしないと
   新しいクレイムが反映されない**点に注意（JWTは発行時点の内容を保持し続けるため）
+- **保護者同意メールの実送信確認（2026-10-15確認済み）:** `RESEND_FROM_EMAIL`（Vercel環境変数）が
+  `noreply@mitsu-cafe.com`（認証済みドメイン）に設定されていることを確認。クリーンな未成年
+  テストアカウント（生年月日入力は1回のみ）でサインアップ→保護者同意メール受信→同意リンク
+  クリック→承認済み表示→オンボーディング完了（`/me`で正しくマイページ表示）まで一気通貫で
+  成功することを本番で確認した。保護者同意待ち（`status='pending_consent'`）の間は
+  `replace_user_interest_tags`等のRPCが403で拒否されることも確認した。これは
+  `user_interest_tags_insert_own`ポリシー（D13）が`is_active_user()`を要求する設計通りの
+  挙動であり、不具合ではない
 - **その他の既知の未確認事項（今回スコープ外）:**
   - PreviewデプロイとProductionデプロイが同じSupabaseプロジェクト（`cafe-sns-prod`）を
     共有している（Vercel環境変数が両方に同じ値を設定されているため）。今後PRを作成すると
     Previewデプロイが本番データに対してテスト操作を行うリスクがある。別途devプロジェクトを
     作成しPreview用に切り替える必要がある
 - 参照: docs/operations/deployment.md「初回本番セットアップ時にDashboardで手動設定が必要なもの」
+
+### D73. 生年月日を複数回入力し年齢区分を変更すると、サインアップが無限ループする
+
+- **課題:** `/signup/birthdate`に複数回アクセスし、1回目は成人、2回目は未成年の生年月日を
+  入力するという操作列を取ると、以下の不整合が起きる:
+  - 1回目の入力時点で`/onboarding/profile`を通過して`profiles`行が`status='active'`で
+    既に作成される
+  - 2回目の入力で`auth.users.app_metadata`の`age_category`だけが`'minor'`に上書きされる
+    （`profiles.status`は`'active'`のまま変わらない）
+  - 再度`/onboarding/profile`を送信すると、`submitProfile`（`app/_actions/onboarding.ts`）が
+    `app_metadata`を見て`CONSENT_REQUIRED`を返し`/signup/consent`へリダイレクトしようとするが、
+    `middleware.ts`は`profiles.status='active'`（かつ`onboarded=false`）を見て
+    「サインアップ済み」と判断し`/signup`配下へのアクセスを`/onboarding/profile`へ強制的に
+    差し戻す（`middleware.ts`88行目: `path.startsWith('/signup') && status === 'active'`）
+  - 結果、`/onboarding/profile` ⇄ `/signup/consent`（middlewareによる即時差し戻し）の無限
+    ループに陥り、ユーザーからは「次へボタンが反応しない」ように見える
+- **発見経緯:** 2026-10-15、本番での保護者同意フロー確認中に、生年月日を入力し直したテスト
+  アカウントで発生を確認。クリーンな（生年月日を1回だけ入力する）未成年アカウントでは
+  再現しないことも確認済み
+- **実害の範囲:** 通常の初回サインアップ（生年月日を1回だけ入力）では発生しない。
+  `/signup/birthdate`へ再アクセスして年齢区分を変更するという、通常のUI導線からは
+  起こりにくい操作列でのみ顕在化するエッジケース
+- **対応方針（未決）:** a) `submitProfile`が`profiles`行の既存有無を先にチェックし、
+  既に存在する場合は（年齢区分の変更を許可しないか）既存行の状態に応じた適切な画面へ
+  誘導する b) `/signup/birthdate`を、`profiles`行が存在しないユーザーのみアクセス可能に
+  制限する（`requiresAuth`相当のガードを追加） c) 優先度低のエッジケースとして許容し、
+  対応を見送る
+- **決定期限:** 未定。発生頻度が低く、検証ベータの小規模運用では実害が顕在化する可能性が
+  低いため優先度は高くない
 
 ## 削除・アーカイブ判断待ち
 
