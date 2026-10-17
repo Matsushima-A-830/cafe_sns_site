@@ -1933,11 +1933,30 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   `replace_user_interest_tags`等のRPCが403で拒否されることも確認した。これは
   `user_interest_tags_insert_own`ポリシー（D13）が`is_active_user()`を要求する設計通りの
   挙動であり、不具合ではない
-- **その他の既知の未確認事項（今回スコープ外）:**
-  - PreviewデプロイとProductionデプロイが同じSupabaseプロジェクト（`cafe-sns-prod`）を
-    共有している（Vercel環境変数が両方に同じ値を設定されているため）。今後PRを作成すると
-    Previewデプロイが本番データに対してテスト操作を行うリスクがある。別途devプロジェクトを
-    作成しPreview用に切り替える必要がある
+- **解消済み（2026-10-17）: Preview/Production DB分離。** PreviewデプロイとProductionデプロイが
+  同じSupabaseプロジェクト（`cafe-sns-prod`）を共有していた問題（Vercel環境変数が両方に同じ値を
+  設定されていたため）を解消した。Vercelプロジェクト`mitsu-cafe`のPreview環境変数
+  `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` を
+  Preview専用の値に分離し、既存の`cafe_sns_dev`プロジェクト（ref: `eqhblyqrmwnkuwgmfzfg`、
+  2026-09-12作成で以後未使用だった）を指すよう設定した。Production側の値は一切参照・変更していない
+  （`vercel env rm <name> preview` でPreview分だけ削除し、新しい値を `--environment preview` で
+  追加する操作のみ行った）。
+  - 調査の結果、`cafe_sns_dev`には71件のマイグレーションが**既に全て適用済み**だった
+    （`supabase db diff --linked` で `No schema changes found`）。放置期間中に適用されていたか、
+    過去のどこかの作業で流されていたかは不明だが、追加のマイグレーション適用作業は不要だった
+  - Auth設定（D72と同種の罠）は`cafe_sns_dev`では**部分的にのみ**済んでいた。
+    Custom Access Token Hookは有効化済みだったが、カスタムSMTP・Site URL・Redirect URLsは
+    未設定（`site_url`が`http://localhost:3000`のまま）。Preview環境で実際の認証フローを試す
+    予定が出たタイミングで、[deployment.md](../operations/deployment.md#初回本番セットアップ時にdashboardで手動設定が必要なもの)
+    の表をあらためて`cafe_sns_dev`に適用する
+  - マイグレーションの反映は当面**手動運用**（気づいたタイミングで
+    `supabase link --project-ref eqhblyqrmwnkuwgmfzfg && supabase db push`）。PR起点の自動反映は
+    利用頻度が上がってから検討する
+  - 調査中に、引き継ぎ資料になかった**3つ目の残骸**を発見した: Vercelプロジェクト`cafe-sns-site`
+    （2026-09-12作成、本番デプロイ一度も無し）と、Vercel-Supabase連携が自動作成した
+    Supabaseプロジェクト`supabase-beige-cave`（ref: `ynxymxtmbypneuuqtgrc`、作成時から
+    paused状態で実害なし）。両方とも削除対象として本人に確認済み（削除はダッシュボードから
+    本人が実行、自動モードの安全装置により破壊的操作としてエージェント側からは実行できなかった）
 - 参照: docs/operations/deployment.md「初回本番セットアップ時にDashboardで手動設定が必要なもの」
 
 ### D73. 生年月日を複数回入力し年齢区分を変更すると、サインアップが無限ループする
