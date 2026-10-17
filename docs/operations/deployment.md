@@ -95,8 +95,11 @@ SENTRY_DSN=<開発時は空でも可>
 
 - **プラン:** Free（500MB DB, 1GB Storage, 50K MAU）でスタート → Pro ($25/mo)
 - **プロジェクト構成:**
-  - `cafe-sns-dev` — Preview 用
-  - `cafe-sns-prod` — Production 用
+  - `cafe_sns_dev`（ref: `eqhblyqrmwnkuwgmfzfg`） — Preview 用。2026-09-12 作成、以後未使用で
+    放置されていたが、2026-10-17 に Vercel `mitsu-cafe` の Preview 環境変数をこちらへ向けて
+    実運用を開始した（[pending-items D72](../product/pending-items.md#d72-初回本番デプロイで判明したauth設定の本番非同期問題2026-10-15解消)参照）。
+    マイグレーションは手動運用（`supabase link --project-ref eqhblyqrmwnkuwgmfzfg && supabase db push`）
+  - `cafe-sns-prod`（ref: `ciasmmtrvlcokjmlwbsy`） — Production 用
 - **拡張の有効化（初期マイグレーションに含める / 決定 2026-09-05）:**
 
   | 拡張 | 用途 |
