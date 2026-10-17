@@ -1988,6 +1988,22 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **決定期限:** 未定。発生頻度が低く、検証ベータの小規模運用では実害が顕在化する可能性が
   低いため優先度は高くない
 
+### D74. Sentry送信（`reportError`）への移行が一部ファイルで止まっている
+
+- **課題:** Sentry導入PR（chore/sentry-monitoring）では、安全性に関わる6ファイル
+  （`reports.ts` / `blocks.ts` / `admin-reports.ts` / `admin-owner-verifications.ts` /
+  `admin-ng-words.ts` / `lib/email/resend.ts`）のみ `console.error` を
+  `lib/monitoring/report-error.ts` の `reportError` に置き換えた。`bookmarks.ts` /
+  `cafes.ts` / `likes.ts` / `comments.ts` / `follows.ts` / `owner.ts` /
+  `regular-customers.ts` 等、`INTERNAL_ERROR`相当の `console.error` が約24箇所残っており、
+  [error-catalog.md #Sentry送信対象](../architecture/error-catalog.md#sentry-送信対象) は
+  これらの経路では実質未達成のまま
+- **意図的な段階移行:** 1PRで30ファイル全部を置き換えると差分が肥大化するため、まず
+  安全性（通報・ブロック・モデレーション・保護者同意メール）に絞って導入した
+  （ユーザー判断、2026-10-17）
+- **対応方針:** 残りのファイルも同様に `reportError` へ置き換える別PRを立てる。
+  1ファイルあたりの変更は機械的（import追加 + `console.error`呼び出しの置換）
+
 ## 削除・アーカイブ判断待ち
 
 現時点で「削除する」と決めた項目はなし。追加・変更発生時にここに追記。

@@ -29,7 +29,7 @@ export async function sendEmail(input: {
     })
 
     if (error) {
-      reportError('email', 'Resend送信失敗', { to: input.to, error })
+      reportError('email', `Resend送信失敗 (to: ${input.to})`, error)
       return { ok: false, error: error.message }
     }
     return { ok: true }
