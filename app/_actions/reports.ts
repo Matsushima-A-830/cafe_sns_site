@@ -6,6 +6,7 @@ import {
   POSTGRES_INSUFFICIENT_PRIVILEGE,
   POSTGRES_UNIQUE_VIOLATION,
 } from '@/lib/constants/postgres-error-codes'
+import { reportError } from '@/lib/monitoring/report-error'
 import { getCommentById } from '@/lib/posts/comments'
 import { getPostDetail } from '@/lib/posts/post-detail'
 import { getProfileById } from '@/lib/profiles/public-profile'
@@ -71,7 +72,7 @@ export async function createReport(
     }
     if (error.code === POSTGRES_INSUFFICIENT_PRIVILEGE) return { ok: false, error: 'FORBIDDEN' }
 
-    console.error('[reports] 通報に失敗:', error)
+    reportError('reports', '通報に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 

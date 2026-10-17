@@ -1,6 +1,7 @@
 'use server'
 
 import { getReportTargetSummary, type ReportTargetSummary } from '@/lib/admin/report-target'
+import { reportError as reportToSentry } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 import { resolveReportSchema } from '@/lib/validators/admin-reports'
 import type { Result } from '@/types/result'
@@ -227,7 +228,7 @@ export async function resolveReport(
     target_id: report.target_id,
     metadata: { reportId },
   })
-  if (auditError) console.error('[admin-reports] audit_logs の記録に失敗:', auditError)
+  if (auditError) reportToSentry('admin-reports', 'audit_logs の記録に失敗', auditError)
 
   const { error: notifyError } = await supabase.from('notifications').insert({
     recipient_id: report.reporter_id,
@@ -235,7 +236,7 @@ export async function resolveReport(
     entity_type: 'report',
     entity_id: reportId,
   })
-  if (notifyError) console.error('[admin-reports] 通報者への通知に失敗:', notifyError)
+  if (notifyError) reportToSentry('admin-reports', '通報者への通知に失敗', notifyError)
 
   return { ok: true, data: { reportId } }
 }
