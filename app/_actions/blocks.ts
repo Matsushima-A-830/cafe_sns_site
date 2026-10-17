@@ -5,6 +5,7 @@ import {
   POSTGRES_INSUFFICIENT_PRIVILEGE,
   POSTGRES_UNIQUE_VIOLATION,
 } from '@/lib/constants/postgres-error-codes'
+import { reportError } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 import { blockUserSchema } from '@/lib/validators/blocks'
 import type { Result } from '@/types/result'
@@ -56,7 +57,7 @@ export async function blockUser(input: unknown): Promise<Result<null, BlockUserE
     // 他の Server Actions と同じ変換を揃えておく
     if (error.code === POSTGRES_INSUFFICIENT_PRIVILEGE) return { ok: false, error: 'FORBIDDEN' }
 
-    console.error('[blocks] ブロックに失敗:', error)
+    reportError('blocks', 'ブロックに失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 
@@ -85,7 +86,7 @@ export async function unblockUser(input: unknown): Promise<Result<null, UnblockU
     .eq('blocked_id', parsed.data.targetUserId)
 
   if (error) {
-    console.error('[blocks] ブロック解除に失敗:', error)
+    reportError('blocks', 'ブロック解除に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
   return { ok: true, data: null }
@@ -117,7 +118,7 @@ export async function listBlockedUsers(): Promise<Result<BlockedUser[], ListBloc
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('[blocks] ブロック一覧の取得に失敗:', error)
+    reportError('blocks', 'ブロック一覧の取得に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 

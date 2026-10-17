@@ -1,5 +1,6 @@
 'use server'
 
+import { reportError } from '@/lib/monitoring/report-error'
 import type { OwnerDocumentEntry } from '@/lib/owner/verification'
 import { createOwnerDocumentViewUrl } from '@/lib/storage/owner-documents'
 import { createClient } from '@/lib/supabase/server'
@@ -226,7 +227,7 @@ export async function resolveOwnerVerification(
     target_id: verificationId,
     metadata: { cafeId: verification.cafe_id },
   })
-  if (auditError) console.error('[admin-owner-verifications] audit_logs の記録に失敗:', auditError)
+  if (auditError) reportError('admin-owner-verifications', 'audit_logs の記録に失敗', auditError)
 
   const { error: notifyError } = await supabase.from('notifications').insert({
     recipient_id: verification.user_id,
@@ -234,7 +235,7 @@ export async function resolveOwnerVerification(
     entity_type: 'cafe',
     entity_id: verification.cafe_id,
   })
-  if (notifyError) console.error('[admin-owner-verifications] 申請者への通知に失敗:', notifyError)
+  if (notifyError) reportError('admin-owner-verifications', '申請者への通知に失敗', notifyError)
 
   return { ok: true, data: { verificationId } }
 }

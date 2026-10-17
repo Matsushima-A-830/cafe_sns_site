@@ -1,3 +1,4 @@
+import { withSentryConfig } from '@sentry/nextjs/config'
 import type { NextConfig } from 'next'
 
 // 画像は Supabase Storage が正 (docs/product/pending-items.md A5)。
@@ -43,4 +44,15 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+// SENTRY_AUTH_TOKEN 未設定（Sentryプロジェクト作成前のローカル・CI）では
+// ソースマップアップロードだけが警告付きでスキップされ、ビルドは止まらない
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  silent: !process.env.CI,
+  webpack: {
+    treeshake: {
+      removeDebugLogging: true,
+    },
+  },
+})

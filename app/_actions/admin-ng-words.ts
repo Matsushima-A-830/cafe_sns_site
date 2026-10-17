@@ -1,6 +1,7 @@
 'use server'
 
 import { POSTGRES_UNIQUE_VIOLATION } from '@/lib/constants/postgres-error-codes'
+import { reportError } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 import {
   type AddNgWordInput,
@@ -102,7 +103,7 @@ async function insertNgWord(
 
   if (error) {
     if (error.code === POSTGRES_UNIQUE_VIOLATION) return { ok: false, error: 'CONFLICT' }
-    console.error('[admin-ng-words] NGワードの追加に失敗:', error)
+    reportError('admin-ng-words', 'NGワードの追加に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
   if (!data) return { ok: false, error: 'FORBIDDEN' }
@@ -122,7 +123,7 @@ export async function deleteNgWord(input: unknown): Promise<Result<null, DeleteN
 
   const { error } = await supabase.from('ng_words').delete().eq('id', parsed.data.ngWordId)
   if (error) {
-    console.error('[admin-ng-words] NGワードの削除に失敗:', error)
+    reportError('admin-ng-words', 'NGワードの削除に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 

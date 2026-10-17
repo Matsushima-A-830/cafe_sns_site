@@ -57,6 +57,7 @@ yarn-error.log*
 
 # Sentry
 .sentryclirc
+.env.sentry-build-plugin
 
 # Local artifacts
 tmp/

@@ -1,6 +1,7 @@
 import 'server-only'
 import { Resend } from 'resend'
 import { serverEnv } from '@/lib/env.server'
+import { reportError } from '@/lib/monitoring/report-error'
 
 /**
  * Resend の薄いラッパー。カスタムメール送信はこのファイルが最初の実装なので、
@@ -12,7 +13,7 @@ export async function sendEmail(input: {
   html: string
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!serverEnv.RESEND_API_KEY) {
-    console.error('RESEND_API_KEY 未設定のためメール送信をスキップした', input.to)
+    reportError('email', 'RESEND_API_KEY 未設定のためメール送信をスキップした', input.to)
     return { ok: false, error: 'RESEND_API_KEY_MISSING' }
   }
 
@@ -28,12 +29,12 @@ export async function sendEmail(input: {
     })
 
     if (error) {
-      console.error('Resend送信失敗', input.to, error)
+      reportError('email', `Resend送信失敗 (to: ${input.to})`, error)
       return { ok: false, error: error.message }
     }
     return { ok: true }
   } catch (cause) {
-    console.error('Resend送信で例外が発生', input.to, cause)
+    reportError('email', 'Resend送信で例外が発生', cause)
     return { ok: false, error: cause instanceof Error ? cause.message : String(cause) }
   }
 }
