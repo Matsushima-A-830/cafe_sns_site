@@ -288,7 +288,11 @@ function middleware(req):
     if (role !== 'admin') return notFound()  // 存在自体を隠す
 
   // ---- 既ログイン → /login /signup にアクセス ----
-  if ((path === '/login' || path.startsWith('/signup')) && isAuthed && status === 'active'):
+  // status === 'active' だけだと pending_consent（profiles行は既にある）が素通りしてしまい、
+  // /signup/birthdate の再アクセスで age_category が上書きされCONSENT_REQUIREDループに陥る（D73）。
+  // suspended/deleted は既に上で弾かれているので「profiles行が存在する」= status !== null で判定する
+  if ((path === '/login' || path.startsWith('/signup')) && isAuthed && status !== null):
+    if (status === 'pending_consent'): return redirect('/account/pending')
     return redirect(onboarded ? '/me' : '/onboarding/profile')
 
   return next()

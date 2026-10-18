@@ -3,6 +3,7 @@ import {
   refreshConsentStatus,
   resendGuardianConsentEmail,
   signUp,
+  submitBirthdate,
   submitGuardianConsent,
   updateGuardianEmail,
 } from './auth'
@@ -85,6 +86,62 @@ describe('signUp', () => {
 
     expect(result).toEqual({ ok: false, error: 'BETA_SIGNUP_CLOSED' })
     expect(signUpMock).not.toHaveBeenCalled()
+  })
+})
+
+// submitBirthdate の既存 profiles 行チェック用（id の有無しか見ない）
+function buildProfileExistsFrom(profile: { id: string } | null) {
+  const maybeSingle = vi.fn().mockResolvedValue({ data: profile, error: null })
+  return vi.fn(() => ({ select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle })) })) }))
+}
+
+describe('submitBirthdate', () => {
+  const validInput = { year: 2000, month: 1, day: 1 }
+
+  it('不正な入力は INVALID_INPUT を返す', async () => {
+    const result = await submitBirthdate({ year: 'nan', month: 1, day: 1 })
+    expect(result).toEqual({ ok: false, error: 'INVALID_INPUT', details: expect.anything() })
+    expect(createClientMock).not.toHaveBeenCalled()
+  })
+
+  it('13歳未満は AGE_RESTRICTED を返す（Supabaseへは到達しない）', async () => {
+    const currentYear = new Date().getFullYear()
+    const result = await submitBirthdate({ year: currentYear - 5, month: 1, day: 1 })
+    expect(result).toEqual({ ok: false, error: 'AGE_RESTRICTED' })
+    expect(createClientMock).not.toHaveBeenCalled()
+  })
+
+  it('未ログインは UNAUTHENTICATED を返す', async () => {
+    createClientMock.mockResolvedValue({ auth: buildAuthGetUser(null) })
+
+    const result = await submitBirthdate(validInput)
+    expect(result).toEqual({ ok: false, error: 'UNAUTHENTICATED' })
+  })
+
+  it('既に profiles 行が存在する（サインアップ完了済み）なら CONFLICT を返し、app_metadata を上書きしない（D73）', async () => {
+    const from = buildProfileExistsFrom({ id: userId })
+    const updateUserById = vi.fn()
+    createClientMock.mockResolvedValue({ auth: buildAuthGetUser(), from })
+    createAdminClientMock.mockReturnValue({ auth: { admin: { updateUserById } } })
+
+    const result = await submitBirthdate(validInput)
+
+    expect(result).toEqual({ ok: false, error: 'CONFLICT' })
+    expect(updateUserById).not.toHaveBeenCalled()
+  })
+
+  it('profiles 行が無ければ app_metadata に生年月日と年齢区分を保存する', async () => {
+    const from = buildProfileExistsFrom(null)
+    const updateUserById = vi.fn().mockResolvedValue({ error: null })
+    createClientMock.mockResolvedValue({ auth: buildAuthGetUser(), from })
+    createAdminClientMock.mockReturnValue({ auth: { admin: { updateUserById } } })
+
+    const result = await submitBirthdate(validInput)
+
+    expect(result).toEqual({ ok: true, data: { ageCategory: 'adult' } })
+    expect(updateUserById).toHaveBeenCalledWith(userId, {
+      app_metadata: { birth_date: '2000-01-01', age_category: 'adult' },
+    })
   })
 })
 

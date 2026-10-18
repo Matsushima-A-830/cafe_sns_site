@@ -107,6 +107,17 @@ export async function submitBirthdate(
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
 
+  // middleware が /signup/* へのアクセスを閉じるのは status !== null（profiles行あり）の
+  // ときだが、Server Actionは事実上公開エンドポイントで直接叩ける。ここでも同じ既存行チェックを
+  // 入れないと、age_category の再上書きでCONSENT_REQUIREDループに陥る（D73）
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', user.id)
+    .maybeSingle()
+  if (profileError) return { ok: false, error: 'INTERNAL_ERROR', details: profileError.message }
+  if (profile) return { ok: false, error: 'CONFLICT' }
+
   const { error } = await updateSignupMetadata(user.id, {
     birth_date: birthDate.toISOString().slice(0, 10),
     age_category: ageCategory,

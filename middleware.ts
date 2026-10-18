@@ -85,7 +85,12 @@ export async function middleware(request: NextRequest) {
   }
 
   // ---- 既ログイン → /login /signup へのアクセス ----
-  if ((path === '/login' || path.startsWith('/signup')) && isAuthed && status === 'active') {
+  // status === 'active' だけを見ると pending_consent（profiles行は既にある）を素通りさせてしまい、
+  // /signup/birthdate への再アクセスで age_category が再上書きされて CONSENT_REQUIRED
+  // ループに陥る（D73）。suspended/deleted は既に上で弾かれているので、ここでは
+  // 「profiles行が存在する（status !== null）」を条件にする
+  if ((path === '/login' || path.startsWith('/signup')) && isAuthed && status !== null) {
+    if (status === 'pending_consent') return redirect('/account/pending')
     return redirect(onboarded ? '/me' : '/onboarding/profile')
   }
 
