@@ -1959,34 +1959,29 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
     本人が実行、自動モードの安全装置により破壊的操作としてエージェント側からは実行できなかった）
 - 参照: docs/operations/deployment.md「初回本番セットアップ時にDashboardで手動設定が必要なもの」
 
-### D73. 生年月日を複数回入力し年齢区分を変更すると、サインアップが無限ループする
+### D73. 生年月日を複数回入力し年齢区分を変更すると、サインアップが無限ループする（解消済み・2026-10-18）
 
-- **課題:** `/signup/birthdate`に複数回アクセスし、1回目は成人、2回目は未成年の生年月日を
-  入力するという操作列を取ると、以下の不整合が起きる:
-  - 1回目の入力時点で`/onboarding/profile`を通過して`profiles`行が`status='active'`で
-    既に作成される
-  - 2回目の入力で`auth.users.app_metadata`の`age_category`だけが`'minor'`に上書きされる
-    （`profiles.status`は`'active'`のまま変わらない）
-  - 再度`/onboarding/profile`を送信すると、`submitProfile`（`app/_actions/onboarding.ts`）が
-    `app_metadata`を見て`CONSENT_REQUIRED`を返し`/signup/consent`へリダイレクトしようとするが、
-    `middleware.ts`は`profiles.status='active'`（かつ`onboarded=false`）を見て
-    「サインアップ済み」と判断し`/signup`配下へのアクセスを`/onboarding/profile`へ強制的に
-    差し戻す（`middleware.ts`88行目: `path.startsWith('/signup') && status === 'active'`）
-  - 結果、`/onboarding/profile` ⇄ `/signup/consent`（middlewareによる即時差し戻し）の無限
-    ループに陥り、ユーザーからは「次へボタンが反応しない」ように見える
-- **発見経緯:** 2026-10-15、本番での保護者同意フロー確認中に、生年月日を入力し直したテスト
-  アカウントで発生を確認。クリーンな（生年月日を1回だけ入力する）未成年アカウントでは
-  再現しないことも確認済み
-- **実害の範囲:** 通常の初回サインアップ（生年月日を1回だけ入力）では発生しない。
-  `/signup/birthdate`へ再アクセスして年齢区分を変更するという、通常のUI導線からは
-  起こりにくい操作列でのみ顕在化するエッジケース
-- **対応方針（未決）:** a) `submitProfile`が`profiles`行の既存有無を先にチェックし、
-  既に存在する場合は（年齢区分の変更を許可しないか）既存行の状態に応じた適切な画面へ
-  誘導する b) `/signup/birthdate`を、`profiles`行が存在しないユーザーのみアクセス可能に
-  制限する（`requiresAuth`相当のガードを追加） c) 優先度低のエッジケースとして許容し、
-  対応を見送る
-- **決定期限:** 未定。発生頻度が低く、検証ベータの小規模運用では実害が顕在化する可能性が
-  低いため優先度は高くない
+- **課題:** `/signup/birthdate`に複数回アクセスし、年齢区分が変わる入力をやり直すと、
+  `auth.users.app_metadata`の`age_category`だけが上書きされ`profiles`の状態（`status`）と
+  食い違う。再度`/onboarding/profile`を送信すると`submitProfile`が`CONSENT_REQUIRED`を
+  返して`/signup/consent`へリダイレクトしようとするが、`middleware.ts`側がサインアップ
+  済みと判断して`/onboarding/profile`へ差し戻すため、両画面を往復する無限ループに陥る
+- **実際の再現条件（2026-10-18、コードで裏取り済み）:** `middleware.ts`旧実装（88行目）の
+  「既ログイン→`/login /signup`へのアクセス」判定は`status === 'active'`のときだけ
+  `/signup/*`を弾いていた。未成年で保護者同意待ちの`pending_consent`は`profiles`行が
+  既に存在するにもかかわらずこの条件に当たらず、`/signup/birthdate`へ何度でも
+  （ブラウザ操作なしにURLを直接叩くだけで）再アクセスできてしまうのが実際の入口だった。
+  そこへ`submitBirthdate`（`app/_actions/auth.ts`）が既存`profiles`行の有無を見ずに
+  `app_metadata`を無条件に上書きすることが重なって、`guardian_email`との不整合が生まれる
+- **対応（採用: 旧案a+bの組み合わせ）:**
+  - `middleware.ts`の既ログイン判定を`status === 'active'`から`status !== null`
+    （`profiles`行が存在する＝サインアップ完了済み）に拡張。`pending_consent`も
+    `/account/pending`へ誘導されるようになり、`/signup/*`への再アクセス自体を閉じた
+  - `submitBirthdate`（Server Action）にも既存`profiles`行チェックを追加し、既に存在する
+    場合は`CONFLICT`を返す。Server Actionsは事実上公開エンドポイントのため、
+    middlewareのガードだけに依存しない多層防御とした
+  - 対応版は[docs/architecture/routing.md #middlewarets設計](../architecture/routing.md#middlewarets設計)
+    の擬似コードにも反映済み
 
 ### D74. Sentry送信（`reportError`）への移行が一部ファイルで止まっている
 
