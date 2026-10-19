@@ -1,5 +1,6 @@
 'use server'
 
+import { reportError } from '@/lib/monitoring/report-error'
 import { getFeedPage, resolveFeedOptions } from '@/lib/posts/feed'
 import type { PostListPage } from '@/lib/posts/post-list'
 import { createClient } from '@/lib/supabase/server'
@@ -33,7 +34,7 @@ export async function loadMoreFeed(
     const page = await getFeedPage(supabase, resolved, user?.id ?? null, parsed.data.cursor)
     return { ok: true, data: page }
   } catch (cause) {
-    console.error('[feed] 次ページの取得に失敗:', cause)
+    reportError('feed', '次ページの取得に失敗', cause)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 }

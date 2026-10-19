@@ -4,6 +4,7 @@ import {
   POSTGRES_FOREIGN_KEY_VIOLATION,
   POSTGRES_INSUFFICIENT_PRIVILEGE,
 } from '@/lib/constants/postgres-error-codes'
+import { reportError } from '@/lib/monitoring/report-error'
 import { type CommentListPage, getPostCommentCount, getPostComments } from '@/lib/posts/comments'
 import { publishedPostExists } from '@/lib/posts/post-detail'
 import { createClient } from '@/lib/supabase/server'
@@ -65,7 +66,7 @@ export async function createComment(
   try {
     return await insertComment(parsed.data)
   } catch (cause) {
-    console.error('[comments] コメントの投稿に失敗:', cause)
+    reportError('comments', 'コメントの投稿に失敗', cause)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 }
@@ -129,7 +130,7 @@ async function insertComment(
     // guard_comments_thread_integrity（別投稿への返信・2階層目の返信）
     if (error.code === RAISED_BY_TRIGGER) return { ok: false, error: 'FORBIDDEN' }
 
-    console.error('[comments] コメントの投稿に失敗:', error)
+    reportError('comments', 'コメントの投稿に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 
@@ -162,7 +163,7 @@ export async function deleteComment(
   try {
     return await softDeleteComment(parsed.data)
   } catch (cause) {
-    console.error('[comments] コメントの削除に失敗:', cause)
+    reportError('comments', 'コメントの削除に失敗', cause)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 }
@@ -187,7 +188,7 @@ async function softDeleteComment(
     if (isRaisedWithMarker(error, 'COMMENT_HAS_REPLIES')) {
       return { ok: false, error: 'COMMENT_HAS_REPLIES' }
     }
-    console.error('[comments] コメントの削除に失敗:', error)
+    reportError('comments', 'コメントの削除に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 
@@ -211,7 +212,7 @@ export async function loadMoreComments(
     const page = await getPostComments(supabase, parsed.data.postId, { cursor: parsed.data.cursor })
     return { ok: true, data: page }
   } catch (cause) {
-    console.error('[comments] 次ページの取得に失敗:', cause)
+    reportError('comments', '次ページの取得に失敗', cause)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 }

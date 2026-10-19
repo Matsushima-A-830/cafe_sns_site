@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { reportError } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 import type { ComposerTag } from '@/types/composer'
 
@@ -35,7 +36,7 @@ export async function loadTagOptions(): Promise<{
 
   // タグが1件も無い composer は正常な画面と区別が付かないため、原因をサーバーログに残す
   if (tagsResult.error) {
-    console.error('[composer] タグ選択肢の取得に失敗:', tagsResult.error.message)
+    reportError('composer', 'タグ選択肢の取得に失敗', tagsResult.error)
   }
 
   return {

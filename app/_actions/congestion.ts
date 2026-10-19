@@ -6,6 +6,7 @@ import {
   POSTGRES_FOREIGN_KEY_VIOLATION,
   POSTGRES_INSUFFICIENT_PRIVILEGE,
 } from '@/lib/constants/postgres-error-codes'
+import { reportError } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 import { type ReportCongestionInput, reportCongestionSchema } from '@/lib/validators/congestion'
 import type { Result } from '@/types/result'
@@ -36,7 +37,7 @@ export async function reportCongestion(
   try {
     return await insertReport(parsed.data)
   } catch (cause) {
-    console.error('[congestion] 混雑度の報告に失敗:', cause)
+    reportError('congestion', '混雑度の報告に失敗', cause)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 }
@@ -69,7 +70,7 @@ async function insertReport(
     // is_active_user() が偽（suspended / pending_consent）
     if (error.code === POSTGRES_INSUFFICIENT_PRIVILEGE) return { ok: false, error: 'FORBIDDEN' }
 
-    console.error('[congestion] 混雑度の報告に失敗:', error)
+    reportError('congestion', '混雑度の報告に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 

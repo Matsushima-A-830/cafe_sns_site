@@ -5,6 +5,7 @@ import {
   POSTGRES_INSUFFICIENT_PRIVILEGE,
   POSTGRES_UNIQUE_VIOLATION,
 } from '@/lib/constants/postgres-error-codes'
+import { reportError } from '@/lib/monitoring/report-error'
 import { getPostBookmarkCount, publishedPostExists } from '@/lib/posts/post-detail'
 import { createClient } from '@/lib/supabase/server'
 import { type BookmarkEntryInput, bookmarkEntrySchema } from '@/lib/validators/bookmarks'
@@ -48,7 +49,7 @@ export async function bookmarkPost(input: unknown): Promise<Result<BookmarkCount
   try {
     return await insertBookmark(parsed.data)
   } catch (cause) {
-    console.error('[bookmarks] 保存に失敗:', cause)
+    reportError('bookmarks', '保存に失敗', cause)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 }
@@ -97,7 +98,7 @@ async function insertBookmark(
     // is_active_user() が偽（suspended / pending_consent）
     if (error.code === POSTGRES_INSUFFICIENT_PRIVILEGE) return { ok: false, error: 'FORBIDDEN' }
 
-    console.error('[bookmarks] 保存に失敗:', error)
+    reportError('bookmarks', '保存に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 
@@ -123,7 +124,7 @@ export async function unbookmarkPost(
   try {
     return await deleteBookmark(parsed.data)
   } catch (cause) {
-    console.error('[bookmarks] 保存解除に失敗:', cause)
+    reportError('bookmarks', '保存解除に失敗', cause)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 }
@@ -145,7 +146,7 @@ async function deleteBookmark(
     .eq('post_id', input.postId)
 
   if (error) {
-    console.error('[bookmarks] 保存解除に失敗:', error)
+    reportError('bookmarks', '保存解除に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 

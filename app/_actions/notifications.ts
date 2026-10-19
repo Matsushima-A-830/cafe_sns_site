@@ -1,5 +1,6 @@
 'use server'
 
+import { reportError } from '@/lib/monitoring/report-error'
 import {
   getNotificationList,
   type NotificationListPage,
@@ -48,7 +49,7 @@ export async function loadMoreNotifications(
     })
     return { ok: true, data: page }
   } catch (cause) {
-    console.error('[notifications] 次ページの取得に失敗:', cause)
+    reportError('notifications', '次ページの取得に失敗', cause)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 }
@@ -73,7 +74,7 @@ export async function markNotificationAsRead(
     .is('read_at', null)
 
   if (error) {
-    console.error('[notifications] 既読化に失敗:', error)
+    reportError('notifications', '既読化に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 
@@ -96,7 +97,7 @@ export async function markAllNotificationsAsRead(): Promise<Result<null, MarkAll
     .is('read_at', null)
 
   if (error) {
-    console.error('[notifications] 一括既読化に失敗:', error)
+    reportError('notifications', '一括既読化に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 

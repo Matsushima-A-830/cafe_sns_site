@@ -1,5 +1,6 @@
 'use server'
 
+import { reportError } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 import { type UpdateSettingsInput, updateSettingsSchema } from '@/lib/validators/settings'
 import type { Database } from '@/types/database'
@@ -43,7 +44,7 @@ export async function updateSettings(input: unknown): Promise<Result<null, Updat
     .eq('user_id', user.id)
 
   if (error) {
-    console.error('[settings] 設定の更新に失敗:', error)
+    reportError('settings', '設定の更新に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
   return { ok: true, data: null }

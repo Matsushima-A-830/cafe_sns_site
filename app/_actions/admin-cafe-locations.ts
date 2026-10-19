@@ -1,6 +1,7 @@
 'use server'
 
 import { geocodeAddress } from '@/lib/geocoding/google'
+import { reportError } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 import type { Result } from '@/types/result'
 
@@ -104,7 +105,7 @@ export async function backfillCafeLocations(): Promise<
       .eq('id', cafe.id)
 
     if (updateError) {
-      console.error('[admin-cafe-locations] locationの更新に失敗:', cafe.id, updateError)
+      reportError('admin-cafe-locations', `locationの更新に失敗: ${cafe.id}`, updateError)
       skipped.push({ cafeId: cafe.id, name: cafe.name, reason: 'UPDATE_FAILED' })
       continue
     }

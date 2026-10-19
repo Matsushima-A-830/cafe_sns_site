@@ -9,6 +9,7 @@ import {
   POSTGRES_INSUFFICIENT_PRIVILEGE,
   POSTGRES_UNIQUE_VIOLATION,
 } from '@/lib/constants/postgres-error-codes'
+import { reportError } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 import { type CafeListEntryInput, cafeListEntrySchema } from '@/lib/validators/cafe-lists'
 import { cafeIdSchema } from '@/lib/validators/cafes'
@@ -46,7 +47,7 @@ export async function addCafeToList(input: unknown): Promise<Result<null, AddToL
   try {
     return await insertEntry(parsed.data)
   } catch (cause) {
-    console.error('[cafe-lists] リストへの追加に失敗:', cause)
+    reportError('cafe-lists', 'リストへの追加に失敗', cause)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 }
@@ -88,7 +89,7 @@ async function insertEntry(input: CafeListEntryInput): Promise<Result<null, AddT
     // is_active_user() が偽（suspended / pending_consent）
     if (error.code === POSTGRES_INSUFFICIENT_PRIVILEGE) return { ok: false, error: 'FORBIDDEN' }
 
-    console.error('[cafe-lists] リストへの追加に失敗:', error)
+    reportError('cafe-lists', 'リストへの追加に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 
@@ -124,7 +125,7 @@ export async function removeCafeFromList(
     .eq('list_type', parsed.data.listType)
 
   if (error) {
-    console.error('[cafe-lists] リストからの解除に失敗:', error)
+    reportError('cafe-lists', 'リストからの解除に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
   return { ok: true, data: null }
@@ -151,7 +152,7 @@ export async function getCafeListMembershipForCafe(
     const membership = await getCafeListMembership(supabase, parsed.data.cafeId)
     return { ok: true, data: membership }
   } catch (cause) {
-    console.error('[cafe-lists] カフェリストの状態取得に失敗:', cause)
+    reportError('cafe-lists', 'カフェリストの状態取得に失敗', cause)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 }

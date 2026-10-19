@@ -5,6 +5,7 @@ import {
   POSTGRES_INSUFFICIENT_PRIVILEGE,
   POSTGRES_UNIQUE_VIOLATION,
 } from '@/lib/constants/postgres-error-codes'
+import { reportError } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 import {
   awardRegularSchema,
@@ -56,7 +57,7 @@ export async function awardRegular(input: unknown): Promise<Result<null, AwardRe
       return reAwardRevokedRegular(supabase, parsed.data, user.id)
     }
     if (error.code === POSTGRES_INSUFFICIENT_PRIVILEGE) return { ok: false, error: 'FORBIDDEN' }
-    console.error('[regular-customers] 常連認定に失敗:', error)
+    reportError('regular-customers', '常連認定に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
   if (!data) return { ok: false, error: 'FORBIDDEN' }
@@ -95,7 +96,7 @@ async function reAwardRevokedRegular(
 
   if (error) {
     if (error.code === POSTGRES_INSUFFICIENT_PRIVILEGE) return { ok: false, error: 'FORBIDDEN' }
-    console.error('[regular-customers] 再認定に失敗:', error)
+    reportError('regular-customers', '再認定に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
   if (!data) return { ok: false, error: 'ALREADY_REGULAR' }
@@ -128,7 +129,7 @@ export async function revokeRegular(input: unknown): Promise<Result<null, Revoke
 
   if (error) {
     if (error.code === POSTGRES_INSUFFICIENT_PRIVILEGE) return { ok: false, error: 'FORBIDDEN' }
-    console.error('[regular-customers] 常連取消に失敗:', error)
+    reportError('regular-customers', '常連取消に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
   // 対象行が無い（存在しない組み合わせ）・オーナーでない、のどちらも見分けが付かない
@@ -163,7 +164,7 @@ export async function updateRegularNote(
 
   if (error) {
     if (error.code === POSTGRES_INSUFFICIENT_PRIVILEGE) return { ok: false, error: 'FORBIDDEN' }
-    console.error('[regular-customers] メモ更新に失敗:', error)
+    reportError('regular-customers', 'メモ更新に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
   if (!data) return { ok: false, error: 'FORBIDDEN' }

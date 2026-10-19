@@ -1,5 +1,6 @@
 'use server'
 
+import { reportError } from '@/lib/monitoring/report-error'
 import { getPostList, type PostListPage } from '@/lib/posts/post-list'
 import { resolveSearchOptions } from '@/lib/posts/search'
 import { createClient } from '@/lib/supabase/server'
@@ -29,7 +30,7 @@ export async function loadMoreSearch(
     const page = await getPostList(supabase, { ...resolved.options, cursor: parsed.data.cursor })
     return { ok: true, data: page }
   } catch (cause) {
-    console.error('[search] 次ページの取得に失敗:', cause)
+    reportError('search', '次ページの取得に失敗', cause)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 }

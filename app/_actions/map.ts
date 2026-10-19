@@ -1,6 +1,7 @@
 'use server'
 
 import { getNearbyCafes, type NearbyCafe } from '@/lib/cafes/nearby'
+import { reportError } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 import { nearbyCafesSchema } from '@/lib/validators/cafes'
 import type { Result } from '@/types/result'
@@ -21,7 +22,7 @@ export async function searchNearbyCafes(
     const cafes = await getNearbyCafes(supabase, parsed.data)
     return { ok: true, data: cafes }
   } catch (cause) {
-    console.error('[map] 近くのカフェの取得に失敗:', cause)
+    reportError('map', '近くのカフェの取得に失敗', cause)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 }

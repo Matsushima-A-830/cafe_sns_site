@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { cafeExists } from '@/lib/cafes/cafe-detail'
 import { getNearbyCafes } from '@/lib/cafes/nearby'
+import { reportError } from '@/lib/monitoring/report-error'
 import {
   getPostList,
   type PostListCursor,
@@ -42,7 +43,7 @@ export async function getMoodTags(supabase: Client, limit = MOOD_TAG_LIMIT): Pro
 
   // チップが1件も無い画面は正常時と区別が付かないので原因をサーバーログに残す
   if (error) {
-    console.error('[feed] 気分タグの取得に失敗:', error.message)
+    reportError('feed', '気分タグの取得に失敗', error)
     return []
   }
   return (data ?? []) as MoodTag[]
