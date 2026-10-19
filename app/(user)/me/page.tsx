@@ -24,6 +24,7 @@ import {
 } from '@/lib/cafes/user-cafe-lists'
 import { draftPostTypeLabel, draftPreviewText, draftResumeHref } from '@/lib/composer/draft-summary'
 import { CAFE_LIST_LABELS, CAFE_LIST_PATHS } from '@/lib/constants/cafe-lists'
+import { reportError } from '@/lib/monitoring/report-error'
 import { getUnreadNotificationCount } from '@/lib/notifications/notification-list'
 import { getOwnedCafe } from '@/lib/owner/dashboard'
 import {
@@ -113,7 +114,7 @@ export default async function MyPage() {
 
   // 下書きだけは取得に失敗してもページ全体を落とさない（マイページの主役ではない）。
   // ただし握って0件にすると「下書きが消えた」ようにしか見えないので理由をログに残す
-  if (!drafts.ok) console.error('[mypage] 下書き一覧の取得に失敗:', drafts.error)
+  if (!drafts.ok) reportError('mypage', '下書き一覧の取得に失敗', drafts.error)
   const draftList = drafts.ok ? drafts.data : []
 
   const shortcuts: ListShortcut[] = [
