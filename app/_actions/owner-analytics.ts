@@ -1,5 +1,6 @@
 'use server'
 
+import { reportError } from '@/lib/monitoring/report-error'
 import { getCafeAnalytics } from '@/lib/owner/analytics'
 import { createClient } from '@/lib/supabase/server'
 import { exportCafeAnalyticsCsvSchema } from '@/lib/validators/owner-analytics'
@@ -47,7 +48,7 @@ export async function exportCafeAnalyticsCsv(
     const filename = `${analytics.cafe.name}_analytics_${new Date().toISOString().slice(0, 10)}.csv`
     return { ok: true, data: { csv: buildCsv(rows), filename } }
   } catch (error) {
-    console.error('[owner-analytics] CSVエクスポートに失敗:', error)
+    reportError('owner-analytics', 'CSVエクスポートに失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 }

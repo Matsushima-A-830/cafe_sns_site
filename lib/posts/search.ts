@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { reportError } from '@/lib/monitoring/report-error'
 import { getMoodTags, type MoodTag } from '@/lib/posts/feed'
 import type { PostListOptions, PostListTag } from '@/lib/posts/post-list'
 import type { SearchQuery } from '@/lib/validators/search'
@@ -76,7 +77,7 @@ export async function getAreaOptions(supabase: Client): Promise<AreaOption[]> {
     .order('priority', { ascending: false })
 
   if (error) {
-    console.error('[search] エリア一覧の取得に失敗:', error.message)
+    reportError('search', 'エリア一覧の取得に失敗', error)
     return []
   }
   return data ?? []
@@ -96,7 +97,7 @@ export async function getTagOptions(
     .order('slug')
 
   if (error) {
-    console.error('[search] タグ一覧の取得に失敗:', error.message)
+    reportError('search', 'タグ一覧の取得に失敗', error)
     return []
   }
   return data ?? []
@@ -146,7 +147,7 @@ export async function getNearbyAreaSuggestions(
     .limit(limit + (excludeAreaCode ? 1 : 0))
 
   if (error) {
-    console.error('[search] エリア提案の取得に失敗:', error.message)
+    reportError('search', 'エリア提案の取得に失敗', error)
     return []
   }
   return (data ?? []).filter((area) => area.code !== excludeAreaCode).slice(0, limit)

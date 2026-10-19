@@ -6,6 +6,7 @@ import {
   POSTGRES_INSUFFICIENT_PRIVILEGE,
   POSTGRES_UNIQUE_VIOLATION,
 } from '@/lib/constants/postgres-error-codes'
+import { reportError } from '@/lib/monitoring/report-error'
 import { getPostLikeCount, publishedPostExists } from '@/lib/posts/post-detail'
 import { createClient } from '@/lib/supabase/server'
 import { type LikeEntryInput, likeEntrySchema } from '@/lib/validators/likes'
@@ -48,7 +49,7 @@ export async function likePost(input: unknown): Promise<Result<LikeCount, LikeEr
   try {
     return await insertLike(parsed.data)
   } catch (cause) {
-    console.error('[likes] いいねに失敗:', cause)
+    reportError('likes', 'いいねに失敗', cause)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 }
@@ -92,7 +93,7 @@ async function insertLike(input: LikeEntryInput): Promise<Result<LikeCount, Like
     // is_active_user() が偽（suspended / pending_consent）
     if (error.code === POSTGRES_INSUFFICIENT_PRIVILEGE) return { ok: false, error: 'FORBIDDEN' }
 
-    console.error('[likes] いいねに失敗:', error)
+    reportError('likes', 'いいねに失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 
@@ -128,7 +129,7 @@ export async function unlikePost(input: unknown): Promise<Result<LikeCount, Unli
   try {
     return await deleteLike(parsed.data)
   } catch (cause) {
-    console.error('[likes] いいね解除に失敗:', cause)
+    reportError('likes', 'いいね解除に失敗', cause)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 }
@@ -148,7 +149,7 @@ async function deleteLike(input: LikeEntryInput): Promise<Result<LikeCount, Unli
     .eq('post_id', input.postId)
 
   if (error) {
-    console.error('[likes] いいね解除に失敗:', error)
+    reportError('likes', 'いいね解除に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 

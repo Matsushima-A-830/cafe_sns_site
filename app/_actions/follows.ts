@@ -6,6 +6,7 @@ import {
   POSTGRES_INSUFFICIENT_PRIVILEGE,
   POSTGRES_UNIQUE_VIOLATION,
 } from '@/lib/constants/postgres-error-codes'
+import { reportError } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 import { followUserSchema } from '@/lib/validators/follows'
 import type { Result } from '@/types/result'
@@ -57,7 +58,7 @@ export async function followUser(input: unknown): Promise<Result<null, FollowUse
     // ブロック関係・相手が active でない・自分が suspended / pending_consent
     if (error.code === POSTGRES_INSUFFICIENT_PRIVILEGE) return { ok: false, error: 'FORBIDDEN' }
 
-    console.error('[follows] フォローに失敗:', error)
+    reportError('follows', 'フォローに失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 
@@ -90,7 +91,7 @@ export async function unfollowUser(input: unknown): Promise<Result<null, Unfollo
     .eq('followee_id', parsed.data.followeeId)
 
   if (error) {
-    console.error('[follows] フォロー解除に失敗:', error)
+    reportError('follows', 'フォロー解除に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
   return { ok: true, data: null }

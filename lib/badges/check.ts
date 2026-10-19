@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { reportError } from '@/lib/monitoring/report-error'
 import type { BadgeCriteria, BadgeTrigger } from '@/types/badges'
 import type { Database } from '@/types/database'
 import { evaluateCriteria, TRIGGER_CRITERIA_TYPES } from './rules'
@@ -48,10 +49,10 @@ export async function checkAndAwardBadges(
         p_badge_code: badge.code,
       })
       if (error) {
-        console.error(`バッジ付与に失敗: ${badge.code}`, error)
+        reportError('badges', `バッジ付与に失敗: ${badge.code}`, error)
       }
     }
   } catch (cause) {
-    console.error(`バッジ判定に失敗 (trigger=${trigger})`, cause)
+    reportError('badges', `バッジ判定に失敗 (trigger=${trigger})`, cause)
   }
 }

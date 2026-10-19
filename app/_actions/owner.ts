@@ -6,6 +6,7 @@ import {
   POSTGRES_INSUFFICIENT_PRIVILEGE,
   POSTGRES_UNIQUE_VIOLATION,
 } from '@/lib/constants/postgres-error-codes'
+import { reportError } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 import { claimCafeSchema, withdrawClaimSchema } from '@/lib/validators/owner'
 import type { Result } from '@/types/result'
@@ -86,7 +87,7 @@ export async function claimCafe(
     }
     if (error.code === POSTGRES_INSUFFICIENT_PRIVILEGE) return { ok: false, error: 'FORBIDDEN' }
 
-    console.error('[owner] claimCafe に失敗:', error)
+    reportError('owner', 'claimCafe に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 
@@ -122,7 +123,7 @@ export async function withdrawClaim(input: unknown): Promise<Result<null, Withdr
 
   if (error) {
     if (error.code === POSTGRES_INSUFFICIENT_PRIVILEGE) return { ok: false, error: 'FORBIDDEN' }
-    console.error('[owner] withdrawClaim に失敗:', error)
+    reportError('owner', 'withdrawClaim に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 

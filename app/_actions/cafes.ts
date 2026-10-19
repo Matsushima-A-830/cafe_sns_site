@@ -4,6 +4,7 @@ import {
   POSTGRES_FOREIGN_KEY_VIOLATION,
   POSTGRES_INSUFFICIENT_PRIVILEGE,
 } from '@/lib/constants/postgres-error-codes'
+import { reportError } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 import { escapeIlikePattern, quoteOrFilterValue } from '@/lib/utils/postgrest'
 import {
@@ -173,7 +174,7 @@ export async function createCafe(
   try {
     return await insertCafe(parsed.data)
   } catch (cause) {
-    console.error('[cafes] カフェの登録に失敗:', cause)
+    reportError('cafes', 'カフェの登録に失敗', cause)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 }
@@ -222,7 +223,7 @@ async function insertCafe(
     // is_active_user() が偽（suspended / pending_consent）
     if (error.code === POSTGRES_INSUFFICIENT_PRIVILEGE) return { ok: false, error: 'FORBIDDEN' }
 
-    console.error('[cafes] カフェの登録に失敗:', error)
+    reportError('cafes', 'カフェの登録に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 
@@ -256,7 +257,7 @@ export async function updateCafe(
   try {
     return await updateCafeRow(parsed.data)
   } catch (cause) {
-    console.error('[cafes] カフェの更新に失敗:', cause)
+    reportError('cafes', 'カフェの更新に失敗', cause)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 }
@@ -302,7 +303,7 @@ async function updateCafeRow(
     ) {
       return { ok: false, error: 'AREA_CODE_UNKNOWN' }
     }
-    console.error('[cafes] カフェの更新に失敗:', error)
+    reportError('cafes', 'カフェの更新に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
   if (!data) return { ok: false, error: 'NOT_OWNER' }

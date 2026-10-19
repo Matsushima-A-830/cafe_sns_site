@@ -5,6 +5,7 @@ import {
   POSTGRES_FOREIGN_KEY_VIOLATION,
   POSTGRES_UNIQUE_VIOLATION,
 } from '@/lib/constants/postgres-error-codes'
+import { reportError } from '@/lib/monitoring/report-error'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { nearestAreaSchema } from '@/lib/validators/areas'
@@ -102,7 +103,11 @@ export async function submitProfile(input: unknown): Promise<Result<null>> {
     },
   })
   if (cleanupError) {
-    console.error('signup draft の app_metadata クリーンアップに失敗', user.id, cleanupError)
+    reportError(
+      'onboarding',
+      `signup draft の app_metadata クリーンアップに失敗: ${user.id}`,
+      cleanupError,
+    )
   }
 
   // status (pending_consent/active) が変わったので JWT クレイムを即時反映させる。
@@ -129,7 +134,7 @@ export async function findNearestArea(
     if (!area) return { ok: false, error: 'NOT_FOUND' }
     return { ok: true, data: area }
   } catch (cause) {
-    console.error('[onboarding] 最寄りエリアの取得に失敗:', cause)
+    reportError('onboarding', '最寄りエリアの取得に失敗', cause)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 }

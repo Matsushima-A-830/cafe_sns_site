@@ -1,6 +1,7 @@
 'use server'
 
 import { POSTGRES_INSUFFICIENT_PRIVILEGE } from '@/lib/constants/postgres-error-codes'
+import { reportError } from '@/lib/monitoring/report-error'
 import { createClient } from '@/lib/supabase/server'
 import { updateCafeBusinessHoursSchema } from '@/lib/validators/cafes'
 import type { Result } from '@/types/result'
@@ -44,7 +45,7 @@ export async function updateCafeBusinessHours(
   if (error) {
     // is_cafe_owner(cafe_id) が偽、または is_active_user() が偽
     if (error.code === POSTGRES_INSUFFICIENT_PRIVILEGE) return { ok: false, error: 'FORBIDDEN' }
-    console.error('[cafe-business-hours] 営業時間の更新に失敗:', error)
+    reportError('cafe-business-hours', '営業時間の更新に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 

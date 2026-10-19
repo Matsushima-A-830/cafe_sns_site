@@ -1,5 +1,6 @@
 'use server'
 
+import { reportError } from '@/lib/monitoring/report-error'
 import { AVATAR_BUCKET, deleteAvatarFile } from '@/lib/storage/avatars'
 import { verifyNoGpsExif } from '@/lib/storage/post-image-verify'
 import { storagePathFromPublicUrl } from '@/lib/storage/public-url'
@@ -37,7 +38,7 @@ export async function updateProfile(input: unknown): Promise<Result<null, Update
   const newAvatarPath =
     avatarUrl !== undefined ? storagePathFromPublicUrl(AVATAR_BUCKET, avatarUrl) : null
   if (avatarUrl !== undefined && !newAvatarPath) {
-    console.error('[profiles] avatarUrl がバリデーション済みのはずなのにパスへ解決できない')
+    reportError('profiles', 'avatarUrl がバリデーション済みのはずなのにパスへ解決できない')
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 
@@ -50,7 +51,7 @@ export async function updateProfile(input: unknown): Promise<Result<null, Update
       if (verified.error === 'EXIF_STRIP_FAILED') {
         // 検出した画像は再送しても使い回せない実害物なので Storage から削除する
         const deleted = await deleteAvatarFile(supabase, newAvatarPath)
-        if (!deleted.ok) console.error('[profiles] GPS検出アバターの削除に失敗:', deleted.details)
+        if (!deleted.ok) reportError('profiles', 'GPS検出アバターの削除に失敗', deleted.details)
       }
       return { ok: false, error: verified.error }
     }
@@ -62,7 +63,7 @@ export async function updateProfile(input: unknown): Promise<Result<null, Update
   if (avatarUrl !== undefined) {
     const current = await supabase.from('profiles').select('avatar_url').eq('id', user.id).single()
     if (current.error) {
-      console.error('[profiles] 現在のアバター取得に失敗:', current.error)
+      reportError('profiles', '現在のアバター取得に失敗', current.error)
       return { ok: false, error: 'INTERNAL_ERROR' }
     }
     previousAvatarUrl = current.data.avatar_url
@@ -80,7 +81,7 @@ export async function updateProfile(input: unknown): Promise<Result<null, Update
     .single()
 
   if (error) {
-    console.error('[profiles] プロフィールの更新に失敗:', error)
+    reportError('profiles', 'プロフィールの更新に失敗', error)
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 
@@ -90,7 +91,7 @@ export async function updateProfile(input: unknown): Promise<Result<null, Update
     const oldPath = storagePathFromPublicUrl(AVATAR_BUCKET, previousAvatarUrl)
     if (oldPath) {
       const deleted = await deleteAvatarFile(supabase, oldPath)
-      if (!deleted.ok) console.error('[profiles] 旧アバターの削除に失敗:', deleted.details)
+      if (!deleted.ok) reportError('profiles', '旧アバターの削除に失敗', deleted.details)
     }
   }
 
