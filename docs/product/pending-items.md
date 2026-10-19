@@ -1983,9 +1983,9 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - 対応版は[docs/architecture/routing.md #middlewarets設計](../architecture/routing.md#middlewarets設計)
     の擬似コードにも反映済み
 
-### D74. Sentry送信（`reportError`）への移行が一部ファイルで止まっている
+### D74. Sentry送信（`reportError`）への移行が一部ファイルで止まっている ✅ 解消済（2026-10-19）
 
-- **課題:** Sentry導入PR（chore/sentry-monitoring）では、安全性に関わる6ファイル
+- **課題:** Sentry導入PR（#137）では、安全性に関わる6ファイル
   （`reports.ts` / `blocks.ts` / `admin-reports.ts` / `admin-owner-verifications.ts` /
   `admin-ng-words.ts` / `lib/email/resend.ts`）のみ `console.error` を
   `lib/monitoring/report-error.ts` の `reportError` に置き換えた。`bookmarks.ts` /
@@ -1996,8 +1996,10 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **意図的な段階移行:** 1PRで30ファイル全部を置き換えると差分が肥大化するため、まず
   安全性（通報・ブロック・モデレーション・保護者同意メール）に絞って導入した
   （ユーザー判断、2026-10-17）
-- **対応方針:** 残りのファイルも同様に `reportError` へ置き換える別PRを立てる。
-  1ファイルあたりの変更は機械的（import追加 + `console.error`呼び出しの置換）
+- **対応（#140）:** 残り23ファイル・57箇所の `console.error` を機械的に `reportError` へ
+  置き換えた。4引数呼び出し（`admin-cafe-locations.ts` / `onboarding.ts`）は対象IDを
+  メッセージ文字列へ埋め込んで対応。これで `app/` `lib/` 配下の `console.error` は
+  `lib/monitoring/report-error.ts` 自身を除き0件
 
 ## 削除・アーカイブ判断待ち
 
