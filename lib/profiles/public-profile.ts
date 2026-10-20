@@ -103,6 +103,11 @@ export async function getProfileById(
  * 見るため、条件を省くと本人が開いたときだけ予約行・archived・論理削除済みが数に入る。
  * visibility='followers' の投稿は RLS で閲覧者ごとに見える件数が変わるので、
  * 非フォロワーから見ると数字が小さくなる（一覧の件数とは一致する）
+ *
+ * フォロー数・フォロワー数は follows_select_all のブロック反映（D36）の影響を受けない
+ * count_following / count_followers RPC で集計する。素朴な count だと「閲覧者と行の相手が
+ * ブロックし合っているか」で結果が変わり、同じプロフィールの数字が見る人によって違ってしまう
+ *   supabase/migrations/20261020120000_follows_select_visibility.sql
  */
 export async function getProfileCounts(
   supabase: Client,
@@ -117,19 +122,20 @@ export async function getProfileCounts(
       .eq('author_id', profileId)
       .eq('status', 'published')
       .is('deleted_at', null),
-    supabase.from('follows').select('followee_id', head).eq('follower_id', profileId),
-    supabase.from('follows').select('follower_id', head).eq('followee_id', profileId),
+    supabase.rpc('count_following', { p_user_id: profileId }),
+    supabase.rpc('count_followers', { p_user_id: profileId }),
   ])
 
-  for (const result of [posts, following, followers]) {
-    if (result.error)
-      throw new Error(`プロフィールの件数取得に失敗しました: ${result.error.message}`)
-  }
+  if (posts.error) throw new Error(`プロフィールの件数取得に失敗しました: ${posts.error.message}`)
+  if (following.error)
+    throw new Error(`プロフィールの件数取得に失敗しました: ${following.error.message}`)
+  if (followers.error)
+    throw new Error(`プロフィールの件数取得に失敗しました: ${followers.error.message}`)
 
   return {
     posts: posts.count ?? 0,
-    following: following.count ?? 0,
-    followers: followers.count ?? 0,
+    following: following.data ?? 0,
+    followers: followers.data ?? 0,
   }
 }
 

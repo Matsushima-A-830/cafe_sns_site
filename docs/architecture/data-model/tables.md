@@ -173,12 +173,36 @@ anon の直接読み出しで盗まれメールを介さず承認を偽装でき
 
 **インデックス:** `(followee_id, created_at DESC)` — フォロワー一覧用
 
-**RLS:** SELECT 全ユーザー可 / INSERT・DELETE は本人（follower_id）のみ
+**RLS:** SELECT は**ブロックしていない相手のぶんだけ**全ユーザー
+（`using (not is_blocked_either_way_any(follower_id, followee_id))`）
+/ INSERT・DELETE は本人（follower_id）のみ
 
 **トリガー:**
 - `blocks_delete_follows`（blocks AFTER INSERT）: ブロック成立時に両方向のフォローを解除する
 - `profiles_delete_follows_on_inactive`（profiles AFTER UPDATE OF status）: `status` が
   `active` から外れたら、本人が関わる両方向のフォローを解除する（D29 対応案 d）
+
+**ブロックの反映（D36, `20261020120000_follows_select_visibility.sql`）:** 当初 SELECT は
+`using (true)` で、`follower_id` で絞れば任意のユーザーが任意の相手のフォロー先一覧を、
+`followee_id` で絞ればフォロワー一覧を読めていた（[likes](#likes) で先に締めたのと同種の露出）。
+`likes` は `user_id` 一列だけ見ればよかったが、`follows` は `follower_id` / `followee_id`
+の両方向があるため、どちらの列にブロック関係にある相手が出てきても行を隠す。
+直接のブロック相手との行自体は `blocks_delete_follows` が両方向とも消すので、ここで塞ぐのは
+「ブロック相手が第三者との行に `follower_id`/`followee_id` として出てくるケース」。
+2列ぶんを `is_blocked_either_way` で素朴に2回判定すると `blocks` へのサブクエリが行ごとに
+2回走る（`posts_select` の `visibility='followers'` 判定が `follows` への `EXISTS` 経由で
+このポリシーを評価するため、投稿一覧のような多行スキャンでも間接的に使われる）。
+`is_blocked_either_way_any(id_a, id_b)` で1回の `exists` にまとめて半分にしている
+（`/code-review` 指摘）。
+
+**`count_following` / `count_followers` RPC（同マイグレーション）:** 上のブロック反映により、
+`follows` への素朴な count クエリは「呼び出しセッションとその行の相手がブロックし合っているか」
+で結果が変わってしまう。フォロー数・フォロワー数は閲覧者によって変えない設計（[likes](#likes)
+の `like_count` と同じ判断）なので、`security definer` で RLS をバイパスする集計専用の関数
+（`count_following`: `follower_id` 一致、`count_followers`: `followee_id` 一致）に切り出した。
+`lib/profiles/public-profile.ts` の `getProfileCounts` と `lib/badges/rules.ts` の
+`countFollowers` がこれを使う。`badge_criteria_met` の `follower_count` 分岐はこの変更以前から
+`security definer` で RLS を完全にバイパスしているため変更不要（`20260923150000` のコメント参照）。
 
 ---
 
@@ -836,12 +860,11 @@ hidden/archived/削除済みぶんを除外し、`badge_criteria_met` はそれ�
 食い違いが生まれる。`likes_received` 分岐が `count_likes_received` を使っているのと同じ形に
 揃え、`badge_criteria_met` の `likes_given` 分岐も `count_likes_given` を呼ぶように変更した。
 
-`follows_select_all` が `using (true)` のままなのは、フォロー数・フォロワー数が
-ワイヤーで公開表示される設計だから（[wireframes/browsing.md](../../design/wireframes/browsing.md)
-#S_USER_PROFILE_PUBLIC）。ブロック相手との行は `delete_follows_on_block` が消すので
-関係そのものは残らない。ただし**「その人が他に誰をフォローしているか」は誰でも読めるまま**で、
-露出の種類としては likes と同じ。揃えるかは
-[pending-items D36](../../product/pending-items.md) で保留している
+`follows_select_all` にも likes と同じブロック反映を入れた（[follows](#follows) 参照、
+[pending-items D36](../../product/pending-items.md) 解消済）。フォロー数・フォロワー数は
+ワイヤーで公開表示される設計（[wireframes/browsing.md](../../design/wireframes/browsing.md)
+#S_USER_PROFILE_PUBLIC）のまま閲覧者非依存を保つため、RLS を経由しない
+`count_following` / `count_followers` RPC で集計する。
 
 **`like_count` は閲覧者によって変えない。** 隠すのは「誰がいいねしたか」だけで、
 カウントはトリガーが維持する集計値。閲覧者ごとに引き算すると、同じ投稿の件数が

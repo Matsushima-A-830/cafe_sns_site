@@ -1275,6 +1275,8 @@ export type Database = {
         Args: { p_comment_id: string }
         Returns: boolean
       }
+      count_followers: { Args: { p_user_id: string }; Returns: number }
+      count_following: { Args: { p_user_id: string }; Returns: number }
       count_likes_given: { Args: { p_user_id: string }; Returns: number }
       count_likes_received: { Args: { p_user_id: string }; Returns: number }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
@@ -1399,6 +1401,10 @@ export type Database = {
       is_active_user: { Args: never; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_blocked_either_way: { Args: { p_other_id: string }; Returns: boolean }
+      is_blocked_either_way_any: {
+        Args: { p_id_a: string; p_id_b: string }
+        Returns: boolean
+      }
       is_cafe_owner: { Args: { p_cafe_id: string }; Returns: boolean }
       is_post_author: { Args: { p_post_id: string }; Returns: boolean }
       is_post_cafe_owner: { Args: { p_post_id: string }; Returns: boolean }

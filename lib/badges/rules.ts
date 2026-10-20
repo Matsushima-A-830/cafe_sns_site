@@ -115,12 +115,13 @@ export async function countActiveRegularCustomers(
   return count ?? 0
 }
 
+// follows_select_all がブロックを反映した（D36）ため、素朴な count は呼び出しセッションと
+// 無関係な第三者間のブロックで過小評価になりうる。RLS をバイパスする count_followers RPC を使う
+// （count_likes_given / count_likes_received と同じ理由。
+//   supabase/migrations/20261020120000_follows_select_visibility.sql）
 export async function countFollowers(supabase: Client, userId: string): Promise<number> {
-  const { count } = await supabase
-    .from('follows')
-    .select('follower_id', { count: 'exact', head: true })
-    .eq('followee_id', userId)
-  return count ?? 0
+  const { data } = await supabase.rpc('count_followers', { p_user_id: userId })
+  return data ?? 0
 }
 
 // likes は誰からも見えるが posts への JOIN は posts_select の visibility 制限を受けるため、
