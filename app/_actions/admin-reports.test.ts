@@ -41,6 +41,7 @@ type Options = {
   postsUpdate?: { error?: unknown }
   commentsUpdate?: { error?: unknown }
   profilesUpdate?: { error?: unknown }
+  cafesUpdate?: { error?: unknown }
   auditLogsInsert?: { error?: unknown }
   notificationsInsert?: { error?: unknown }
 }
@@ -73,6 +74,9 @@ function mockClient(options: Options = {}) {
   const commentsTable = {
     update: vi.fn(() => makeChain(options.commentsUpdate ?? { error: null })),
   }
+  const cafesTable = {
+    update: vi.fn(() => makeChain(options.cafesUpdate ?? { error: null })),
+  }
   const auditLogsTable = {
     insert: vi.fn().mockResolvedValue(options.auditLogsInsert ?? { error: null }),
   }
@@ -85,6 +89,7 @@ function mockClient(options: Options = {}) {
     reports: reportsTable,
     posts: postsTable,
     comments: commentsTable,
+    cafes: cafesTable,
     audit_logs: auditLogsTable,
     notifications: notificationsTable,
   }
@@ -97,6 +102,7 @@ function mockClient(options: Options = {}) {
   return {
     postsUpdate: postsTable.update,
     commentsUpdate: commentsTable.update,
+    cafesUpdate: cafesTable.update,
     reportsUpdate: reportsTable.update,
     auditLogsInsert: auditLogsTable.insert,
     notificationsInsert: notificationsTable.insert,
@@ -296,6 +302,52 @@ describe('resolveReport', () => {
     expect(spies.notificationsInsert).toHaveBeenCalledWith(
       expect.objectContaining({ recipient_id: reporterId, type: 'report_resolved' }),
     )
+  })
+
+  it('hide_cafe: カフェを非表示にし、reports を resolved にする', async () => {
+    const spies = mockClient({
+      reportsSelectDetail: {
+        data: {
+          id: reportId,
+          target_type: 'cafe',
+          target_id: postId,
+          reporter_id: reporterId,
+          status: 'pending',
+        },
+        error: null,
+      },
+    })
+
+    const result = await resolveReport({ reportId, decision: 'hide_cafe' })
+
+    expect(result).toEqual({ ok: true, data: { reportId } })
+    expect(spies.cafesUpdate).toHaveBeenCalledWith({ status: 'hidden' })
+    expect(spies.auditLogsInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'hide_cafe', target_type: 'cafe', target_id: postId }),
+    )
+    expect(spies.notificationsInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ recipient_id: reporterId, type: 'report_resolved' }),
+    )
+  })
+
+  it('decision=hide_cafe だが target_type が cafe でなければ INVALID_INPUT を返す', async () => {
+    const spies = mockClient({
+      reportsSelectDetail: {
+        data: {
+          id: reportId,
+          target_type: 'post',
+          target_id: postId,
+          reporter_id: reporterId,
+          status: 'pending',
+        },
+        error: null,
+      },
+    })
+
+    const result = await resolveReport({ reportId, decision: 'hide_cafe' })
+
+    expect(result).toEqual({ ok: false, error: 'INVALID_INPUT', details: undefined })
+    expect(spies.cafesUpdate).not.toHaveBeenCalled()
   })
 
   it('reject: 対象への副作用なしで reports を rejected にする', async () => {

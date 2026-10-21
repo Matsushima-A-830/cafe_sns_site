@@ -291,10 +291,12 @@ flowchart TD
         ActionSelect -->|投稿非表示| HidePost[[posts.status=hidden]]
         ActionSelect -->|ユーザー停止| Suspend[[profiles.status=suspended]]
         ActionSelect -->|コメント削除| DelCom[[comments.deleted_at=now]]
+        ActionSelect -->|カフェ非表示| HideCafe[[cafes.status=hidden]]
         Decision -->|違反なし| Reject[[reports.status=rejected]]
         HidePost --> LogAudit[[audit_logs INSERT]]
         Suspend --> LogAudit
         DelCom --> LogAudit
+        HideCafe --> LogAudit
         Reject --> LogAudit
         LogAudit --> ResolvedNotify[\通報者・被通報者に通知\]
         ResolvedNotify --> Queue

@@ -19,12 +19,13 @@ export const REPORT_TARGET_TYPE_LABELS = {
 } as const
 
 /**
- * 判定アクション。target_type ごとに選べる対応が違う（cafe は却下のみ）
- *   pending-items D48
+ * 判定アクション。target_type ごとに選べる対応が違う
+ *   pending-items D40, D48
  */
 export const REPORT_DECISIONS = [
   { value: 'hide_post', label: '投稿を非表示にする', targetType: 'post' },
   { value: 'delete_comment', label: 'コメントを削除する', targetType: 'comment' },
   { value: 'suspend_user', label: 'ユーザーを停止する', targetType: 'user' },
+  { value: 'hide_cafe', label: 'カフェを非表示にする', targetType: 'cafe' },
   { value: 'reject', label: '違反なし（却下）', targetType: null },
 ] as const

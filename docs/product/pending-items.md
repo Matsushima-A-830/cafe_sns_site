@@ -1258,16 +1258,18 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   「処理中」表示が消えるのを待ってから reload するよう修正して解消
 - 参照: `comments` FE実装セッション（2026-09-20）、本対応（2026-10-07）
 
-### D40. 新規登録したカフェが登録直後から全ユーザーに公開される
+### D40. 新規登録したカフェが登録直後から全ユーザーに公開される ✅ 解消済み（2026-10-21）
 
-- **課題:** `cafes_select_active_anon` / `_authenticated` は `status='active'` のみを見ており、
+- **課題（経緯）:** `cafes_select_active_anon` / `_authenticated` は `status='active'` のみを見ており、
   「レビュー待ち」のような中間状態が無い。S_CAFE_NEW で登録したカフェは保存した瞬間から
-  誰にでも見える。誤登録・いたずら登録への対処手段が無い
-- **決定（v1）:** 許容する。`reports`（通報）テーブル自体がまだ存在しない状態で、カフェだけの
-  モデレーション導線を先に作るのは本末転倒なため、通報機能実装時にまとめて対処する
-- **対応案（未検討）:** a) `status` に `pending_review` 等の中間状態を追加し admin 承認を要求する
-  b) 通報機能実装時に、閾値超えで `hidden` へ自動遷移させる c) 現状維持
-- 参照: S_CAFE_NEW 実装時の決定（2026-09-20）
+  誰にでも見える。誤登録・いたずら登録への対処手段が無かった
+- **対応内容:** 対応案b相当（中間状態の追加はせず、既存の `cafes.status='hidden'` に乗せる）を実装。
+  通報キュー（S_ADMIN_REVIEW）の判定アクションに「カフェを非表示にする」を追加し、
+  `resolveReport` が `cafes.status` を `hidden` に更新する。`cafes_select_active_*` RLS は
+  既に `status='active'` のみを公開しているため、マイグレーション・新しい中間状態は不要だった。
+  「閾値超えで自動遷移」（対応案b後半）は見送り、admin のレビュー経由の人力判定のみに限定した
+  — 自動遷移は誤爆時の説明責任が曖昧になるため
+- 参照: S_CAFE_NEW 実装時の決定（2026-09-20）・D48 の前提崩れを受けて対応（2026-10-21）
 
 ### D41. `font_scale`（文字サイズ設定）が保存されるだけで表示に反映されない
 
@@ -1384,8 +1386,11 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **課題:** ワイヤーフレームが存在せず（37画面インデックスに `S_ADMIN_*` は無い）、根拠は
   [screen-flow.md](../design/screen-flow.md#5-通報ブロックフロー) の Mermaid フローと
   [routing.md](../architecture/routing.md) のルート定義のみ。画面要素は実装時に判断した
-- **判定アクションは post/comment/user の3種＋却下のみ** — `target_type='cafe'` は却下しか選べない。
-  cafe への具体的な対応（`verified_owner_id` の停止・カフェの非公開化等）は未設計のまま
+- **判定アクションは post/comment/user/cafe の4種＋却下** — `target_type='cafe'` は
+  「カフェを非表示にする」（`cafes.status=hidden`）を選べる（D40で解消）。紐づく投稿は連動して
+  非表示にしない（カフェの登録自体の信頼性と、そこでの投稿の体験記録は別の実体と判断）。
+  `verified_owner_id` が付いたカフェも制限なく非表示にできる — 認証済みオーナーの保護は
+  今回スコープ外（実運用で問題が起きたら対応）
 - **audit_logs の INSERT は admin の Server Action から直接書き込む方式** — `docs/architecture/
   data-model/tables.md` は元々「INSERT はシステム」とだけ書いていたが、security definer 関数を
   介さず `actor_id = auth.uid()` を RLS で強制する形にした（[tables.md #audit_logs](

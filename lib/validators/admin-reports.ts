@@ -7,7 +7,7 @@ import { z } from 'zod'
  */
 export const resolveReportSchema = z.object({
   reportId: z.string().uuid(),
-  decision: z.enum(['hide_post', 'delete_comment', 'suspend_user', 'reject']),
+  decision: z.enum(['hide_post', 'delete_comment', 'suspend_user', 'hide_cafe', 'reject']),
   resolutionNotes: z.string().trim().max(1000).optional(),
 })
 
