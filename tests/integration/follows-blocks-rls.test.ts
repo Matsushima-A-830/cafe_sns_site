@@ -43,6 +43,8 @@ describe('follows の RLS', () => {
     expect(error).toBeNull()
   })
 
+  // ブロック関係がある場合に隠れることの確認は下の
+  // 「follows_select_all のブロック反映（D36）」で行う
   it('フォロー関係は誰でも読める（フォロワー一覧の表示）', async () => {
     const { data, error } = await anon
       .from('follows')
@@ -297,5 +299,128 @@ describe('profiles.status が active から外れたときの follows 解除', (
       .in('follower_id', [one.userId, two.userId, outsider.userId])
     // one 絡みの2件（one→two, two→one）は消え、outsider→two だけ残る
     expect(after.data).toEqual([{ follower_id: outsider.userId, followee_id: two.userId }])
+  })
+})
+
+// 20261020: follows_select_all にブロックを反映（D36）。likes_select_all に
+// not is_blocked_either_way(user_id) を入れたのと同種の対応だが、follows は
+// follower_id / followee_id の両方向があるため、どちらの列にブロック相手が
+// 出てきても行を隠す必要がある（直接のブロック相手との行は delete_follows_on_block が
+// 消すので、ここで確かめるのは「ブロック相手が第三者との行に出てくるケース」）
+describe('follows_select_all のブロック反映（D36）', () => {
+  let blocker: AuthedUser
+  let blocked: AuthedUser
+  let outsider: AuthedUser
+
+  beforeAll(async () => {
+    blocker = await createAuthedProfile({ username: 'blocker_follows_vis' })
+    blocked = await createAuthedProfile({ username: 'blocked_follows_vis' })
+    outsider = await createAuthedProfile({ username: 'outsider_follows_vis' })
+
+    // outsider → blocked（blocked が followee として出てくる行）
+    // blocked → outsider（blocked が follower として出てくる行）
+    await service.from('follows').insert([
+      { follower_id: outsider.userId, followee_id: blocked.userId },
+      { follower_id: blocked.userId, followee_id: outsider.userId },
+    ])
+    await service.from('blocks').insert({ blocker_id: blocker.userId, blocked_id: blocked.userId })
+  })
+
+  afterAll(async () => {
+    await blocker?.cleanup()
+    await blocked?.cleanup()
+    await outsider?.cleanup()
+  })
+
+  it('ブロック相手が followee 列に出てくる行は見えない', async () => {
+    const { data, error } = await blocker.client
+      .from('follows')
+      .select('follower_id')
+      .eq('followee_id', blocked.userId)
+
+    expect(error).toBeNull()
+    expect(data).toEqual([])
+  })
+
+  it('ブロック相手が follower 列に出てくる行は見えない', async () => {
+    const { data, error } = await blocker.client
+      .from('follows')
+      .select('followee_id')
+      .eq('follower_id', blocked.userId)
+
+    expect(error).toBeNull()
+    expect(data).toEqual([])
+  })
+
+  it('ブロックと無関係な第三者からは普通に見える', async () => {
+    const { data, error } = await outsider.client
+      .from('follows')
+      .select('follower_id')
+      .eq('followee_id', blocked.userId)
+
+    expect(error).toBeNull()
+    expect(data).toHaveLength(1)
+  })
+
+  it('未ログインからは誰のブロックも反映されず見える（auth.uid() が null）', async () => {
+    const { data, error } = await anon
+      .from('follows')
+      .select('follower_id')
+      .eq('followee_id', blocked.userId)
+
+    expect(error).toBeNull()
+    expect(data).toHaveLength(1)
+  })
+})
+
+describe('count_following / count_followers RPC（D36）', () => {
+  let userA: AuthedUser
+  let userB: AuthedUser
+  let blocker: AuthedUser
+
+  beforeAll(async () => {
+    userA = await createAuthedProfile({ username: 'rpc_follow_user_a' })
+    userB = await createAuthedProfile({ username: 'rpc_follow_user_b' })
+    blocker = await createAuthedProfile({ username: 'rpc_follow_blocker' })
+
+    await service.from('follows').insert([
+      { follower_id: userA.userId, followee_id: userB.userId },
+      { follower_id: blocker.userId, followee_id: userB.userId },
+    ])
+  })
+
+  afterAll(async () => {
+    await userA?.cleanup()
+    await userB?.cleanup()
+    await blocker?.cleanup()
+  })
+
+  it('フォロー数・フォロワー数は呼び出しセッションと無関係なブロックの影響を受けない', async () => {
+    // blocker と userA は何の関係も無いが、blocker が誰かをブロックしていても
+    // userB のフォロワー数は変わらない（閲覧者非依存を保つのが RPC を使う目的）
+    await service.from('blocks').insert({
+      blocker_id: blocker.userId,
+      blocked_id: userA.userId,
+    })
+
+    const fromAnon = await anon.rpc('count_followers', { p_user_id: userB.userId })
+    const fromBlocker = await blocker.client.rpc('count_followers', { p_user_id: userB.userId })
+
+    expect(fromAnon.error).toBeNull()
+    expect(fromAnon.data).toBe(2)
+    expect(fromBlocker.data).toBe(fromAnon.data)
+
+    await service
+      .from('blocks')
+      .delete()
+      .eq('blocker_id', blocker.userId)
+      .eq('blocked_id', userA.userId)
+  })
+
+  it('count_following は follower_id 一致で数える', async () => {
+    const { data, error } = await anon.rpc('count_following', { p_user_id: userA.userId })
+
+    expect(error).toBeNull()
+    expect(data).toBe(1)
   })
 })

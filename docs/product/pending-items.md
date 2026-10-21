@@ -1172,25 +1172,23 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   が未実装のためトリガーは無い。それぞれの機能実装時に発火元トリガーを追加する
 - 参照: 通知機能実装時にlikes/comments/followsとまとめて着手（2026-09-20）
 
-### D36. `follows` の SELECT がブロックを反映していない（likes と判断が揃っていない）
+### D36. ～~`follows` の SELECT がブロックを反映していない（likes と判断が揃っていない）~~（解消）
 
-- **課題:** `likes` の SELECT には `not is_blocked_either_way(user_id)` を入れたが、
+- **課題（解消済）:** `likes` の SELECT には `not is_blocked_either_way(user_id)` を入れたが、
   `follows_select_all` は `using (true)` のまま（`20260905130300`）。
   `follower_id` で絞れば**その人が誰をフォローしているかは誰でも列挙できる**。
-  露出の種類としては「いいねした投稿の列挙」と同じで、likes だけ締めた状態になっている
-- **ただし穴の大きさは違う:**
-  - フォロー数・フォロワー数は**ワイヤーで公開表示される設計**
-    （[wireframes/browsing.md](../design/wireframes/browsing.md) #S_USER_PROFILE_PUBLIC）。
-    likes には「いいねした人の一覧」画面が無く、公開する設計意図が無い
-  - ブロック相手との行は `delete_follows_on_block`（`20260916120100`）が両方向とも消すので、
-    **ブロックした相手との関係は follows に残らない**。漏れるのは「その人の他のフォロー先」
-- **判断が要る点:** フォロワー一覧画面（未実装）を作るときに、ブロック相手を一覧から
-  外すのか、`follows` の RLS 側で締めるのか。RLS で締めるとフォロー数がブロックの有無で
-  閲覧者ごとに変わり、`likes` で「`like_count` は閲覧者によって変えない」とした判断と
-  ぶつかる（[tables.md #likes](../architecture/data-model/tables.md)）
-- **対応判断:** フォロワー一覧（S_USER_PROFILE_PUBLIC のタブ）実装時に決める。
-  それまでは現状維持。決めた内容は `tables.md #follows` に書く
-- 参照: `likes` の SELECT にブロックを反映した際、`follows` と揃っていないことが判明（2026-09-19）
+  露出の種類としては「いいねした投稿の列挙」と同じで、likes だけ締めた状態になっていた
+- **解消（2026-10-20）:** `follows_select_all` に `not is_blocked_either_way(follower_id)
+  and not is_blocked_either_way(followee_id)` を入れた
+  （`20261020120000_follows_select_visibility.sql`）。フォロー数・フォロワー数は
+  「閲覧者によって変えない」という既存方針（`likes.like_count` と同じ判断）を保つため、
+  素朴な count クエリではなく RLS をバイパスする `count_following` / `count_followers` RPC
+  に切り替えた（`lib/profiles/public-profile.ts` の `getProfileCounts`、
+  `lib/badges/rules.ts` の `countFollowers`）。フォロワー一覧画面は現行ワイヤーに存在しないため
+  今回のスコープは「既存の数字表示・バッジ判定を壊さずに直接テーブルを叩く露出だけ閉じる」
+  ところまで。詳細は [tables.md #follows](../architecture/data-model/tables.md#follows) 参照
+- 参照: `likes` の SELECT にブロックを反映した際、`follows` と揃っていないことが判明（2026-09-19）。
+  対応は 2026-10-20 に着手
 
 ### D37. `router.refresh()` を `startTransition` の中で呼んでいる ✅ 解消済（2026-10-04）
 
