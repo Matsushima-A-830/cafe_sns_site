@@ -144,12 +144,13 @@ type ResolveReportError =
   | 'INTERNAL_ERROR'
 
 const DECISION_TO_TARGET_TYPE: Record<
-  'hide_post' | 'delete_comment' | 'suspend_user',
+  'hide_post' | 'delete_comment' | 'suspend_user' | 'hide_cafe',
   ReportDetail['targetType']
 > = {
   hide_post: 'post',
   delete_comment: 'comment',
   suspend_user: 'user',
+  hide_cafe: 'cafe',
 }
 
 /**
@@ -219,6 +220,12 @@ export async function resolveReport(
       .update({ status: 'suspended' })
       .eq('id', report.target_id)
     if (error) throw new Error(`ユーザーの停止に失敗しました: ${error.message}`)
+  } else if (decision === 'hide_cafe') {
+    const { error } = await supabase
+      .from('cafes')
+      .update({ status: 'hidden' })
+      .eq('id', report.target_id)
+    if (error) throw new Error(`カフェの非表示化に失敗しました: ${error.message}`)
   }
 
   const { error: auditError } = await supabase.from('audit_logs').insert({

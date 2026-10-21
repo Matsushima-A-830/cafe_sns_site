@@ -34,6 +34,14 @@ describe('ReportReviewActions', () => {
     expect(confirmButton).not.toBeDisabled()
   })
 
+  it('targetType=cafe では「カフェを非表示にする」と「却下」のみ表示する（D40）', () => {
+    render(<ReportReviewActions reportId={reportId} targetType="cafe" />)
+
+    expect(screen.getByRole('button', { name: 'カフェを非表示にする' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '違反なし（却下）' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '投稿を非表示にする' })).not.toBeInTheDocument()
+  })
+
   it('送信中の連打では2回目を送らない', async () => {
     resolveReport.mockReturnValue(new Promise(() => {}))
     const user = userEvent.setup()
