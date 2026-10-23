@@ -4,6 +4,9 @@ import { optionalString, publicEnvSchema } from './env'
 
 const serverEnvSchema = publicEnvSchema.extend({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
+  // GitHub Actions の schedule から cron 系 Route Handler を叩く際の共有シークレット
+  //   docs/operations/deployment.md #定期実行ジョブ
+  CRON_SECRET: z.string().min(1),
   AWS_S3_BUCKET: optionalString(),
   AWS_S3_REGION: optionalString(),
   AWS_ACCESS_KEY_ID: optionalString(),

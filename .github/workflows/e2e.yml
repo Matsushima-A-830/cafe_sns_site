@@ -136,6 +136,7 @@ jobs:
             echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$(extract ANON_KEY)"
             echo "SUPABASE_SERVICE_ROLE_KEY=$(extract SERVICE_ROLE_KEY)"
             echo "NEXT_PUBLIC_SITE_URL=http://localhost:3000"
+            echo "CRON_SECRET=dummy-cron-secret"
           } >> "$GITHUB_ENV"
 
       # .next/cache はソース変更後も前回ビルドの成果物を使って差分だけ再ビルドできる。

@@ -416,6 +416,7 @@ Server Actionsで代替できないものだけを Route Handlers で実装。
 | `POST /api/uploads/avatar/sign` | 同上（avatars バケット） |
 | `GET /api/consent/confirm?token=...` | 保護者同意リンククリック処理（ワンタイムトークン検証）。メールリンクの通常ナビゲーションなのでGET。検証後 `/account/pending` へ結果付きでリダイレクト |
 | `POST /api/revalidate` | 手動 ISR revalidation（管理者用） |
+| `POST /api/cron/cleanup-drafts` | 期限切れ下書き（`drafts.expires_at < now()`）とその Storage 画像の日次削除。GitHub Actions の `schedule` からのみ呼ぶ想定で、`Authorization: Bearer <CRON_SECRET>` が無いと `{ ok: false, error: 'FORBIDDEN' }`（HTTP 200固定、[pending-items D3/A6](../product/pending-items.md)） |
 
 ## 特殊ファイル配置
 

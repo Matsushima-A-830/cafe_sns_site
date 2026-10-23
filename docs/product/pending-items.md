@@ -116,16 +116,16 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   （`tests/helpers/gps-exif-fixture.ts` の `buildGpsTaggedWebp` / `buildPlainWebp`）
 - **関連:** [lib/storage/post-images.ts](../../lib/storage/post-images.ts) のバリデーションは形式・サイズのみで EXIF は検証しない
 
-### A6. `pg_cron` が Supabase Free で使えない問題 ✅ 解消済（2026-09-05）
+### A6. `pg_cron` が Supabase Free で使えない問題 ✅ 解消済（2026-09-05、実装方式は 2026-10-22 に確定）
 
-- **決定:** **Supabase Edge Function を GitHub Actions の `schedule` から叩く（a）+ 参照時にも除外する（b）の併用。** Supabase Pro への昇格（c）は採らない
+- **決定:** **Next.js Route Handler を GitHub Actions の `schedule` から叩く（a）+ 参照時にも除外する（b）の併用。** Supabase Pro への昇格（c）は採らない
 - **理由:** Free 枠のまま動き、スケジューラが遅延・停止しても機能が壊れない
-- **対象ジョブと保険:** [deployment.md #定期実行ジョブ](../operations/deployment.md#定期実行ジョブpg_cron-の代替--決定-2026-09-05)
-  - 期限切れ下書きの削除 → 下書き一覧の取得時に `expires_at > now()` を必ず付ける
-  - オーナー分析の Materialized View 更新 → 画面に最終更新時刻を出す
+- **実装方式の変更（2026-10-22）:** 当初は Supabase Edge Function を想定していたが、`supabase/functions/` のデプロイ基盤をゼロから作るコストに対し、既存の `service_role` クライアント（`lib/supabase/admin.ts`）と Vercel デプロイ経路をそのまま使える `app/api/cron/*/route.ts`（Route Handler + 共有シークレットのBearer認証）の方が実装コストが低いため変更した
+- **対象ジョブと保険:** [deployment.md #定期実行ジョブ](../operations/deployment.md#定期実行ジョブpg_cron-の代替--決定-2026-09-05実装方式は-2026-10-22-に確定)
+  - 期限切れ下書きの削除 → 下書き一覧の取得時に `expires_at > now()` を必ず付ける（実装済み、[D3](#d3-storage-オブジェクトのオーファン掃除方針) 参照）
 - **注意:** GitHub Actions の `schedule` は混雑時に遅延・スキップされ、**60日間リポジトリ活動が無いと停止**する。上記の「保険」は必須
-- **影響範囲:** 下書き削除だけでなく `S_OWNER_ANALYTICS` の MV 日次更新（[wireframes/owner.md](../design/wireframes/owner.md#s_owner_analytics投稿分析)）も含む。MVPスコープ内
-- **残作業:** Edge Function とワークフローの実体を DB 実装フェーズで追加
+- **オーナー分析の MV 日次更新は不要になった:** `S_OWNER_ANALYTICS` は MV ではなく都度集計クエリで実装することに決まったため（[D57](#d57)）
+- **残作業:** なし。drafts の掃除バッチで実装完了。`post_images` / `cafe_owner_verifications` / `cafes.main_image_path` の掃除は未着手（[D3](#d3-storage-オブジェクトのオーファン掃除方針)・[D19](#d19)・[D50](#d50) 参照）
 
 ### A7. オンボーディングで選んだ「好きな気分」の保存先 ✅ 解消済（2026-09-05）
 
@@ -352,14 +352,13 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 ### D3. Storage オブジェクトのオーファン掃除方針
 
 - **対象:**（保存先は Supabase Storage に確定 → [A5](#a5-画像ストレージの正をどちらにするか--解消済2026-09-05)）
-  - `post_images.storage_path`（投稿削除・退会時）
-  - `drafts.payload` 内の image_paths（下書き期限切れ時）
-  - `cafe_owner_verifications.document_urls` の書類（審査完了・却下後の保管期限）
-  - `cafes.main_image_path`（差し替え時の旧ファイル）
-  - `profiles.avatar_url`（アバター変更時の旧ファイル）— **対応案c で解消済み（2026-10-03、D45参照）**。
-    残る対象は `post_images` / `drafts` / `cafe_owner_verifications` / `cafes.main_image_path`
-- **対応案:**
-  - a) DB トリガーで削除キューに積み、[A6 のスケジューラ](#a6-pg_cron-が-supabase-free-で使えない問題--解消済2026-09-05)がまとめて Storage から消す
+  - `drafts.payload` 内の image_paths（下書き期限切れ時）— **✅ 解消済（2026-10-22）**。日次バッチ（[A6](#a6-pg_cron-が-supabase-free-で使えない問題--解消済2026-09-05実装方式は-2026-10-22-に確定)）で `expires_at < now()` の drafts 行と、紐づく Storage 画像をあわせて削除する
+  - `post_images.storage_path`（投稿削除・退会時）— 通常の投稿削除は `deletePostImages`（`lib/storage/post-images.ts:124`）で対応済み。残る孤立源は `reservePost` の `status='hidden'` 予約行が finalize されずに離脱されるケース（[D19](#d19)）とブログ本文埋め込み画像（post_images 行を持たない）。**未着手**
+  - `cafe_owner_verifications.document_urls` の書類（審査完了・却下後の保管期限）— `owner-documents` の孤立ファイル。[D50](#d50) で D19 と同型の問題として記録。**未着手**
+  - `cafes.main_image_path`（差し替え時の旧ファイル）— **未着手**
+  - `profiles.avatar_url`（アバター変更時の旧ファイル）— **対応案c で解消済み（2026-10-03、D45参照）**
+- **対応案（残る対象向け）:**
+  - a) DB トリガーで削除キューに積み、[A6 のスケジューラ](#a6-pg_cron-が-supabase-free-で使えない問題--解消済2026-09-05実装方式は-2026-10-22-に確定)がまとめて Storage から消す
   - b) 日次バッチで参照されていないオブジェクトを走査して削除
   - c) DB削除時に Server Actions から明示的に Storage delete を呼ぶ
 - **決定期限:** ストレージ量が実運用で膨らむ前。**Free 枠が 1GB しかないため、A5 の想定より早く効いてくる可能性がある**

@@ -115,18 +115,21 @@ SENTRY_DSN=<開発時は空でも可>
 
 - **Storage バケットの作成:** `post-images` / `cafe-images` / `avatars`（public）と `owner-documents`（private）。構成とパス規約は [data-model/README.md #ストレージ設計](../architecture/data-model/README.md#ストレージ設計)
 
-### 定期実行ジョブ（`pg_cron` の代替 / 決定 2026-09-05）
+### 定期実行ジョブ（`pg_cron` の代替 / 決定 2026-09-05、実装方式は 2026-10-22 に確定）
 
-**Supabase Edge Function を GitHub Actions の `schedule` から叩く方式に確定。** あわせて、取りこぼしても壊れないよう**参照時にも除外する**（二重の安全策）。
+**Next.js Route Handler（`app/api/cron/*/route.ts`）を GitHub Actions の `schedule` から叩く方式。**
+当初は Supabase Edge Function を想定していたが、`supabase/functions/` のデプロイ基盤をゼロから作るコストに対し、
+既存の `service_role` クライアント（`lib/supabase/admin.ts`）と Vercel デプロイ経路をそのまま使える Route Handler の方が実装コストが低いため変更した。
+認証は共有シークレット（Bearer token、GitHub Actions の secrets と Vercel の環境変数に同じ値を設定）で行い、GitHub Actions からのみ呼べるように絞る。
+あわせて、取りこぼしても壊れないよう**参照時にも除外する**（二重の安全策）。
 
 | ジョブ | 頻度 | 取りこぼし時の保険 |
 |---|---|---|
-| 期限切れ下書きの削除（`drafts.expires_at < now()`） | 日次 | 下書き一覧の取得クエリで `expires_at > now()` を必ず付ける |
-| オーナー分析の Materialized View 更新 | 日次 | 最終更新時刻を画面に出す（古いデータと分かる状態にする） |
+| 期限切れ下書きの削除（`drafts.expires_at < now()`、紐づく Storage 画像含む） | 日次 | 下書き一覧の取得クエリで `expires_at > now()` を必ず付ける |
 
 **GitHub Actions の `schedule` は実行が遅延・スキップされることがある**（混雑時、および60日間リポジトリ活動が無いと停止）。上の「保険」列を必ず併せて実装し、ジョブが動かなくても機能が壊れない状態を保つ。
 
-ワークフローと Edge Function の実体は DB 実装フェーズで追加する。
+**オーナー分析の Materialized View 更新ジョブは不要。** S_OWNER_ANALYTICS は MV ではなく都度集計クエリ（`lib/owner/analytics.ts`）で実装することに決まったため（[pending-items D57](../product/pending-items.md)）。
 
 ## CI/CD パイプライン
 

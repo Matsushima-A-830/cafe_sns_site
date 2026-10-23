@@ -717,7 +717,7 @@ body_search tsvector GENERATED ALWAYS AS (
 
 **`post_id` が必須な理由:** composer は表示開始時に [`reservePost`](#posts) で `status='hidden'` の予約行を作り、画像アップロードの署名付きURL発行（`is_post_author`）と `finalize_post` の両方でその id を使う（[pending-items D17](../../product/pending-items.md#d17-createpost-の-imagepaths-は画像アップロード時点で投稿行が既に存在することを前提にしている解消済み)）。`payload` に持たせないと、下書き再開のたびに新しい予約行が生まれ、`image_paths`（`{author_id}/{post_id}/…` 規約）も再開後の postId と一致しなくなり finalize 時に FORBIDDEN になる。
 
-**運用:** `expires_at < now()` を日次削除。`pg_cron` は Supabase Pro 以上のため、MVP（Free）では Edge Function + GitHub Actions の `schedule` で実行する（[pending-items A6](../../product/pending-items.md)）。取りこぼし対策として、下書き一覧の取得時にも `expires_at > now()` で絞る
+**運用:** `expires_at < now()` を日次削除（紐づく `payload.image_paths` の Storage オブジェクトも削除）。`pg_cron` は Supabase Pro 以上のため、MVP（Free）では Route Handler（`app/api/cron/cleanup-drafts/route.ts`） + GitHub Actions の `schedule` で実行する（[pending-items A6](../../product/pending-items.md)）。取りこぼし対策として、下書き一覧の取得時にも `expires_at > now()` で絞る
 
 **RLS:** SELECT・INSERT・UPDATE・DELETE すべて `auth.uid() = author_id`
 
