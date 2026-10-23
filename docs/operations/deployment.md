@@ -126,6 +126,7 @@ SENTRY_DSN=<開発時は空でも可>
 | ジョブ | 頻度 | 取りこぼし時の保険 |
 |---|---|---|
 | 期限切れ下書きの削除（`drafts.expires_at < now()`、紐づく Storage 画像含む） | 日次 | 下書き一覧の取得クエリで `expires_at > now()` を必ず付ける |
+| 放置された予約投稿の削除（`posts.status='hidden'` が7日以上 `updated_at` 更新無し、紐づく Storage 画像フォルダ含む。[pending-items D19](../product/pending-items.md#d19-reservepost-で予約した-hidden-投稿がfinalizeされないまま放置される問題-解消済2026-10-23)） | 日次 | 不要。`hidden` 行は `posts_select_own`（本人のみ）でしか見えず、取りこぼしてもユーザーに影響しない |
 
 **GitHub Actions の `schedule` は実行が遅延・スキップされることがある**（混雑時、および60日間リポジトリ活動が無いと停止）。上の「保険」列を必ず併せて実装し、ジョブが動かなくても機能が壊れない状態を保つ。
 
