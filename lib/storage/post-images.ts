@@ -136,3 +136,20 @@ export async function deletePostImages(
 export function getPostImagePublicUrl(supabase: Client, path: string): string {
   return supabase.storage.from(POST_IMAGE_BUCKET).getPublicUrl(path).data.publicUrl
 }
+
+/**
+ * reservePost が作った予約フォルダ（post-images/{author_id}/{post_id}/*）を列挙する。
+ * post_images 行は finalize_post（1トランザクション）が成功した時だけ作られるため、
+ * finalizeされないまま放置された hidden 投稿には行が無く、Storage を直接見るしかない
+ *   docs/product/pending-items.md D19
+ */
+export async function listPostImagePaths(
+  supabase: Client,
+  authorId: string,
+  postId: string,
+): Promise<Result<string[], 'INTERNAL_ERROR'>> {
+  const prefix = `${authorId}/${postId}`
+  const { data, error } = await supabase.storage.from(POST_IMAGE_BUCKET).list(prefix)
+  if (error) return { ok: false, error: 'INTERNAL_ERROR', details: error.message }
+  return { ok: true, data: data.map((file) => `${prefix}/${file.name}`) }
+}

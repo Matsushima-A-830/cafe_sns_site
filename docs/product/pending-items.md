@@ -635,7 +635,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - 参照: `test/posts-create-integration-verify` ブランチの `/code-review`（2026-09-10、
   `posts_select_own` 追加PRのレビューで指摘）
 
-### D19. `reservePost` で予約した hidden 投稿がfinalizeされないまま放置される問題
+### D19. `reservePost` で予約した hidden 投稿がfinalizeされないまま放置される問題 ✅ 解消済（2026-10-23）
 
 - **課題:** [D17](#d17-createpost-の-imagepaths-は画像アップロード時点で投稿行が既に存在することを前提にしている解消済み)
   の予約行方式では、composer を開いて画像を選んだだけでユーザーが離脱すると、空本文・
@@ -673,6 +673,34 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   ref ガードで防いでいる。このガードと「cleanup で進行中の初期化を捨てる」方式は併用できない
   （1回目が捨てられ、2回目はガードで即 return するため画面が loading から進まない）ため、
   cleanup 側では中断しない（`components/features/composer/use-composer.ts`）
+- **解消（2026-10-23）:** 対応案 a（`drafts` と同様の日次バッチ、専用列は増やさない案c）を採用。
+  `posts.status='hidden'` かつ `updated_at` が7日以上更新されていない行を
+  [`lib/cron/cleanup-reserved-posts.ts`](../../lib/cron/cleanup-reserved-posts.ts) で削除する
+  （`app/api/cron/cleanup-reserved-posts/route.ts` + `.github/workflows/cleanup-reserved-posts.yml`、
+  A6/D3 で確立した drafts 掃除バッチと同じ仕組み）。
+  生存期間を7日と長めに取ったのは、`finalize_post`（RPC）が1トランザクションのため
+  失敗時に丸ごとロールバックし `updated_at` も更新されないこと——つまり「再送を試みて
+  何度も失敗している」行と「1回失敗して完全に放置された」行を `updated_at` だけでは
+  区別できないため
+  （[finalize_post_rpc.sql](../../supabase/migrations/20260911134931_finalize_post_rpc.sql)）。
+  「ブログ本文に埋め込んだ画像」の抽出は不要だった: `body_json` は `reservePost` が常に
+  `EMPTY_TIPTAP_DOC` で作り、`finalize_post` が成功するまで更新されないため、
+  掃除対象（`hidden` のまま）の行には埋め込み画像が存在し得ない。
+  同様に `post_images` 行も finalize 成功時にしか作られないため、画像は Storage の
+  `{author_id}/{post_id}/` フォルダを `listPostImagePaths`（`lib/storage/post-images.ts`）で
+  直接列挙して見つける（`post_images` テーブルは使えない——この点は着手前の想定と異なった）。
+  **実装後に `/code-review` で発覚した重大な見落とし:** `status='hidden'` は通報対応の
+  `hide_post` 決定（`app/_actions/admin-reports.ts`）でも既公開投稿に対して付く。初回実装は
+  `status='hidden' AND updated_at` だけで対象を絞っていたため、モデレーションで非表示に
+  した投稿が7日後にこのバッチで**本体ごと削除**されてしまう（`post_images`/`post_tags`/
+  `comments`/`likes`/`post_bookmarks` も cascade で消え、モデレーションの記録ごと消失する）
+  致命的な欠陥があった。修正: `published_at IS NULL`（`finalize_post` が成功するまで
+  一度も埋まらない列。`hide_post` は既存の `published_at` を書き換えない）を
+  SELECT/DELETE 双方の条件に追加し、既公開投稿を対象から確実に除外した。
+  「関連課題」のレート制限は見送り（D16と同様、実運用で顕在化したら判断）。
+  D50（owner-documents の孤立書類）は実装パターンが別物（Storageのバケット全体を
+  `list()` して DB参照と突き合わせる必要があり、本件のような1行ずつの prefix 指定では済まない）
+  のため別課題として残す
 - 参照: D17 対応（案a採用）に伴う新規フォローアップとして記録（2026-09-11）
 
 ### D20. composer の「おすすめタグ」は位置情報ベースではない
