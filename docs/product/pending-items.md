@@ -1457,19 +1457,34 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   （NULL許容化 or システム用ダミーID）を先に設計してから着手する
 - 参照: NGワード辞書・自動検出実装時にスコープ外と判断（2026-09-21）
 
-### D50. S_OWNER_CLAIM で書類アップロード後に離脱すると owner-documents に孤立ファイルが残る
+### D50. S_OWNER_CLAIM で書類アップロード後に離脱すると owner-documents に孤立ファイルが残る ✅ 解消済み（2026-10-24）
 
 - **課題:** `verificationId` はクライアントで `crypto.randomUUID()` により生成し、DB行の予約なしに
   書類を `owner-documents/{user_id}/{verificationId}/...` へ直接アップロードする設計にした
   （[tables.md #cafe_owner_verifications](../architecture/data-model/tables.md#cafe_owner_verifications)、
   CHECK制約 `jsonb_array_length(document_urls) >= 2` があるため posts の予約行パターンが使えない）。
   申請送信前にページを離脱・リロードすると、アップロード済みファイルは Storage に残ったまま
-  どの `cafe_owner_verifications` 行にも紐付かず孤立する。D19（`reservePost` の hidden 投稿放置）と
-  同型の問題
+  どの `cafe_owner_verifications` 行にも紐付かず孤立する
 - **現状の動作:** 実害は「Storage 容量を静かに消費する」のみ（他ユーザーからは読めない。
   `owner_documents_objects_select_own_or_admin` RLS で本人+adminのみ）
-- **対応判断:** 定期バッチ（`created_at` が古く `cafe_owner_verifications` に対応行が無いパスを削除）
-  が必要になったら着手。MVPの申請数では静観して問題ない規模と判断
+- **解消（2026-10-24）:** D19（`reservePost` の hidden 投稿放置）とは「孤立の見つけ方」が異なり、
+  コードは使い回せなかった。D19では候補行（`posts.status='hidden'`）がDBに実在したが、
+  `claimCafe`（`app/_actions/owner.ts`）は書類アップロード完了後に1回だけ `cafe_owner_verifications`
+  行をINSERTする設計のため、孤立したフォルダにはDB側の候補行が最初から存在しない。
+  そのため [`lib/storage/owner-documents.ts`](../../lib/storage/owner-documents.ts) の
+  `listAllOwnerDocumentPaths` でバケット全体を `{user_id}/{verification_id}/{file}` の
+  2階層で再帰的に列挙し（Storageの `list()` は1階層しか返さないため、`list('')` →
+  `list(userId)` → `list(userId/verificationId)` と辿る）、全行の `document_urls[].path`
+  （`{type, path}` のjsonb配列）と突き合わせて未参照のものを孤立と判定する。
+  `cafe_owner_verifications` にはDELETEポリシーが無く approved/rejected/withdrawn の行も
+  履歴保持のため永久に残るため、判定は `status` を問わず行う（絞り込むと承認済みの
+  正当な書類まで削除してしまう）。生存期間はD19と揃えて7日（判断コストの低さを優先。
+  `claimCafe` は1回のINSERTで完結し、リトライも同じコンポーネントインスタンスが持つ
+  同じ `verificationId` への再送に限られるため、D19にあった「ロールバックで再送中の行を
+  誤検知する」リスクは無い）。
+  [`lib/cron/cleanup-orphaned-owner-documents.ts`](../../lib/cron/cleanup-orphaned-owner-documents.ts) +
+  `app/api/cron/cleanup-orphaned-owner-documents/route.ts` +
+  `.github/workflows/cleanup-orphaned-owner-documents.yml`（A6/D3/D19と同じ日次バッチの仕組み）
 - 参照: オーナー認証申請（S_OWNER_CLAIM/S_OWNER_PENDING）実装時に記録（2026-09-21）
 
 ### D51. `(owner)` ルートグループに `not-found.tsx` が無く、404が英語既定のまま ✅ 解消済み（2026-10-06）
