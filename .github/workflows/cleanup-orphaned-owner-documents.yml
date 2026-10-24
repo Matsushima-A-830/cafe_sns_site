@@ -1,0 +1,43 @@
+name: Cleanup Orphaned Owner Documents
+
+# claimCafe が書類アップロード後に1回だけ cafe_owner_verifications 行をINSERTする設計のため、
+# ページリロード等で再送のあて先を失った owner-documents バケットのファイルは行から
+# 一切参照されない。生成から7日以上経過し、全行の document_urls にも含まれない
+# ファイルを日次で削除する（docs/product/pending-items.md D50）。
+#
+# GitHub Actions の schedule は指定時刻には走らない（nightly.yml で実測: 最大3時間40分遅延）。
+# また 60日間リポジトリに活動がないと自動停止するので、長期中断明けは workflow_dispatch で
+# 一度手動起動して再開させること。
+on:
+  schedule:
+    - cron: '40 17 * * *'  # UTC 17:40 = JST 02:40（cleanup-drafts・cleanup-reserved-postsと時間をずらす目安）
+  workflow_dispatch:
+
+concurrency:
+  group: cleanup-orphaned-owner-documents
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    name: Call cleanup-orphaned-owner-documents endpoint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Result型規約（error-catalog.md）でHTTPステータスは常に200固定のため、
+      # 成否は body の ok フィールドで判定する
+      - name: Call /api/cron/cleanup-orphaned-owner-documents
+        run: |
+          BODY=$(curl -s -X POST "${SITE_URL}/api/cron/cleanup-orphaned-owner-documents" \
+            -H "Authorization: Bearer ${CRON_SECRET}")
+          echo "$BODY"
+          OK=$(echo "$BODY" | jq -r '.ok')
+          if [ "$OK" != "true" ]; then
+            echo "::error::cleanup-orphaned-owner-documents が失敗しました: $BODY"
+            exit 1
+          fi
+        env:
+          SITE_URL: ${{ secrets.SITE_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

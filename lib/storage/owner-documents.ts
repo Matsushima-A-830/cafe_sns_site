@@ -141,3 +141,79 @@ export async function deleteOwnerDocuments(
   if (error) return { ok: false, error: 'INTERNAL_ERROR', details: error.message }
   return { ok: true, data: null }
 }
+
+/** list() の1リクエストあたりの上限（既定100件）を超えて全件取得するためのページサイズ */
+const LIST_PAGE_SIZE = 1000
+
+/**
+ * list(prefix) を offset でページングし、1階層分のエントリ（ファイル or フォルダ）を
+ * 全件取得する。フォルダは created_at が null になる（storage-js FileObject型の仕様）ため、
+ * 呼び出し元はこの null/non-null でファイルかフォルダかを判別する
+ */
+async function listAllEntriesAtPrefix(
+  supabase: Client,
+  prefix: string,
+): Promise<Result<Array<{ name: string; createdAt: string | null }>, 'INTERNAL_ERROR'>> {
+  const entries: Array<{ name: string; createdAt: string | null }> = []
+  let offset = 0
+
+  while (true) {
+    const { data, error } = await supabase.storage
+      .from(OWNER_DOCUMENT_BUCKET)
+      .list(prefix, { limit: LIST_PAGE_SIZE, offset })
+    if (error) return { ok: false, error: 'INTERNAL_ERROR', details: error.message }
+
+    for (const item of data) entries.push({ name: item.name, createdAt: item.created_at })
+    if (data.length < LIST_PAGE_SIZE) break
+    offset += LIST_PAGE_SIZE
+  }
+
+  return { ok: true, data: entries }
+}
+
+export type OwnerDocumentFile = { path: string; createdAt: string }
+
+/**
+ * バケット全体を owner-documents/{user_id}/{verification_id}/{file} の2階層で
+ * 再帰的に列挙する。cafe_owner_verifications は書類アップロード完了後に1回だけ
+ * INSERTされる設計（claimCafe）で、D19の予約行方式のような「先に行だけ存在する」
+ * 状態が無いため、孤立判定にはDB側の候補行ではなくStorage側の実ファイルを
+ * 直接列挙する必要がある
+ *   docs/architecture/data-model/README.md #owner-documents-は予約行方式を使わない
+ *   docs/product/pending-items.md D50
+ */
+export async function listAllOwnerDocumentPaths(
+  supabase: Client,
+): Promise<Result<OwnerDocumentFile[], 'INTERNAL_ERROR'>> {
+  const files: OwnerDocumentFile[] = []
+
+  const userEntries = await listAllEntriesAtPrefix(supabase, '')
+  if (!userEntries.ok) return userEntries
+
+  for (const userEntry of userEntries.data) {
+    // フォルダ以外（想定外の直下ファイル）は対象外。孤立判定の対象はuser_id配下のみ
+    if (userEntry.createdAt !== null) continue
+    const userId = userEntry.name
+
+    const verificationEntries = await listAllEntriesAtPrefix(supabase, userId)
+    if (!verificationEntries.ok) return verificationEntries
+
+    for (const verificationEntry of verificationEntries.data) {
+      if (verificationEntry.createdAt !== null) continue
+      const verificationId = verificationEntry.name
+
+      const fileEntries = await listAllEntriesAtPrefix(supabase, `${userId}/${verificationId}`)
+      if (!fileEntries.ok) return fileEntries
+
+      for (const fileEntry of fileEntries.data) {
+        if (fileEntry.createdAt === null) continue // さらに深い想定外のフォルダはスキップ
+        files.push({
+          path: `${userId}/${verificationId}/${fileEntry.name}`,
+          createdAt: fileEntry.createdAt,
+        })
+      }
+    }
+  }
+
+  return { ok: true, data: files }
+}

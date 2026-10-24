@@ -443,6 +443,8 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 **ストレージパスの例外:**
 - `owner-documents/{user_id}/{verification_id}/{uuid}.{ext}` の `verification_id` は DB 行の存在を要求しない。クライアントで `crypto.randomUUID()` を生成してパス命名にのみ使う（[posts の予約行パターン](./README.md#オブジェクトパス規約)とは異なる。`document_urls` に `CHECK (jsonb_array_length(document_urls) >= 2)` があるため、空の予約行を先に INSERT できない）。認可は `storage.objects` RLS のパス第1セグメント（`user_id`）のみで担保し、書類を2点以上アップロードし終えてから `cafe_owner_verifications` に一括 INSERT する
 
+**孤立ファイルの掃除:** 申請送信前にページを離脱・リロードすると、アップロード済みファイルはどの行にも紐付かず孤立する。DB側に候補行が最初から存在しないため（上記の通り予約行方式を使わない設計）、Storageバケットを `{user_id}/{verification_id}/{file}` の2階層で再帰的に列挙し（[`listAllOwnerDocumentPaths`](../../../lib/storage/owner-documents.ts)）、全行の `document_urls[].path` と突き合わせて未参照のものを日次バッチ（[`lib/cron/cleanup-orphaned-owner-documents.ts`](../../../lib/cron/cleanup-orphaned-owner-documents.ts)）で削除する。本テーブルにはDELETEポリシーが無く `approved`/`rejected`/`withdrawn` の行も履歴保持のため永久に残るため、判定は `status` を問わず全行の `document_urls` と比較する1点のみで行う（絞り込むと承認済みの正当な書類まで削除してしまう）。生存期間は[D19の予約投稿掃除](../../product/pending-items.md#d19-reservepost-で予約した-hidden-投稿がfinalizeされないまま放置される問題-解消済2026-10-23)と揃えて7日（[pending-items D50](../../product/pending-items.md#d50-s_owner_claim-で書類アップロード後に離脱すると-owner-documents-に孤立ファイルが残る-解消済み2026-10-24)）
+
 ---
 
 ## regular_customers
