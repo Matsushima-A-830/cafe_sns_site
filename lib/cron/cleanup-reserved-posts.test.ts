@@ -1,7 +1,10 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { reportError } from '@/lib/monitoring/report-error'
 import type { Database } from '@/types/database'
 import { cleanupReservedPosts } from './cleanup-reserved-posts'
+
+vi.mock('@/lib/monitoring/report-error', () => ({ reportError: vi.fn() }))
 
 /** select().eq().is().lt().limit() の末に await されるチェーン */
 function makeSelectChain(terminalResult: unknown): Record<string, unknown> {
@@ -247,5 +250,56 @@ describe('cleanupReservedPosts', () => {
     const result = await cleanupReservedPosts(supabase as unknown as SupabaseClient<Database>)
 
     expect(result).toEqual({ ok: false, error: 'INTERNAL_ERROR', details: 'storage down' })
+  })
+
+  it('Storage削除が失敗したら、消せなかったimagePathsをreportErrorのcauseに含める（D75: 永久孤立の可視化）', async () => {
+    const postId = '55555555-5555-4555-8555-555555555555'
+    const { supabase } = mockClient({
+      postsSelect: { data: [{ id: postId }], error: null },
+      postsDelete: { data: [{ id: postId, author_id: authorId }], error: null },
+      storageList: { [`${authorId}/${postId}`]: { data: [{ name: '1.webp' }] } },
+      storageRemove: { error: { message: 'storage down' } },
+    })
+
+    await cleanupReservedPosts(supabase as unknown as SupabaseClient<Database>)
+
+    expect(reportError).toHaveBeenCalledWith(
+      'cleanup-reserved-posts',
+      'Storage画像の削除に失敗',
+      expect.objectContaining({
+        imagePaths: [`${authorId}/${postId}/1.webp`],
+      }),
+    )
+  })
+
+  it('21件削除された場合、Storage列挙は20件ずつチャンクに分けて実行する（D75: 同時実行数の上限）', async () => {
+    const rows = Array.from({ length: 21 }, (_, i) => ({
+      id: `post-${i}`,
+      author_id: authorId,
+    }))
+    const storageList = Object.fromEntries(
+      rows.map((row) => [`${authorId}/${row.id}`, { data: [] }]),
+    )
+    const { supabase, listSpy } = mockClient({
+      postsSelect: { data: rows.map((row) => ({ id: row.id })), error: null },
+      postsDelete: { data: rows, error: null },
+      storageList,
+    })
+
+    let maxConcurrent = 0
+    let current = 0
+    listSpy.mockImplementation((prefix: string) => {
+      current++
+      maxConcurrent = Math.max(maxConcurrent, current)
+      return Promise.resolve(storageList[prefix] ?? { data: [] }).finally(() => {
+        current--
+      })
+    })
+
+    const result = await cleanupReservedPosts(supabase as unknown as SupabaseClient<Database>)
+
+    expect(result.ok).toBe(true)
+    expect(listSpy).toHaveBeenCalledTimes(21)
+    expect(maxConcurrent).toBeLessThanOrEqual(20)
   })
 })

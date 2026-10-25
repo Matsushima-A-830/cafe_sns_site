@@ -2046,6 +2046,31 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   メッセージ文字列へ埋め込んで対応。これで `app/` `lib/` 配下の `console.error` は
   `lib/monitoring/report-error.ts` 自身を除き0件
 
+### D75. `cleanup-reserved-posts.ts` のStorage削除運用性（D50レビュー中に発覚、D19のフォローアップ）
+
+- **課題:** D50（owner-documents孤立ファイル掃除、PR #145）のレビュー中に、
+  既にmainにマージ済みの [`lib/cron/cleanup-reserved-posts.ts`](../../lib/cron/cleanup-reserved-posts.ts)
+  （D19）に対して `/code-review` から2件の指摘が出た。D50の差分に含まれないため
+  別issueとして記録する
+  1. **恒久孤立のリスク:** 設計上、`posts` 行のDELETEをStorage画像削除より先に確定させる
+     （再送finalizeとのレース対策、[D19解消時のコメント](#d19-reservepost-で予約した-hidden-投稿がfinalizeされないまま放置される問題-解消済2026-10-23)参照、
+     順序の逆転は選べない）。そのためStorage削除（`deletePostImages`）がここで失敗すると、
+     対象投稿の `author_id`/`post_id` への手がかりはDBから既に消えており、次回実行でも
+     二度と見つからない。D50（owner-documentsの孤立ファイル掃除）はバケット全体を
+     `user_id`/`verification_id` 単位で再帰列挙してDB行と突き合わせる方式で孤立を見つけたが、
+     `post-images` バケットは投稿数に比例して大きくなる想定で全体スキャンは現実的でなく、
+     同じ手法は使えない
+  2. **Storage呼び出しの並列数が無制限:** `cleanup-reserved-posts.ts:83` の `Promise.all` は、
+     削除されたpost行の数（最大 `CLEANUP_BATCH_LIMIT=500`）に比例して `listPostImagePaths` を
+     同時に最大500本投げる。レート制限・タイムアウト（ワークフローの `timeout-minutes: 5`、
+     `.github/workflows/cleanup-reserved-posts.yml`）のリスクがある
+- **対応判断（2026-10-24）:** 1（恒久孤立）は対応しない。imagePathsをSentryレポートに
+  含めて可視化するだけに留める。MVP規模では投稿量産スパムの実例が無く、Storage無料枠1GBに対する
+  実害が小さいうちは、D3・D65と同じトーンで過剰設計を避ける（再試行用テーブルの新設は見送り）。
+  投稿数が増えて実害が見え始めた時点で再判断する
+- **対応（2026-10-24）:** 2は `chunk` ユーティリティで同時実行数を20件に制限して対応。
+  1はSentryの `reportError` 呼び出しに `imagePaths` を含めて可視化のみ対応（再試行機構は未実装）
+
 ## 削除・アーカイブ判断待ち
 
 現時点で「削除する」と決めた項目はなし。追加・変更発生時にここに追記。

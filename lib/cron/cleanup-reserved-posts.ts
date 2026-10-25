@@ -14,6 +14,19 @@ export type CleanupReservedPostsSummary = {
 /** 1回の実行で処理する上限。GitHub Actions の日次実行なら十分で、タイムアウトを避ける */
 const CLEANUP_BATCH_LIMIT = 500
 
+/** Storage の list() 同時実行数。CLEANUP_BATCH_LIMIT件を無制限に並列実行するとレート制限/
+ *  タイムアウト（.github/workflows/cleanup-reserved-posts.yml の timeout-minutes）のリスクがあるため絞る
+ *    docs/product/pending-items.md D75 */
+const STORAGE_LIST_CONCURRENCY = 20
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = []
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size))
+  }
+  return chunks
+}
+
 /**
  * finalize_post は1トランザクションのため、失敗時は丸ごとロールバックして
  * updated_at も更新されない。つまり「再送を試みて何度も失敗している」行と
@@ -80,23 +93,31 @@ export async function cleanupReservedPosts(
     return { ok: true, data: { deletedPostCount: 0, deletedImageCount: 0 } }
   }
 
-  const listResults = await Promise.all(
-    deletedRows.map((row) => listPostImagePaths(supabase, row.author_id, row.id)),
-  )
-
   const imagePaths: string[] = []
-  for (const listed of listResults) {
-    if (!listed.ok) {
-      reportError('cleanup-reserved-posts', 'Storageフォルダの列挙に失敗', listed.details)
-      return { ok: false, error: 'INTERNAL_ERROR', details: listed.details }
+  for (const rowsChunk of chunk(deletedRows, STORAGE_LIST_CONCURRENCY)) {
+    const listResults = await Promise.all(
+      rowsChunk.map((row) => listPostImagePaths(supabase, row.author_id, row.id)),
+    )
+    for (const listed of listResults) {
+      if (!listed.ok) {
+        reportError('cleanup-reserved-posts', 'Storageフォルダの列挙に失敗', listed.details)
+        return { ok: false, error: 'INTERNAL_ERROR', details: listed.details }
+      }
+      imagePaths.push(...listed.data)
     }
-    imagePaths.push(...listed.data)
   }
 
   if (imagePaths.length > 0) {
     const deleted = await deletePostImages(supabase, imagePaths)
     if (!deleted.ok) {
-      reportError('cleanup-reserved-posts', 'Storage画像の削除に失敗', deleted.details)
+      // 削除に失敗すると、元のpost行は既にDELETE済みで二度と見つからず永久に孤立する
+      // （D50のバケット全体スキャン方式は post-images の規模では使えない）。せめて運用者が
+      // 手動で消せるよう、どのパスが残ったかをSentryに残す
+      //   docs/product/pending-items.md D75
+      reportError('cleanup-reserved-posts', 'Storage画像の削除に失敗', {
+        error: deleted.details,
+        imagePaths,
+      })
       return { ok: false, error: 'INTERNAL_ERROR', details: deleted.details }
     }
   }
