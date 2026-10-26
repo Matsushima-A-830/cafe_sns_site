@@ -1,7 +1,9 @@
 'use client'
 
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useEffect, useId, useState } from 'react'
+import { Loader2Icon } from 'lucide-react'
+import Image from 'next/image'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { updateCafeBusinessHours } from '@/app/_actions/cafe-business-hours'
 import { findSimilarCafes, updateCafe } from '@/app/_actions/cafes'
@@ -20,6 +22,7 @@ import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { DAY_LABELS } from '@/lib/cafes/business-hours'
 import type { CafeEditData } from '@/lib/owner/cafe-edit'
+import { deleteUnsavedCafeImageFile, uploadCafeImage } from '@/lib/storage/cafe-image-client'
 import { cn } from '@/lib/utils/cn'
 import { errorMessage } from '@/lib/utils/error-messages'
 import { type CafeEditFormValues, cafeEditFormSchema } from '@/lib/validators/cafes'
@@ -60,6 +63,7 @@ function toDefaultValues(cafe: CafeEditData): CafeEditFormValues {
     website: cafe.website ?? '',
     description: cafe.description ?? '',
     externalIds: cafe.externalIds,
+    mainImageUrl: cafe.mainImageUrl ?? undefined,
     hours: Array.from({ length: 7 }, (_, dayOfWeek) => {
       const hour = cafe.businessHours.find((h) => h.dayOfWeek === dayOfWeek)
       // 営業時間が未登録の曜日は「定休日」を初期値にする。isClosed=false のまま時刻を
@@ -115,13 +119,26 @@ function diffSummary(
     changes.push({ label: '営業時間', before: '変更前', after: '変更後' })
   }
 
+  if ((before.mainImageUrl ?? '') !== (after.mainImageUrl ?? '')) {
+    changes.push({ label: 'メイン画像', before: '変更前', after: '変更後' })
+  }
+
   return changes
 }
 
 export function CafeEditForm({ cafe, areas }: { cafe: CafeEditData; areas: Area[] }) {
   const areaFieldId = useId()
+  const mainImageInputId = useId()
+  const mainImageInputRef = useRef<HTMLInputElement>(null)
   const defaultValues = toDefaultValues(cafe)
   const [selectedArea, setSelectedArea] = useState<string | undefined>(defaultValues.areaCode)
+  const [mainImageUrl, setMainImageUrl] = useState<string | undefined>(defaultValues.mainImageUrl)
+  const [isUploadingMainImage, setIsUploadingMainImage] = useState(false)
+  const [mainImageError, setMainImageError] = useState<string>()
+  // uploadCafeImage は選択した時点で直PUTする。保存前に選び直す・画面を離れると
+  // 直前のアップロードが孤立するため、上書き・離脱のどちらでも削除する
+  // （profile-edit-form.tsx の onAvatarSelected と同じ型。D64）
+  const pendingMainImagePathRef = useRef<string | null>(null)
   const [formError, setFormError] = useState<string>()
   const [similarCafes, setSimilarCafes] = useState<ComposerCafe[]>([])
   const [pendingValues, setPendingValues] = useState<CafeEditFormValues>()
@@ -160,9 +177,38 @@ export function CafeEditForm({ cafe, areas }: { cafe: CafeEditData; areas: Area[
     }
   }, [nameValue, cafe.name, cafe.id])
 
+  async function onMainImageSelected(file: File | undefined) {
+    // 同じファイルを選び直せるよう、読み取り後すぐ input を空に戻す
+    if (mainImageInputRef.current) mainImageInputRef.current.value = ''
+    if (!file) return
+
+    setMainImageError(undefined)
+    setIsUploadingMainImage(true)
+    const result = await uploadCafeImage(file, cafe.id)
+    setIsUploadingMainImage(false)
+    if (!result.ok) {
+      setMainImageError(errorMessage(result.error))
+      return
+    }
+
+    // 選び直し: 直前のアップロードが保存済みの mainImageUrl でなければ孤立するため削除する
+    const supersededPath = pendingMainImagePathRef.current
+    pendingMainImagePathRef.current = result.data.path
+    setMainImageUrl(result.data.publicUrl)
+    if (supersededPath) void deleteUnsavedCafeImageFile(supersededPath)
+  }
+
+  // 保存せずに画面を離れた場合、保存されなかったアップロードを削除する（D64と同じ型）
+  useEffect(() => {
+    return () => {
+      if (pendingMainImagePathRef.current)
+        void deleteUnsavedCafeImageFile(pendingMainImagePathRef.current)
+    }
+  }, [])
+
   const openConfirm = handleSubmit((values) => {
     setFormError(undefined)
-    setPendingValues({ ...values, areaCode: selectedArea })
+    setPendingValues({ ...values, areaCode: selectedArea, mainImageUrl })
   })
 
   const confirmSave = async () => {
@@ -170,13 +216,19 @@ export function CafeEditForm({ cafe, areas }: { cafe: CafeEditData; areas: Area[
     const { hours, ...cafeFields } = pendingValues
 
     setSaving(true)
-    const cafeResult = await updateCafe(cafeFields)
+    const mainImageChanged = pendingValues.mainImageUrl !== defaultValues.mainImageUrl
+    const cafeResult = await updateCafe({
+      ...cafeFields,
+      ...(mainImageChanged ? {} : { mainImageUrl: undefined }),
+    })
     if (!cafeResult.ok) {
       setSaving(false)
       setPendingValues(undefined)
       setFormError(errorMessage(cafeResult.error))
       return
     }
+    // 保存済みになったので、離脱時クリーンアップ（孤立ファイル削除）の対象から外す
+    if (mainImageChanged) pendingMainImagePathRef.current = null
 
     const hoursResult = await updateCafeBusinessHours({ cafeId: cafe.id, hours })
     if (!hoursResult.ok) {
@@ -211,6 +263,45 @@ export function CafeEditForm({ cafe, areas }: { cafe: CafeEditData; areas: Area[
   return (
     <>
       <form onSubmit={openConfirm} className="flex flex-col gap-6" noValidate>
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium text-foreground">メイン画像</span>
+          <div className="flex items-center gap-4">
+            <div className="relative h-20 w-32 shrink-0 overflow-hidden rounded-md bg-muted">
+              {mainImageUrl && (
+                <Image src={mainImageUrl} alt="" fill sizes="128px" className="object-cover" />
+              )}
+              {isUploadingMainImage && (
+                <span className="absolute inset-0 flex items-center justify-center bg-brown-900/40">
+                  <Loader2Icon
+                    aria-hidden="true"
+                    className="size-6 animate-spin text-primary-foreground motion-reduce:animate-none"
+                  />
+                  <span className="sr-only">アップロード中</span>
+                </span>
+              )}
+            </div>
+            <label
+              htmlFor={mainImageInputId}
+              className={cn(
+                'cursor-pointer rounded-md border border-border-default bg-surface px-4 py-2 text-sm text-foreground hover:bg-muted focus-within:ring-2 focus-within:ring-ring-focus',
+                (isSubmitting || isUploadingMainImage) && 'pointer-events-none opacity-50',
+              )}
+            >
+              ＋画像を追加
+            </label>
+            <input
+              ref={mainImageInputRef}
+              id={mainImageInputId}
+              type="file"
+              accept="image/*"
+              disabled={isSubmitting || isUploadingMainImage}
+              className="sr-only"
+              onChange={(event) => void onMainImageSelected(event.target.files?.[0])}
+            />
+          </div>
+          <FieldError>{mainImageError}</FieldError>
+        </div>
+
         <div className="flex flex-col gap-2">
           <Label htmlFor="name">店名</Label>
           <Input id="name" {...register('name')} />

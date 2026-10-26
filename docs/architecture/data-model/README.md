@@ -198,6 +198,8 @@ owner-documents/{user_id}/{verification_id}/{uuid}.{ext}
 
 **先頭セグメントを所有者IDに固定する。** Supabase Storage のポリシーは `storage.foldername(name)[1] = auth.uid()::text` の形で書けるため、この規約がそのまま書き込み権限の担保になる。
 
+**例外: `cafe-images` は先頭セグメントが `cafe_id` であり `auth.uid()` ではない。** 「このカフェの正当なオーナーは誰か」はパスから自明に判定できないため、上記の等価チェックは使えない。代わりに `is_cafe_owner(p_cafe_id)`（[cafe_business_hours](./tables.md#cafe_business_hours)で定義済みの security definer 関数）でパス第1セグメントを検証する（[20261026100000_create_cafe_images_storage.sql](../../../supabase/migrations/20261026100000_create_cafe_images_storage.sql)）。
+
 ### 権限
 
 - **public バケット**は読み取り自由。書き込み・削除は上記パス規約で本人のみ

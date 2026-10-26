@@ -5,6 +5,9 @@ import {
   POSTGRES_INSUFFICIENT_PRIVILEGE,
 } from '@/lib/constants/postgres-error-codes'
 import { reportError } from '@/lib/monitoring/report-error'
+import { CAFE_IMAGE_BUCKET, deleteCafeImageFile } from '@/lib/storage/cafe-images'
+import { verifyNoGpsExif } from '@/lib/storage/post-image-verify'
+import { storagePathFromPublicUrl } from '@/lib/storage/public-url'
 import { createClient } from '@/lib/supabase/server'
 import { escapeIlikePattern, quoteOrFilterValue } from '@/lib/utils/postgrest'
 import {
@@ -31,6 +34,7 @@ type UpdateCafeError =
   | 'NOT_OWNER'
   | 'AREA_CODE_UNKNOWN'
   | 'INTERNAL_ERROR'
+  | 'EXIF_STRIP_FAILED'
 
 const RESULT_LIMIT = 20
 // area_code の FK 名。将来 cafes に他の FK が増えても誤判定しないための目印
@@ -271,6 +275,45 @@ async function updateCafeRow(
   } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
 
+  const { mainImageUrl } = input
+
+  // updateCafeSchema が storagePathFromPublicUrl で検証済みのため mainImageUrl は必ず
+  // cafe-images バケットのパスへ解決できる（念のため null なら素通りさせず弾く。
+  // updateProfile の avatarUrl 差し替えと同じ型）
+  const newMainImagePath =
+    mainImageUrl !== undefined ? storagePathFromPublicUrl(CAFE_IMAGE_BUCKET, mainImageUrl) : null
+  if (mainImageUrl !== undefined && !newMainImagePath) {
+    reportError('cafes', 'mainImageUrl がバリデーション済みのはずなのにパスへ解決できない')
+    return { ok: false, error: 'INTERNAL_ERROR' }
+  }
+
+  // A10と同じ保険: 署名付きURL直PUTはサーバーがバイト列を検証できないため、
+  // クライアント側のEXIF除去（processCafeImage）が迂回された場合に備えて読み直して確認する
+  //   docs/product/pending-items.md A10
+  if (newMainImagePath) {
+    const verified = await verifyNoGpsExif(supabase, [newMainImagePath], CAFE_IMAGE_BUCKET)
+    if (!verified.ok) {
+      if (verified.error === 'EXIF_STRIP_FAILED') {
+        const deleted = await deleteCafeImageFile(supabase, newMainImagePath)
+        if (!deleted.ok) reportError('cafes', 'GPS検出メイン画像の削除に失敗', deleted.details)
+      }
+      return { ok: false, error: verified.error }
+    }
+  }
+
+  // 旧ファイル削除（D3と同じ方針）のため、差し替え前の main_image_path を控えておく。
+  // cafes の SELECT RLS は status='active' しか見せないため、hidden/closed な自分のカフェでも
+  // 読める get_owned_cafe_for_edit（security definer）経由で取る（get_owned_cafe_for_edit, D55）
+  let previousMainImagePath: string | null = null
+  if (mainImageUrl !== undefined) {
+    const current = await supabase.rpc('get_owned_cafe_for_edit', { p_cafe_id: input.cafeId })
+    if (current.error) {
+      reportError('cafes', '現在のメイン画像取得に失敗', current.error)
+      return { ok: false, error: 'INTERNAL_ERROR' }
+    }
+    previousMainImagePath = current.data?.[0]?.main_image_path ?? null
+  }
+
   const { data, error } = await supabase
     .from('cafes')
     .update({
@@ -290,6 +333,7 @@ async function updateCafeRow(
       ...(input.externalIds !== undefined
         ? { external_ids: toExternalIds(input.externalIds) }
         : {}),
+      ...(mainImageUrl !== undefined ? { main_image_path: newMainImagePath } : {}),
     })
     .eq('id', input.cafeId)
     .select('id')
@@ -307,6 +351,17 @@ async function updateCafeRow(
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
   if (!data) return { ok: false, error: 'NOT_OWNER' }
+
+  // DB更新成功後に旧ファイルを削除する（D3対応案c）。失敗してもユーザー操作自体は
+  // 成功しているため、ここでの失敗でアクション全体を失敗扱いにはしない（孤立は別途掃除の対象）
+  if (
+    mainImageUrl !== undefined &&
+    previousMainImagePath &&
+    previousMainImagePath !== newMainImagePath
+  ) {
+    const deleted = await deleteCafeImageFile(supabase, previousMainImagePath)
+    if (!deleted.ok) reportError('cafes', '旧メイン画像の削除に失敗', deleted.details)
+  }
 
   return { ok: true, data: { cafeId: data.id } }
 }

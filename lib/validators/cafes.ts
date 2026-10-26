@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { CAFE_IMAGE_BUCKET } from '@/lib/storage/cafe-images'
+import { storagePathFromPublicUrl } from '@/lib/storage/public-url'
 
 // 検索語は ilike のパターンに埋めるだけで、長さに意味は無い。
 // 極端に長い入力でDBを無駄に叩かないための上限
@@ -26,9 +28,10 @@ export const nearbyCafesSchema = z.object({
 export type NearbyCafesInput = z.infer<typeof nearbyCafesSchema>
 
 // S_CAFE_NEW（カフェ新規登録）。main_image_path は含めない
-// （cafe-images バケット未作成のため v1 スコープ外。docs/product/pending-items.md D31）。
-// location（lat/lng）は Google Places Autocomplete 経由でのみ受け取る（新規登録時のみ。
-// 既存カフェのバックフィルはスコープ外）
+// （ワイヤー上もメイン画像欄は S_OWNER_CAFE_EDIT のみ。新規登録時点ではまだオーナー認証が
+// 済んでおらず is_cafe_owner() が通らないため、アップロード自体ができない。
+// docs/product/pending-items.md D31）。location（lat/lng）は Google Places Autocomplete
+// 経由でのみ受け取る（新規登録時のみ。既存カフェのバックフィルはスコープ外）
 export const createCafeSchema = z.object({
   name: z
     .string()
@@ -66,10 +69,8 @@ export const createCafeInputSchema = createCafeSchema.refine(cafeLocationBothOrN
   path: ['lat'],
 })
 
-// S_OWNER_CAFE_EDIT。createCafeSchema に cafeId・externalIds を足したもの。
-// main_image_path は含めない（cafe-images バケット未作成のため今回もスコープ外。
-//   docs/product/pending-items.md D31）。location は新規登録時のみ収集する運用のため、
-// 編集フォームでは扱わない（lat/lng を明示的に除く）
+// S_OWNER_CAFE_EDIT。createCafeSchema に cafeId・externalIds・mainImageUrl を足したもの。
+// location は新規登録時のみ収集する運用のため、編集フォームでは扱わない（lat/lng を明示的に除く）
 export const externalIdsSchema = z.object({
   googlePlaceId: z.string().trim().max(200, 'Place IDは200文字以内で入力してください').optional(),
   tabelogUrl: z.string().trim().url('URLの形式が正しくありません').optional().or(z.literal('')),
@@ -78,6 +79,19 @@ export const externalIdsSchema = z.object({
 export const updateCafeSchema = createCafeSchema.omit({ lat: true, lng: true }).extend({
   cafeId: z.string().uuid('カフェIDの形式が正しくありません'),
   externalIds: externalIdsSchema.optional(),
+  // cafe-images バケットが発行した公開URLからのみ受け付ける（profileEditSchema の
+  // avatarUrl と同じ理由。任意のURLを書き込めても isStoragePublicUrl 判定で弾かれるだけだが、
+  // 同じ轍を踏まない）
+  mainImageUrl: z
+    .string()
+    .trim()
+    .optional()
+    .refine(
+      (url) => url === undefined || storagePathFromPublicUrl(CAFE_IMAGE_BUCKET, url) !== null,
+      {
+        message: 'メイン画像のURLが正しくありません',
+      },
+    ),
 })
 
 export type UpdateCafeInput = z.infer<typeof updateCafeSchema>

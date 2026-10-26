@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { toBusinessHour } from '@/lib/cafes/cafe-detail'
+import { getCafeImagePublicUrl } from '@/lib/storage/cafe-images'
 import type { Database } from '@/types/database'
 
 /**
@@ -28,6 +29,7 @@ export type CafeEditData = {
   website: string | null
   description: string | null
   externalIds: { googlePlaceId: string; tabelogUrl: string }
+  mainImageUrl: string | null
   businessHours: ReturnType<typeof toBusinessHour>[]
 }
 
@@ -69,6 +71,9 @@ export async function getOwnedCafeForEdit(
     website: cafe.website,
     description: cafe.description,
     externalIds: toExternalIds(cafe.external_ids),
+    mainImageUrl: cafe.main_image_path
+      ? getCafeImagePublicUrl(supabase, cafe.main_image_path)
+      : null,
     businessHours: (hours ?? []).map(toBusinessHour),
   }
 }

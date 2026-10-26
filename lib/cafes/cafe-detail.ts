@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { cache } from 'react'
 import type { BusinessHour } from '@/lib/cafes/business-hours'
+import { getCafeImagePublicUrl } from '@/lib/storage/cafe-images'
 import { getPostImagePublicUrl } from '@/lib/storage/post-images'
 import { isStoragePublicUrl } from '@/lib/storage/public-url'
 import { cafeIdSchema } from '@/lib/validators/cafes'
@@ -31,7 +32,7 @@ export const getCachedUser = cache((supabase: Client) => supabase.auth.getUser()
  */
 const CAFE_COLUMNS = `
   id, name, prefecture, city, address, phone, website, description,
-  verified_owner_id, cafe_lat, cafe_lng,
+  verified_owner_id, cafe_lat, cafe_lng, main_image_path,
   areas!cafes_area_code_fkey (label)
 ` as const
 
@@ -64,6 +65,7 @@ type CafeRow = {
   verified_owner_id: string | null
   cafe_lat: number | null
   cafe_lng: number | null
+  main_image_path: string | null
   areas: { label: string } | null
 }
 
@@ -81,9 +83,13 @@ type OwnedCafeDetailRow = {
   cafe_lat: number | null
   cafe_lng: number | null
   area_label: string | null
+  main_image_path: string | null
 }
 
-type CafeCore = Omit<CafeDetail, 'heroImageUrl' | 'businessHours'>
+type CafeCore = Omit<CafeDetail, 'heroImageUrl' | 'businessHours'> & {
+  /** resolveHeroImageUrl に渡すためだけの中間値。CafeDetail には出さない */
+  mainImagePath: string | null
+}
 
 function toCafeCore(cafe: CafeRow | OwnedCafeDetailRow, areaLabel: string | null): CafeCore {
   return {
@@ -100,6 +106,7 @@ function toCafeCore(cafe: CafeRow | OwnedCafeDetailRow, areaLabel: string | null
       cafe.cafe_lat !== null && cafe.cafe_lng !== null
         ? { lat: cafe.cafe_lat, lng: cafe.cafe_lng }
         : null,
+    mainImagePath: cafe.main_image_path,
   }
 }
 
@@ -122,14 +129,24 @@ export function toBusinessHour(row: BusinessHourRow): BusinessHour {
 }
 
 /**
- * ヒーロー画像は「そのカフェの最新投稿の1枚目」（tables.md #cafes の未設定時フォールバック）。
+ * ヒーロー画像は main_image_path（オーナーが設定したメイン画像）を優先し、
+ * 未設定なら「そのカフェの最新投稿の1枚目」にフォールバックする
+ *   docs/architecture/data-model/tables.md #cafes main_image_path の用途
  *
- * cafes.main_image_path は cafe-images バケットのパスと定義されているが、そのバケットも
- * オーナーのアップロード導線も未実装で値が入る経路が無い。post-images のラッパーで URL を
- * 組むと別バケットを指す壊れた URL になるため、いまは参照しない（pending-items D31）。
- * 表示する URL は必ず isStoragePublicUrl を通す（保存された値は信頼できない）
+ * 表示する URL は必ず isStoragePublicUrl を通す（保存された値は信頼できない。
+ * main_image_path 自体は updateCafe が cafe-images バケットのパスのみ書き込む設計だが、
+ * avatar_url と同じ理由で値そのものは信頼しない）
  */
-async function resolveHeroImageUrl(supabase: Client, cafeId: string): Promise<string | null> {
+async function resolveHeroImageUrl(
+  supabase: Client,
+  cafeId: string,
+  mainImagePath: string | null,
+): Promise<string | null> {
+  if (mainImagePath) {
+    const mainImageUrl = getCafeImagePublicUrl(supabase, mainImagePath)
+    if (isStoragePublicUrl(mainImageUrl)) return mainImageUrl
+  }
+
   // 投稿グリッドと同じ条件で絞る。ここを省くと予約行・論理削除済みの画像が表に出る
   const { data, error } = await supabase
     .from('posts')
@@ -187,19 +204,21 @@ export async function getCafeDetail(supabase: Client, cafeId: string): Promise<C
     : await resolveOwnedCafeCore(supabase, cafeId)
   if (!cafeCore) return null
 
+  const { mainImagePath, ...core } = cafeCore
+
   const [hours, heroImageUrl] = await Promise.all([
     supabase
       .from('cafe_business_hours')
       .select('day_of_week, opens_at, closes_at, is_closed, notes')
-      .eq('cafe_id', cafeCore.id)
+      .eq('cafe_id', core.id)
       .order('day_of_week', { ascending: true }),
-    resolveHeroImageUrl(supabase, cafeCore.id),
+    resolveHeroImageUrl(supabase, core.id, mainImagePath),
   ])
 
   if (hours.error) throw new Error(`営業時間の取得に失敗しました: ${hours.error.message}`)
 
   return {
-    ...cafeCore,
+    ...core,
     heroImageUrl,
     businessHours: (hours.data ?? []).map(toBusinessHour),
   }
