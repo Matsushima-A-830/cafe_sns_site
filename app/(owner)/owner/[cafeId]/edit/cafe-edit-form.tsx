@@ -225,6 +225,12 @@ export function CafeEditForm({ cafe, areas }: { cafe: CafeEditData; areas: Area[
       setSaving(false)
       setPendingValues(undefined)
       setFormError(errorMessage(cafeResult.error))
+      // EXIF_STRIP_FAILED時はサーバーが既にアップロード済みファイルを削除済み（A10対応、
+      // cafes.ts）。プレビューが死んだURLを指し続けないよう保存前の状態へ戻す
+      if (cafeResult.error === 'EXIF_STRIP_FAILED' && mainImageChanged) {
+        setMainImageUrl(defaultValues.mainImageUrl)
+        pendingMainImagePathRef.current = null
+      }
       return
     }
     // 保存済みになったので、離脱時クリーンアップ（孤立ファイル削除）の対象から外す

@@ -54,6 +54,8 @@ function buildUpdateSupabaseStub(
     updateResult?: { data: { id: string } | null; error?: unknown }
     currentMainImagePath?: string | null
     rpcError?: unknown
+    isOwner?: boolean
+    isOwnerError?: unknown
     removeResult?: { error?: unknown }
   } = {},
 ) {
@@ -61,6 +63,7 @@ function buildUpdateSupabaseStub(
   const updateResult = options.updateResult ?? { data: { id: cafeId }, error: null }
   const currentMainImagePath = options.currentMainImagePath ?? null
   const removeResult = options.removeResult ?? { error: null }
+  const isOwner = options.isOwner ?? true
 
   const updateChain = {
     eq: vi.fn(() => ({
@@ -70,9 +73,16 @@ function buildUpdateSupabaseStub(
   const cafesTable = { update: vi.fn(() => updateChain) }
   const from = vi.fn(() => cafesTable)
 
-  const rpc = vi.fn().mockResolvedValue({
-    data: [{ main_image_path: currentMainImagePath }],
-    error: options.rpcError,
+  // is_cafe_owner と get_owned_cafe_for_edit の両方を同じ rpc() 経由で呼ぶため、
+  // 呼ばれた関数名で返り値を切り分ける
+  const rpc = vi.fn((fn: string) => {
+    if (fn === 'is_cafe_owner') {
+      return Promise.resolve({ data: isOwner, error: options.isOwnerError })
+    }
+    return Promise.resolve({
+      data: [{ main_image_path: currentMainImagePath }],
+      error: options.rpcError,
+    })
   })
 
   const remove = vi.fn().mockResolvedValue(removeResult)
@@ -328,6 +338,45 @@ describe('updateCafe', () => {
       expect.objectContaining({ main_image_path: `${cafeId}/new.webp` }),
     )
     expect(verifyNoGpsExifMock).toHaveBeenCalledWith(stub, [`${cafeId}/new.webp`], 'cafe-images')
+  })
+
+  it('mainImageUrl のパスが指定cafeIdと異なるカフェのものなら NOT_OWNER を返す（他カフェの公開画像参照）', async () => {
+    const otherCafeId = '22222222-2222-4222-8222-222222222222'
+    const { stub, spies } = buildUpdateSupabaseStub()
+    createClientMock.mockResolvedValue(stub)
+    const otherCafeImageUrl = `${CAFE_IMAGE_URL_PREFIX}/${otherCafeId}/stolen.webp`
+
+    const result = await updateCafe({ ...validUpdateInput, mainImageUrl: otherCafeImageUrl })
+
+    expect(result).toEqual({ ok: false, error: 'NOT_OWNER' })
+    expect(spies.rpc).not.toHaveBeenCalled()
+    expect(spies.update).not.toHaveBeenCalled()
+    expect(verifyNoGpsExifMock).not.toHaveBeenCalled()
+  })
+
+  it('is_cafe_owner が false なら NOT_OWNER を返し、GPS検証を実行しない', async () => {
+    const { stub, spies } = buildUpdateSupabaseStub({ isOwner: false })
+    createClientMock.mockResolvedValue(stub)
+    const newMainImageUrl = `${CAFE_IMAGE_URL_PREFIX}/${cafeId}/new.webp`
+
+    const result = await updateCafe({ ...validUpdateInput, mainImageUrl: newMainImageUrl })
+
+    expect(result).toEqual({ ok: false, error: 'NOT_OWNER' })
+    expect(spies.rpc).toHaveBeenCalledWith('is_cafe_owner', { p_cafe_id: cafeId })
+    expect(verifyNoGpsExifMock).not.toHaveBeenCalled()
+    expect(spies.update).not.toHaveBeenCalled()
+  })
+
+  it('is_cafe_owner の RPC が失敗したら INTERNAL_ERROR を返す', async () => {
+    const { stub, spies } = buildUpdateSupabaseStub({ isOwnerError: { message: 'boom' } })
+    createClientMock.mockResolvedValue(stub)
+    const newMainImageUrl = `${CAFE_IMAGE_URL_PREFIX}/${cafeId}/new.webp`
+
+    const result = await updateCafe({ ...validUpdateInput, mainImageUrl: newMainImageUrl })
+
+    expect(result).toEqual({ ok: false, error: 'INTERNAL_ERROR' })
+    expect(verifyNoGpsExifMock).not.toHaveBeenCalled()
+    expect(spies.update).not.toHaveBeenCalled()
   })
 
   it('新しいメイン画像にGPSが検出されたら EXIF_STRIP_FAILED を返し、更新せずファイルを削除する（A10）', async () => {

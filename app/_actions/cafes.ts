@@ -287,6 +287,27 @@ async function updateCafeRow(
     return { ok: false, error: 'INTERNAL_ERROR' }
   }
 
+  // cafe-images は public バケット（using (true)）のため、他カフェの公開URLを
+  // そのまま mainImageUrl として送られても storagePathFromPublicUrl の検証は通る。
+  // パス第1セグメント（cafe_id）が更新対象の cafeId と一致することまで確認し、
+  // 他カフェの main_image_path を指す参照が書き込まれるのを防ぐ（code-review指摘）
+  if (newMainImagePath && !newMainImagePath.startsWith(`${input.cafeId}/`)) {
+    return { ok: false, error: 'NOT_OWNER' }
+  }
+
+  // 本人のカフェかどうかは最終的に cafes.update() の RLS（cafes_update_owner）が
+  // 保証するが、それより前に verifyNoGpsExif（Storageダウンロード+EXIFパース）という
+  // 重い処理を他人のカフェ指定でも実行できてしまう（code-review指摘）。
+  // 安いRPCで先に弾き、非オーナーによる任意オブジェクトへのダウンロード連打を防ぐ
+  if (newMainImagePath) {
+    const isOwner = await supabase.rpc('is_cafe_owner', { p_cafe_id: input.cafeId })
+    if (isOwner.error) {
+      reportError('cafes', 'カフェ所有権の確認に失敗', isOwner.error)
+      return { ok: false, error: 'INTERNAL_ERROR' }
+    }
+    if (!isOwner.data) return { ok: false, error: 'NOT_OWNER' }
+  }
+
   // A10と同じ保険: 署名付きURL直PUTはサーバーがバイト列を検証できないため、
   // クライアント側のEXIF除去（processCafeImage）が迂回された場合に備えて読み直して確認する
   //   docs/product/pending-items.md A10

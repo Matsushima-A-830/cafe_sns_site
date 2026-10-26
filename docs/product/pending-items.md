@@ -2076,6 +2076,26 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **対応（2026-10-24）:** 2は `chunk` ユーティリティで同時実行数を20件に制限して対応。
   1はSentryの `reportError` 呼び出しに `imagePaths` を含めて可視化のみ対応（再試行機構は未実装）
 
+### D76. cafe-images 関連 `/code-review` 指摘の残課題（D31フォローアップ）
+
+- **課題:** D31（cafe-imagesバケット新設、PR未作成）の `/code-review` で5件の指摘が出た。うち
+  cafeIdとパスの不一致・所有権チェック前のEXIF処理・保存失敗時のプレビュー不整合の3件は同PRで
+  対応済み（`app/_actions/cafes.ts` に `startsWith` チェックと `is_cafe_owner` 早期確認を追加、
+  `cafe-edit-form.tsx` で保存失敗時に `mainImageUrl` を復元）。残り2件は同PRでは対応せず記録のみ
+  1. **`createCafeImageUploadUrl`（`lib/storage/cafe-images.ts`）の認可チェックが
+     `is_active_user()` を含まない:** 対応する `cafe_images_objects_insert_own` RLS
+     （`storage/objects` 側）は `is_cafe_owner() and is_active_user()` をANDしているが、
+     署名URL発行時のアプリ層チェックは `is_cafe_owner()` のみ。停止中オーナーに対して
+     署名URL発行自体は `ok: true` を返し、実アップロード時にRLSで初めて失敗する
+     （`UPLOAD_FAILED` という紛らわしいエラーになる）
+  2. **GPS検出時の `deleteCafeImageFile` がRLSで黙って失敗しうる:** 呼び出し元が所有しない
+     オブジェクトを指すと `cafe_images_objects_delete_own` RLS が削除対象から静かに除外し、
+     `deleted.ok` が `true` のまま返る（avatars.ts に既存の同型の限界があり、新規introductionではない）。
+     D76-1の修正でcafeId不一致を事前に弾いているため実害経路は塞がれているが、理論上は残る
+- **対応方針（未着手）:** 1はavatars/owner-documentsの署名URL発行関数も同じ構造なら横断で
+  `is_active_user()` を追加する一括対応を検討（単独修正は「3回ルール」に反するため、他2バケットの
+  現状を先に確認してから判断）。2は対応しない（D3・D65と同じトーンで、実害が見えてから再判断）
+
 ## 削除・アーカイブ判断待ち
 
 現時点で「削除する」と決めた項目はなし。追加・変更発生時にここに追記。
