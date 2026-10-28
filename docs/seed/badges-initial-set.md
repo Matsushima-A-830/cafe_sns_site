@@ -8,13 +8,13 @@
 
 5カテゴリ・合計20個。段階制（初級→中級→上級）を意識。
 
-| カテゴリ | 個数 | 意図 |
-|---|---|---|
-| 投稿系 | 4 | サービス利用の継続を評価 |
-| エリア系 | 3 | 探索を促進、制覇マップ連動 |
-| **シーン系** ⭐️ | 6 | 幹A: 気分・シーンの多様な体験 |
-| **行きつけ系** ⭐️ | 4 | 幹C: オーナーとの関係深化 |
-| コミュニティ系 | 3 | 対人インタラクション |
+| カテゴリ          | 個数 | 意図                          |
+| ----------------- | ---- | ----------------------------- |
+| 投稿系            | 4    | サービス利用の継続を評価      |
+| エリア系          | 3    | 探索を促進、制覇マップ連動    |
+| **シーン系** ⭐️   | 6    | 幹A: 気分・シーンの多様な体験 |
+| **行きつけ系** ⭐️ | 4    | 幹C: オーナーとの関係深化     |
+| コミュニティ系    | 3    | 対人インタラクション          |
 
 （訪問系はエリア系に統合、時間系はシーン系に発展的解消）
 
@@ -22,51 +22,51 @@
 
 ### 投稿系
 
-| コード | 名称 | 条件 |
-|---|---|---|
-| `POST_FIRST` | はじめての一杯 | 初投稿 |
-| `POST_10` | カフェレポーター | 累計10投稿 |
-| `POST_50` | カフェジャーナリスト | 累計50投稿 |
-| `POST_100` | カフェセンパイ | 累計100投稿 |
+| コード       | 名称                 | 条件        |
+| ------------ | -------------------- | ----------- |
+| `POST_FIRST` | はじめての一杯       | 初投稿      |
+| `POST_10`    | カフェレポーター     | 累計10投稿  |
+| `POST_50`    | カフェジャーナリスト | 累計50投稿  |
+| `POST_100`   | カフェセンパイ       | 累計100投稿 |
 
 ### エリア系（制覇マップ連動）
 
-| コード | 名称 | 条件 |
-|---|---|---|
-| `AREA_3` | 街歩き入門 | 3エリアで投稿 |
-| `AREA_10` | 街歩き上手 | 10エリアで投稿 |
+| コード          | 名称         | 条件                 |
+| --------------- | ------------ | -------------------- |
+| `AREA_3`        | 街歩き入門   | 3エリアで投稿        |
+| `AREA_10`       | 街歩き上手   | 10エリアで投稿       |
 | `AREA_TOKYO_23` | 東京23区制覇 | 東京23区すべてで投稿 |
 
 ### ⭐️ シーン系（幹A の中核）
 
 各シーン（`tags.slug`）での投稿・訪問実績で獲得。
 
-| コード | 名称 | 条件 |
-|---|---|---|
-| `SCENE_MORNING` | 朝カフェマスター | `morning-cafe` タグ付き投稿を累計10件 |
-| `SCENE_NIGHT` | 夜カフェ探検家 | `night-cafe` タグ付き投稿を累計10件 |
-| `SCENE_SOLO` | ひとり時間マスター | `solo-time` タグ付き投稿を累計10件 |
-| `SCENE_RAINY` | 雨の日マスター | `rainy-day` タグ付き投稿を累計5件 |
-| `SCENE_WORK` | 集中カフェマスター | `work` or `study` タグ付き投稿を累計10件 |
-| `SCENE_EXPLORER` | シーン開拓者 | 5つ以上の異なるシーンタグで投稿 |
+| コード           | 名称               | 条件                                     |
+| ---------------- | ------------------ | ---------------------------------------- |
+| `SCENE_MORNING`  | 朝カフェマスター   | `morning-cafe` タグ付き投稿を累計10件    |
+| `SCENE_NIGHT`    | 夜カフェ探検家     | `night-cafe` タグ付き投稿を累計10件      |
+| `SCENE_SOLO`     | ひとり時間マスター | `solo-time` タグ付き投稿を累計10件       |
+| `SCENE_RAINY`    | 雨の日マスター     | `rainy-day` タグ付き投稿を累計5件        |
+| `SCENE_WORK`     | 集中カフェマスター | `work` or `study` タグ付き投稿を累計10件 |
+| `SCENE_EXPLORER` | シーン開拓者       | 5つ以上の異なるシーンタグで投稿          |
 
 ### ⭐️ 行きつけ系（幹C の中核）
 
 `regular_customers` テーブルの認定関係で獲得。
 
-| コード | 名称 | 条件 |
-|---|---|---|
+| コード          | 名称               | 条件              |
+| --------------- | ------------------ | ----------------- |
 | `REGULAR_FIRST` | はじめての行きつけ | 常連認定を1件獲得 |
-| `REGULAR_3` | 行きつけコレクター | 3店で常連認定 |
-| `REGULAR_5` | カフェの顔 | 5店で常連認定 |
-| `REGULAR_VIP` | カフェのVIP | 10店で常連認定 |
+| `REGULAR_3`     | 行きつけコレクター | 3店で常連認定     |
+| `REGULAR_5`     | カフェの顔         | 5店で常連認定     |
+| `REGULAR_VIP`   | カフェのVIP        | 10店で常連認定    |
 
 ### コミュニティ系
 
-| コード | 名称 | 条件 |
-|---|---|---|
-| `COM_10_FOLLOWERS` | フォロワー10 | フォロワー10人達成 |
-| `COM_100_LIKES` | いいねの受け手 | 累計いいね100獲得 |
+| コード                 | 名称             | 条件                 |
+| ---------------------- | ---------------- | -------------------- |
+| `COM_10_FOLLOWERS`     | フォロワー10     | フォロワー10人達成   |
+| `COM_100_LIKES`        | いいねの受け手   | 累計いいね100獲得    |
 | `COM_FIRST_LIKE_GIVEN` | はじめての返報性 | 他人の投稿に初いいね |
 
 ## `badges.criteria` の構造（確定 2026-09-05）
@@ -82,17 +82,17 @@
 
 ### type 一覧
 
-| type | 追加フィールド | 意味 | 使うバッジ |
-|---|---|---|---|
-| `post_count` | — | 累計投稿数 | `POST_FIRST` `POST_10` `POST_50` `POST_100` |
-| `distinct_area_count` | `scope` | 投稿したエリア数 | `AREA_3` `AREA_10` `AREA_TOKYO_23` |
-| `post_count_with_tag` | `tag_slug` | 特定タグ付き投稿の累計 | `SCENE_MORNING` `SCENE_NIGHT` `SCENE_SOLO` `SCENE_RAINY` |
-| `post_count_with_tags_or` | `tag_slugs` | いずれかのタグが付いた投稿の累計 | `SCENE_WORK` |
-| `distinct_scene_tag_count` | `category` | 投稿に使った異なるシーンタグ数 | `SCENE_EXPLORER` |
-| `regular_customer_count` | — | 常連認定を受けた店舗数 | `REGULAR_FIRST` `REGULAR_3` `REGULAR_5` `REGULAR_VIP` |
-| `follower_count` | — | フォロワー数 | `COM_10_FOLLOWERS` |
-| `likes_received` | — | 受け取ったいいね累計 | `COM_100_LIKES` |
-| `likes_given` | — | 送ったいいね累計 | `COM_FIRST_LIKE_GIVEN` |
+| type                       | 追加フィールド | 意味                             | 使うバッジ                                               |
+| -------------------------- | -------------- | -------------------------------- | -------------------------------------------------------- |
+| `post_count`               | —              | 累計投稿数                       | `POST_FIRST` `POST_10` `POST_50` `POST_100`              |
+| `distinct_area_count`      | `scope`        | 投稿したエリア数                 | `AREA_3` `AREA_10` `AREA_TOKYO_23`                       |
+| `post_count_with_tag`      | `tag_slug`     | 特定タグ付き投稿の累計           | `SCENE_MORNING` `SCENE_NIGHT` `SCENE_SOLO` `SCENE_RAINY` |
+| `post_count_with_tags_or`  | `tag_slugs`    | いずれかのタグが付いた投稿の累計 | `SCENE_WORK`                                             |
+| `distinct_scene_tag_count` | `category`     | 投稿に使った異なるシーンタグ数   | `SCENE_EXPLORER`                                         |
+| `regular_customer_count`   | —              | 常連認定を受けた店舗数           | `REGULAR_FIRST` `REGULAR_3` `REGULAR_5` `REGULAR_VIP`    |
+| `follower_count`           | —              | フォロワー数                     | `COM_10_FOLLOWERS`                                       |
+| `likes_received`           | —              | 受け取ったいいね累計             | `COM_100_LIKES`                                          |
+| `likes_given`              | —              | 送ったいいね累計                 | `COM_FIRST_LIKE_GIVEN`                                   |
 
 ### `scope`（エリア系のみ）
 
@@ -131,13 +131,13 @@ seed の20件が上記の型に収まっていることは `tests/integration/se
 **判定は DBトリガーではなく、Server Actions から呼ぶ `checkAndAwardBadges(supabase, userId, trigger)` に一元化する**
 （理由と実装方針は [data-model/README.md #バッジ付与ロジックの設計](../architecture/data-model/README.md#バッジ付与ロジックの設計) を参照）。
 
-| バッジ種別 | `BadgeTrigger` | 呼び出し元 |
-|---|---|---|
-| POST_*, AREA_*, SCENE_* | `POST_CREATED` | `app/_actions/posts.ts`（投稿公開後） |
-| REGULAR_* | `REGULAR_AWARDED` | `app/_actions/regular-customers.ts`（常連認定後） |
-| COM_100_LIKES | `LIKE_RECEIVED` | `app/_actions/likes.ts`（いいねを受けた側で判定） |
-| COM_FIRST_LIKE_GIVEN | `LIKE_GIVEN` | `app/_actions/likes.ts`（いいねをした側で判定） |
-| COM_10_FOLLOWERS | `FOLLOW_RECEIVED` | `app/_actions/follows.ts`（フォローされた側で判定） |
+| バッジ種別              | `BadgeTrigger`    | 呼び出し元                                          |
+| ----------------------- | ----------------- | --------------------------------------------------- |
+| POST_*, AREA_*, SCENE_* | `POST_CREATED`    | `app/_actions/posts.ts`（投稿公開後）               |
+| REGULAR_*               | `REGULAR_AWARDED` | `app/_actions/regular-customers.ts`（常連認定後）   |
+| COM_100_LIKES           | `LIKE_RECEIVED`   | `app/_actions/likes.ts`（いいねを受けた側で判定）   |
+| COM_FIRST_LIKE_GIVEN    | `LIKE_GIVEN`      | `app/_actions/likes.ts`（いいねをした側で判定）     |
+| COM_10_FOLLOWERS        | `FOLLOW_RECEIVED` | `app/_actions/follows.ts`（フォローされた側で判定） |
 
 `BadgeTrigger` の型定義は `types/badges.ts`、判定ルールは `lib/badges/rules.ts` に集約する。
 

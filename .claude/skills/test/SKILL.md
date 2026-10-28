@@ -1,4 +1,5 @@
 ---
+
 name: test
 description: TDDワークフローとテスト設計を指南する。新機能実装前、リファクタ前、複雑なロジック実装時に使う。
 ---
@@ -48,13 +49,13 @@ description: TDDワークフローとテスト設計を指南する。新機能�
 
 ## テストフレームワークの使い分け
 
-| 種類 | ツール | 対象 | 配置 |
-|---|---|---|---|
-| ユニット | Vitest | 純粋関数・ユーティリティ・Zodスキーマ | 実装ファイル隣 `xxx.test.ts` |
-| コンポーネント | Vitest + RTL | クライアントコンポーネント単体 | 実装ファイル隣 |
-| Server Actions | Vitest | ロジック（Supabase Clientはモック or 実DB） | `xxx.test.ts` |
-| 統合 | Vitest + 実Supabase | RLS込みのDB操作検証 | `tests/integration/` |
-| E2E | Playwright | ユーザー導線 | `tests/e2e/` |
+| 種類           | ツール              | 対象                                        | 配置                         |
+| -------------- | ------------------- | ------------------------------------------- | ---------------------------- |
+| ユニット       | Vitest              | 純粋関数・ユーティリティ・Zodスキーマ       | 実装ファイル隣 `xxx.test.ts` |
+| コンポーネント | Vitest + RTL        | クライアントコンポーネント単体              | 実装ファイル隣               |
+| Server Actions | Vitest              | ロジック（Supabase Clientはモック or 実DB） | `xxx.test.ts`                |
+| 統合           | Vitest + 実Supabase | RLS込みのDB操作検証                         | `tests/integration/`         |
+| E2E            | Playwright          | ユーザー導線                                | `tests/e2e/`                 |
 
 ## Vitest の書き方（Server Actions 例）
 
@@ -70,11 +71,16 @@ const { createClientMock } = vi.hoisted(() => ({ createClientMock: vi.fn() }))
 vi.mock('@/lib/supabase/server', () => ({ createClient: createClientMock }))
 
 /** テストごとに、そのケースで呼ばれるメソッドだけ生やす */
-function buildSupabaseStub(options: { user?: { id: string } | null; postInsert?: { error?: unknown } }) {
+function buildSupabaseStub(options: {
+  user?: { id: string } | null
+  postInsert?: { error?: unknown }
+}) {
   const postsInsert = vi.fn().mockResolvedValue(options.postInsert ?? { error: null })
   return {
     stub: {
-      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: options.user ?? { id: userId } } }) },
+      auth: {
+        getUser: vi.fn().mockResolvedValue({ data: { user: options.user ?? { id: userId } } }),
+      },
       from: vi.fn((table: string) => ({ posts: { insert: postsInsert } })[table]),
     },
     spies: { postsInsert },
@@ -109,9 +115,14 @@ describe('reservePost', () => {
 
 ```typescript
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { type AuthedUser, anonClient, createAuthedProfile, serviceRoleClient } from '../helpers/supabase'
+import {
+  type AuthedUser,
+  anonClient,
+  createAuthedProfile,
+  serviceRoleClient,
+} from '../helpers/supabase'
 
-const service = serviceRoleClient()   // RLS をバイパス。前提データの用意と後片付け専用
+const service = serviceRoleClient() // RLS をバイパス。前提データの用意と後片付け専用
 let alice: AuthedUser
 let bob: AuthedUser
 
@@ -138,11 +149,11 @@ it('ブロック相手の投稿は SELECT で見えない', async () => {
 
 **使い分け:**
 
-| クライアント | Postgres ロール | 用途 |
-|---|---|---|
-| `anonClient()` | `anon` | 未ログインの見え方 |
-| `AuthedUser.client` | `authenticated` | 本人視点。RLS の検証はこれで行う |
-| `serviceRoleClient()` | `service_role` | 前提データの用意・後片付けのみ。**検証には使わない** |
+| クライアント          | Postgres ロール | 用途                                                 |
+| --------------------- | --------------- | ---------------------------------------------------- |
+| `anonClient()`        | `anon`          | 未ログインの見え方                                   |
+| `AuthedUser.client`   | `authenticated` | 本人視点。RLS の検証はこれで行う                     |
+| `serviceRoleClient()` | `service_role`  | 前提データの用意・後片付けのみ。**検証には使わない** |
 
 **注意:**
 - `tests/helpers/supabase.ts` の `assertLocal()` が接続先をローカルに限定している。`SUPABASE_URL` を export したまま走らせても本番の行は消えない
@@ -158,7 +169,6 @@ it('ブロック相手の投稿は SELECT で見えない', async () => {
 手で確認した結果はセッションが終われば消える。残さない限り、次に壊れたとき CI は気づかない。
 
 全部は書かない。**1機能あたり1〜2本**、次の観点で選ぶ。
-
 - **サーバーを跨がないと壊れ方が見えないもの** — 楽観更新 + `router.refresh()` は画面上だけ
   成功して DB に入っていない・リロードで消える、という壊れ方をする。ユニットとコンポーネントの
   テストはサーバーをモックするためこの層を通らない
@@ -184,7 +194,7 @@ test.afterAll(async () => {
 })
 
 const { user, cafe } = await setup(test.info().project.name)
-await login(page, user, `/cafes/${cafe.id}`)   // ?next= 付きでログインし、目的の画面へ直行する
+await login(page, user, `/cafes/${cafe.id}`) // ?next= 付きでログインし、目的の画面へ直行する
 ```
 
 **サインアップ導線を毎回通さない。** `signup-onboarding.spec.ts` は OTP メールまで含めた縦切りで
@@ -228,13 +238,13 @@ await expect(button).toHaveAttribute('aria-busy', 'false')
 
 厳格な数字目標は設けないが、指針:
 
-| レイヤー | 目安 |
-|---|---|
-| Zodスキーマ | 100%（境界ケース含む） |
-| Server Actions | Happy Path + 主要エラー |
-| ドメインロジック | 90%以上 |
-| コンポーネント | イベントハンドラの発火確認程度 |
-| E2E | クリティカルパス5〜10本 |
+| レイヤー         | 目安                           |
+| ---------------- | ------------------------------ |
+| Zodスキーマ      | 100%（境界ケース含む）         |
+| Server Actions   | Happy Path + 主要エラー        |
+| ドメインロジック | 90%以上                        |
+| コンポーネント   | イベントハンドラの発火確認程度 |
+| E2E              | クリティカルパス5〜10本        |
 
 ## よくある落とし穴
 

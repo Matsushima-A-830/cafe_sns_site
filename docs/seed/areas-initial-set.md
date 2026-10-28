@@ -22,14 +22,14 @@ JP-{都道府県コード}-{エリアslug}
 **都道府県コード対応表（主要）:**
 
 | 都道府県 | ISO 3166-2 |
-|---|---|
-| 北海道 | JP-01 |
-| 東京都 | JP-13 |
-| 神奈川県 | JP-14 |
-| 大阪府 | JP-27 |
-| 京都府 | JP-26 |
-| 福岡県 | JP-40 |
-| 沖縄県 | JP-47 |
+| -------- | ---------- |
+| 北海道   | JP-01      |
+| 東京都   | JP-13      |
+| 神奈川県 | JP-14      |
+| 大阪府   | JP-27      |
+| 京都府   | JP-26      |
+| 福岡県   | JP-40      |
+| 沖縄県   | JP-47      |
 
 ## MVP 初期セット（東京 45エリア）
 
@@ -37,60 +37,60 @@ JP-{都道府県コード}-{エリアslug}
 
 `parent_code = NULL`（トップレベル）。副地域が下に紐づく。
 
-| code | slug | label | 備考 |
-|---|---|---|---|
-| `JP-13-chiyoda-ku` | chiyoda-ku | 千代田区 | |
-| `JP-13-chuo-ku` | chuo-ku | 中央区 | |
-| `JP-13-minato-ku` | minato-ku | 港区 | |
-| `JP-13-shinjuku-ku` | shinjuku-ku | 新宿区 | |
-| `JP-13-bunkyo-ku` | bunkyo-ku | 文京区 | |
-| `JP-13-taito-ku` | taito-ku | 台東区 | |
-| `JP-13-sumida-ku` | sumida-ku | 墨田区 | |
-| `JP-13-koto-ku` | koto-ku | 江東区 | |
-| `JP-13-shinagawa-ku` | shinagawa-ku | 品川区 | |
-| `JP-13-meguro-ku` | meguro-ku | 目黒区 | |
-| `JP-13-ota-ku` | ota-ku | 大田区 | |
-| `JP-13-setagaya-ku` | setagaya-ku | 世田谷区 | |
-| `JP-13-shibuya-ku` | shibuya-ku | 渋谷区 | |
-| `JP-13-nakano-ku` | nakano-ku | 中野区 | |
-| `JP-13-suginami-ku` | suginami-ku | 杉並区 | |
-| `JP-13-toshima-ku` | toshima-ku | 豊島区 | |
-| `JP-13-kita-ku` | kita-ku | 北区 | |
-| `JP-13-arakawa-ku` | arakawa-ku | 荒川区 | |
-| `JP-13-itabashi-ku` | itabashi-ku | 板橋区 | |
-| `JP-13-nerima-ku` | nerima-ku | 練馬区 | |
-| `JP-13-adachi-ku` | adachi-ku | 足立区 | |
-| `JP-13-katsushika-ku` | katsushika-ku | 葛飾区 | |
-| `JP-13-edogawa-ku` | edogawa-ku | 江戸川区 | |
+| code                  | slug          | label    | 備考 |
+| --------------------- | ------------- | -------- | ---- |
+| `JP-13-chiyoda-ku`    | chiyoda-ku    | 千代田区 |      |
+| `JP-13-chuo-ku`       | chuo-ku       | 中央区   |      |
+| `JP-13-minato-ku`     | minato-ku     | 港区     |      |
+| `JP-13-shinjuku-ku`   | shinjuku-ku   | 新宿区   |      |
+| `JP-13-bunkyo-ku`     | bunkyo-ku     | 文京区   |      |
+| `JP-13-taito-ku`      | taito-ku      | 台東区   |      |
+| `JP-13-sumida-ku`     | sumida-ku     | 墨田区   |      |
+| `JP-13-koto-ku`       | koto-ku       | 江東区   |      |
+| `JP-13-shinagawa-ku`  | shinagawa-ku  | 品川区   |      |
+| `JP-13-meguro-ku`     | meguro-ku     | 目黒区   |      |
+| `JP-13-ota-ku`        | ota-ku        | 大田区   |      |
+| `JP-13-setagaya-ku`   | setagaya-ku   | 世田谷区 |      |
+| `JP-13-shibuya-ku`    | shibuya-ku    | 渋谷区   |      |
+| `JP-13-nakano-ku`     | nakano-ku     | 中野区   |      |
+| `JP-13-suginami-ku`   | suginami-ku   | 杉並区   |      |
+| `JP-13-toshima-ku`    | toshima-ku    | 豊島区   |      |
+| `JP-13-kita-ku`       | kita-ku       | 北区     |      |
+| `JP-13-arakawa-ku`    | arakawa-ku    | 荒川区   |      |
+| `JP-13-itabashi-ku`   | itabashi-ku   | 板橋区   |      |
+| `JP-13-nerima-ku`     | nerima-ku     | 練馬区   |      |
+| `JP-13-adachi-ku`     | adachi-ku     | 足立区   |      |
+| `JP-13-katsushika-ku` | katsushika-ku | 葛飾区   |      |
+| `JP-13-edogawa-ku`    | edogawa-ku    | 江戸川区 |      |
 
 ### 主要副地域・人気エリア（22個、`level='sub_area'`、priority=100）
 
 `parent_code` で 23区に紐づく。若者・カフェ好き層に人気のエリアを優先。
 
-| code | slug | label | parent_code |
-|---|---|---|---|
-| `JP-13-omotesando` | omotesando | 表参道 | JP-13-shibuya-ku |
-| `JP-13-harajuku` | harajuku | 原宿 | JP-13-shibuya-ku |
-| `JP-13-ebisu` | ebisu | 恵比寿 | JP-13-shibuya-ku |
-| `JP-13-daikanyama` | daikanyama | 代官山 | JP-13-shibuya-ku |
-| `JP-13-jingumae` | jingumae | 神宮前 | JP-13-shibuya-ku |
-| `JP-13-shoto` | shoto | 松濤 | JP-13-shibuya-ku |
-| `JP-13-shinjuku-sanchome` | shinjuku-sanchome | 新宿三丁目 | JP-13-shinjuku-ku |
-| `JP-13-kagurazaka` | kagurazaka | 神楽坂 | JP-13-shinjuku-ku |
-| `JP-13-nakameguro` | nakameguro | 中目黒 | JP-13-meguro-ku |
-| `JP-13-jiyugaoka` | jiyugaoka | 自由が丘 | JP-13-meguro-ku |
-| `JP-13-shimokitazawa` | shimokitazawa | 下北沢 | JP-13-setagaya-ku |
-| `JP-13-sangenjaya` | sangenjaya | 三軒茶屋 | JP-13-setagaya-ku |
-| `JP-13-futakotamagawa` | futakotamagawa | 二子玉川 | JP-13-setagaya-ku |
-| `JP-13-azabu` | azabu | 麻布 | JP-13-minato-ku |
-| `JP-13-roppongi` | roppongi | 六本木 | JP-13-minato-ku |
-| `JP-13-shirokane` | shirokane | 白金 | JP-13-minato-ku |
-| `JP-13-ginza` | ginza | 銀座 | JP-13-chuo-ku |
-| `JP-13-nihonbashi` | nihonbashi | 日本橋 | JP-13-chuo-ku |
-| `JP-13-asakusa` | asakusa | 浅草 | JP-13-taito-ku |
-| `JP-13-kuramae` | kuramae | 蔵前 | JP-13-taito-ku |
-| `JP-13-yanaka` | yanaka | 谷中 | JP-13-taito-ku |
-| `JP-13-kichijoji` | kichijoji | 吉祥寺 | NULL（武蔵野市、23区外） |
+| code                      | slug              | label      | parent_code              |
+| ------------------------- | ----------------- | ---------- | ------------------------ |
+| `JP-13-omotesando`        | omotesando        | 表参道     | JP-13-shibuya-ku         |
+| `JP-13-harajuku`          | harajuku          | 原宿       | JP-13-shibuya-ku         |
+| `JP-13-ebisu`             | ebisu             | 恵比寿     | JP-13-shibuya-ku         |
+| `JP-13-daikanyama`        | daikanyama        | 代官山     | JP-13-shibuya-ku         |
+| `JP-13-jingumae`          | jingumae          | 神宮前     | JP-13-shibuya-ku         |
+| `JP-13-shoto`             | shoto             | 松濤       | JP-13-shibuya-ku         |
+| `JP-13-shinjuku-sanchome` | shinjuku-sanchome | 新宿三丁目 | JP-13-shinjuku-ku        |
+| `JP-13-kagurazaka`        | kagurazaka        | 神楽坂     | JP-13-shinjuku-ku        |
+| `JP-13-nakameguro`        | nakameguro        | 中目黒     | JP-13-meguro-ku          |
+| `JP-13-jiyugaoka`         | jiyugaoka         | 自由が丘   | JP-13-meguro-ku          |
+| `JP-13-shimokitazawa`     | shimokitazawa     | 下北沢     | JP-13-setagaya-ku        |
+| `JP-13-sangenjaya`        | sangenjaya        | 三軒茶屋   | JP-13-setagaya-ku        |
+| `JP-13-futakotamagawa`    | futakotamagawa    | 二子玉川   | JP-13-setagaya-ku        |
+| `JP-13-azabu`             | azabu             | 麻布       | JP-13-minato-ku          |
+| `JP-13-roppongi`          | roppongi          | 六本木     | JP-13-minato-ku          |
+| `JP-13-shirokane`         | shirokane         | 白金       | JP-13-minato-ku          |
+| `JP-13-ginza`             | ginza             | 銀座       | JP-13-chuo-ku            |
+| `JP-13-nihonbashi`        | nihonbashi        | 日本橋     | JP-13-chuo-ku            |
+| `JP-13-asakusa`           | asakusa           | 浅草       | JP-13-taito-ku           |
+| `JP-13-kuramae`           | kuramae           | 蔵前       | JP-13-taito-ku           |
+| `JP-13-yanaka`            | yanaka            | 谷中       | JP-13-taito-ku           |
+| `JP-13-kichijoji`         | kichijoji         | 吉祥寺     | NULL（武蔵野市、23区外） |
 
 **注意:** 吉祥寺は武蔵野市のため 23区の親を持たない（`parent_code = NULL` だが `level='sub_area'`）。**「東京23区制覇」の母数は `parent_code IS NULL` ではなく `level='ward'` で数える**（吉祥寺の混入を防ぐため）。将来的に `JP-13-musashino-shi`（`level='ward'`）を追加する場合は parent を張り直す。
 
@@ -180,7 +180,6 @@ on conflict (code) do update
 ## 全国展開時の追加方針
 
 MVP 実績から拡張する順序案:
-
 1. **大阪主要エリア** (JP-27-umeda, JP-27-namba, JP-27-nakazakicho 等)
 2. **京都主要エリア** (JP-26-shijo-kawaramachi, JP-26-arashiyama 等)
 3. **福岡主要エリア** (JP-40-tenjin, JP-40-daimyo 等)

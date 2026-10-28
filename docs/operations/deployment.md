@@ -4,11 +4,11 @@ MVP から本番運用までのデプロイ・環境・監視・リリースフ�
 
 ## フェーズ構成
 
-| フェーズ | 期間目安 | 構成 |
-|---|---|---|
-| **フェーズ1（MVP）** | 開発〜PMF確認 | Vercel + Supabase Cloud |
-| **フェーズ2（AWS移行）** | PMF後、スケール要求時 | AWS Amplify or CloudFront + Lambda |
-| **フェーズ3（アプリ化）** | Web安定後 | React Native + 上記API |
+| フェーズ                  | 期間目安              | 構成                               |
+| ------------------------- | --------------------- | ---------------------------------- |
+| **フェーズ1（MVP）**      | 開発〜PMF確認         | Vercel + Supabase Cloud            |
+| **フェーズ2（AWS移行）**  | PMF後、スケール要求時 | AWS Amplify or CloudFront + Lambda |
+| **フェーズ3（アプリ化）** | Web安定後             | React Native + 上記API             |
 
 **このドキュメントは主にフェーズ1を対象**とし、フェーズ2以降は方針のみ記載。
 
@@ -16,11 +16,11 @@ MVP から本番運用までのデプロイ・環境・監視・リリースフ�
 
 3環境で運用:
 
-| 環境 | 用途 | ドメイン | DB |
-|---|---|---|---|
-| **Local** | 開発マシン | `localhost:3000` | Supabase local (Docker) |
-| **Preview** | PRごと自動生成 | `{branch}-cafe-sns-site.vercel.app` | Supabase Cloud (dev project) |
-| **Production** | 本番公開 | 独自ドメイン（MVP前は Vercel サブ） | Supabase Cloud (prod project) |
+| 環境           | 用途           | ドメイン                            | DB                            |
+| -------------- | -------------- | ----------------------------------- | ----------------------------- |
+| **Local**      | 開発マシン     | `localhost:3000`                    | Supabase local (Docker)       |
+| **Preview**    | PRごと自動生成 | `{branch}-cafe-sns-site.vercel.app` | Supabase Cloud (dev project)  |
+| **Production** | 本番公開       | 独自ドメイン（MVP前は Vercel サブ） | Supabase Cloud (prod project) |
 
 **staging はスキップ** — Preview デプロイで代替。個人MVPには過剰。
 
@@ -102,12 +102,12 @@ SENTRY_DSN=<開発時は空でも可>
   - `cafe-sns-prod`（ref: `ciasmmtrvlcokjmlwbsy`） — Production 用
 - **拡張の有効化（初期マイグレーションに含める / 決定 2026-09-05）:**
 
-  | 拡張 | 用途 |
-  |---|---|
-  | `pgcrypto` | `gen_random_uuid()`（Supabase では既定で有効） |
-  | `citext` | `profiles.username` の大文字小文字を無視した一意性 |
-  | `postgis` | `geography(POINT,4326)`（`cafes.location` / `areas.center_location`） |
-  | `pg_trgm` | 日本語の部分一致検索（`posts.body_text` / `cafes.name_kana`）**— 検索の主役** |
+  | 拡張       | 用途                                                                          |
+  | ---------- | ----------------------------------------------------------------------------- |
+  | `pgcrypto` | `gen_random_uuid()`（Supabase では既定で有効）                                |
+  | `citext`   | `profiles.username` の大文字小文字を無視した一意性                            |
+  | `postgis`  | `geography(POINT,4326)`（`cafes.location` / `areas.center_location`）         |
+  | `pg_trgm`  | 日本語の部分一致検索（`posts.body_text` / `cafes.name_kana`）**— 検索の主役** |
 
   **`pgroonga` は導入しない。** 全文検索は `simple` tsvector + `pg_trgm` の2本立てとする（[data-model/tables.md #全文検索の方式](../architecture/data-model/tables.md#全文検索の方式決定-2026-09-05)）。
 
@@ -123,10 +123,10 @@ SENTRY_DSN=<開発時は空でも可>
 認証は共有シークレット（Bearer token、GitHub Actions の secrets と Vercel の環境変数に同じ値を設定）で行い、GitHub Actions からのみ呼べるように絞る。
 あわせて、取りこぼしても壊れないよう**参照時にも除外する**（二重の安全策）。
 
-| ジョブ | 頻度 | 取りこぼし時の保険 |
-|---|---|---|
-| 期限切れ下書きの削除（`drafts.expires_at < now()`、紐づく Storage 画像含む） | 日次 | 下書き一覧の取得クエリで `expires_at > now()` を必ず付ける |
-| 放置された予約投稿の削除（`posts.status='hidden'` が7日以上 `updated_at` 更新無し、紐づく Storage 画像フォルダ含む。[pending-items D19](../product/pending-items.md#d19-reservepost-で予約した-hidden-投稿がfinalizeされないまま放置される問題-解消済2026-10-23)） | 日次 | 不要。`hidden` 行は `posts_select_own`（本人のみ）でしか見えず、取りこぼしてもユーザーに影響しない |
+| ジョブ                                                                                                                                                                                                                                                                                             | 頻度 | 取りこぼし時の保険                                                                                                                          |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 期限切れ下書きの削除（`drafts.expires_at < now()`、紐づく Storage 画像含む）                                                                                                                                                                                                                       | 日次 | 下書き一覧の取得クエリで `expires_at > now()` を必ず付ける                                                                                  |
+| 放置された予約投稿の削除（`posts.status='hidden'` が7日以上 `updated_at` 更新無し、紐づく Storage 画像フォルダ含む。[pending-items D19](../product/pending-items.md#d19-reservepost-で予約した-hidden-投稿がfinalizeされないまま放置される問題-解消済2026-10-23)）                                 | 日次 | 不要。`hidden` 行は `posts_select_own`（本人のみ）でしか見えず、取りこぼしてもユーザーに影響しない                                          |
 | 孤立した owner-documents の削除（`cafe_owner_verifications.document_urls` にどの行からも参照されず、生成から7日以上経過したファイル。[pending-items D50](../product/pending-items.md#d50-s_owner_claim-で書類アップロード後に離脱すると-owner-documents-に孤立ファイルが残る-解消済み2026-10-24)） | 日次 | 不要。`owner-documents` は `owner_documents_objects_select_own_or_admin` RLS で本人+adminのみしか見えず、取りこぼしてもユーザーに影響しない |
 
 **GitHub Actions の `schedule` は実行が遅延・スキップされることがある**（混雑時、および60日間リポジトリ活動が無いと停止）。上の「保険」列を必ず併せて実装し、ジョブが動かなくても機能が壊れない状態を保つ。
@@ -139,17 +139,17 @@ SENTRY_DSN=<開発時は空でも可>
 
 `.github/workflows/` に配置:
 
-| ファイル | トリガ | 内容 |
-|---|---|---|
-| `ci.yml` | PR / push | lint + typecheck + ユニットテスト + build + commitlint（PRのみ） |
-| `integration.yml` | PR / main push | Supabase を起動して `pnpm test:integration`（RLS 検証） |
-| `e2e.yml` | PR / `workflow_call` | Playwright E2E。PR は Chromium 系のみ、webkit は `nightly.yml` と `safari` ラベル時 |
-| `migration-check.yml` | PR (supabase/migrations 変更時) | migration lint |
-| `deploy-migration.yml` | main push (supabase/migrations 変更時) | prod DB migration 適用（マスタデータもここに含まれる） |
-| `nightly.yml` | schedule（週1）/ 手動 | Safari E2E・スキーマドリフト・ボードドリフト |
-| `agent-review.yml` | PR（draft 以外） | エージェントによる差分レビュー。ブランチ保護が使えないため現状は助言役 |
-| `agent-implement.yml` | issue に `agent:auto` ラベル | エージェントが実装して PR を立てる。**マージは人**。`AGENT_GITHUB_TOKEN` 未登録のため現在は停止中 |
-| `preview-cleanup.yml` | PR close | Preview 環境のクリーンアップ（**未作成**） |
+| ファイル               | トリガ                                 | 内容                                                                                              |
+| ---------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `ci.yml`               | PR / push                              | lint + typecheck + ユニットテスト + build + commitlint（PRのみ）                                  |
+| `integration.yml`      | PR / main push                         | Supabase を起動して `pnpm test:integration`（RLS 検証）                                           |
+| `e2e.yml`              | PR / `workflow_call`                   | Playwright E2E。PR は Chromium 系のみ、webkit は `nightly.yml` と `safari` ラベル時               |
+| `migration-check.yml`  | PR (supabase/migrations 変更時)        | migration lint                                                                                    |
+| `deploy-migration.yml` | main push (supabase/migrations 変更時) | prod DB migration 適用（マスタデータもここに含まれる）                                            |
+| `nightly.yml`          | schedule（週1）/ 手動                  | Safari E2E・スキーマドリフト・ボードドリフト                                                      |
+| `agent-review.yml`     | PR（draft 以外）                       | エージェントによる差分レビュー。ブランチ保護が使えないため現状は助言役                            |
+| `agent-implement.yml`  | issue に `agent:auto` ラベル           | エージェントが実装して PR を立てる。**マージは人**。`AGENT_GITHUB_TOKEN` 未登録のため現在は停止中 |
+| `preview-cleanup.yml`  | PR close                               | Preview 環境のクリーンアップ（**未作成**）                                                        |
 
 エージェント関連3本の設計・安全弁・課金分の実測は [agent-pipeline.md](./agent-pipeline.md) 参照。
 
@@ -162,10 +162,10 @@ SENTRY_DSN=<開発時は空でも可>
 
 したがって:
 
-| データ | 置き場 | 本番へ届く経路 |
-|---|---|---|
-| マスタ（areas / tags / badges） | `supabase/migrations/*_seed_master_data.sql` | `db push`（承認ゲート付き） |
-| ローカル専用（開発用 admin、ダミー投稿など） | `supabase/seed.sql` | 届かない（届けない） |
+| データ                                       | 置き場                                       | 本番へ届く経路              |
+| -------------------------------------------- | -------------------------------------------- | --------------------------- |
+| マスタ（areas / tags / badges）              | `supabase/migrations/*_seed_master_data.sql` | `db push`（承認ゲート付き） |
+| ローカル専用（開発用 admin、ダミー投稿など） | `supabase/seed.sql`                          | 届かない（届けない）        |
 
 **マスタを変更する時は既存ファイルを編集せず、新しいマイグレーションを追加する**（forward-only）。
 `pnpm db:migrate:new add_xxx_tag` → `insert ... on conflict do update` を書く → PR。
@@ -196,7 +196,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
-      - run: pnpm lint:design   # デザインシステム禁止パターン検査
+      - run: pnpm lint:design # デザインシステム禁止パターン検査
       - run: pnpm typecheck
       - run: pnpm test:run
 
@@ -222,7 +222,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium webkit
-      - run: pnpm build          # webServer が pnpm start を叩くため先にビルドが要る
+      - run: pnpm build # webServer が pnpm start を叩くため先にビルドが要る
       - run: pnpm test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()
@@ -232,7 +232,6 @@ jobs:
 ```
 
 **E2E は CI 内で自前のサーバーに対して実行する。** `playwright.config.ts` の `webServer` が `pnpm start` を起動するため、直前に `pnpm build` が必要。
-
 - **`webServer` を CI で `undefined` にしない** — 誰も listen していない `localhost:3000` に接続しに行き、最初のテストを書いた瞬間に落ちる
 - **`--pass-with-no-tests` は使わない** — テストが0件でもグリーンになり、CI の故障に気づけなくなる。最低1本のスモークテスト（`tests/e2e/smoke.spec.ts`）を常に置いておく
 - Vercel Preview に対して流したい場合は `PLAYWRIGHT_BASE_URL` を渡す。設定されている時だけ `webServer` は起動しない
@@ -249,7 +248,7 @@ on:
 jobs:
   migrate:
     runs-on: ubuntu-latest
-    environment: production   # ← 承認ゲート
+    environment: production # ← 承認ゲート
     steps:
       - uses: actions/checkout@v5
       - uses: supabase/setup-cli@v1
@@ -275,13 +274,13 @@ jobs:
 マイグレーション（テーブル・RLS・関数）は `db push` で届くが、**Auth の挙動設定は届かない**、
 という区別を常に意識すること。初回セットアップ時は以下を**順番に**確認する:
 
-| # | 設定項目 | config.toml の該当箇所 | Dashboard での設定先 |
-|---|---|---|---|
-| 1 | 確認メールのテンプレート（6桁コード） | `[auth.email.template.confirmation]` | Authentication → Emails → Templates → **Confirm sign up** |
-| 2 | カスタムSMTP（Resendリレー） | （config.tomlには無い。本番専用設定） | Authentication → Emails → **SMTP Settings**。Host: `smtp.resend.com` / Port: `587` / Username: `resend` / Password: Resend API Key |
-| 3 | Email OTP の桁数・有効期限 | `otp_length = 6` / `otp_expiry = 3600` | Authentication → Sign In / Providers → **Email** → Email OTP length / expiration |
-| 4 | Site URL / Redirect URLs | `site_url` | Authentication → **URL Configuration**。本番URLに変更しないと `http://localhost:3000` のまま残る |
-| 5 | Custom Access Token Hook | `[auth.hook.custom_access_token]` | Authentication → **Auth Hooks**（関数自体はマイグレーションで作成済みだが、Hookとしての登録は別） |
+| #   | 設定項目                              | config.toml の該当箇所                 | Dashboard での設定先                                                                                                               |
+| --- | ------------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 確認メールのテンプレート（6桁コード） | `[auth.email.template.confirmation]`   | Authentication → Emails → Templates → **Confirm sign up**                                                                          |
+| 2   | カスタムSMTP（Resendリレー）          | （config.tomlには無い。本番専用設定）  | Authentication → Emails → **SMTP Settings**。Host: `smtp.resend.com` / Port: `587` / Username: `resend` / Password: Resend API Key |
+| 3   | Email OTP の桁数・有効期限            | `otp_length = 6` / `otp_expiry = 3600` | Authentication → Sign In / Providers → **Email** → Email OTP length / expiration                                                   |
+| 4   | Site URL / Redirect URLs              | `site_url`                             | Authentication → **URL Configuration**。本番URLに変更しないと `http://localhost:3000` のまま残る                                   |
+| 5   | Custom Access Token Hook              | `[auth.hook.custom_access_token]`      | Authentication → **Auth Hooks**（関数自体はマイグレーションで作成済みだが、Hookとしての登録は別）                                  |
 
 **カスタムSMTP未設定時の罠:** Supabase組み込みのメール送信は、未認証ドメイン（`onboarding@resend.dev`等）
 からの送信だと「Resendアカウント登録メールアドレス宛にしか届かない」というResend側の制約がある。
@@ -303,7 +302,6 @@ Auth設定の意図しない上書きが無いか事前にdevプロジェクト�
 
 `profiles.role` の変更は admin 限定（`is_admin()`）なので、本番には admin を作る経路が無い。
 **最初の1人だけ service_role で手動昇格する**（pending-items A9）。
-
 1. 対象ユーザーに通常どおりサインアップしてもらい、`profiles` 行まで作られた状態にする
 2. Supabase Dashboard → SQL Editor（service_role 相当で実行される）で昇格する:
 
@@ -328,19 +326,19 @@ Auth設定の意図しない上書きが無いか事前にdevプロジェクト�
 
 凡例: ○ = 必須（未設定なら起動時に Zod が落とす） / △ = 任意（該当機能を使う時だけ） / ✕ = 不要
 
-| 変数 | Local | Preview | Prod | 説明 |
-|---|---|---|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | ○ | ○ | ○ | Supabase URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ○ | ○ | ○ | Supabase Anon Key |
-| `SUPABASE_SERVICE_ROLE_KEY` | ○ | ○ | ○ | Server-side only |
-| `NEXT_PUBLIC_SITE_URL` | ○ | ○ | ○ | 自サイトURL（OG等） |
-| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | △ | △ | △ | Maps API。S_MAP 実装までは未設定で動く |
-| `AWS_S3_BUCKET` | ✕ | ✕ | ✕ | **MVP未使用**。画像は Supabase Storage（[pending-items A5](../product/pending-items.md) で決定）。S3 移行時に有効化 |
-| `AWS_S3_REGION` | ✕ | ✕ | ✕ | 同上 |
-| `AWS_ACCESS_KEY_ID` | ✕ | ✕ | ✕ | 同上 / Server-side only |
-| `AWS_SECRET_ACCESS_KEY` | ✕ | ✕ | ✕ | 同上 / Server-side only |
-| `RESEND_API_KEY` | ✕ | △ | ○ | 保護者同意メール等。本番は未成年フローに必須 |
-| `SENTRY_DSN` | ✕ | △ | ○ | エラー通知 |
+| 変数                              | Local  | Preview | Prod | 説明                                                                                                                |
+| --------------------------------- | ------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`        | ○      | ○       | ○    | Supabase URL                                                                                                        |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`   | ○      | ○       | ○    | Supabase Anon Key                                                                                                   |
+| `SUPABASE_SERVICE_ROLE_KEY`       | ○      | ○       | ○    | Server-side only                                                                                                    |
+| `NEXT_PUBLIC_SITE_URL`            | ○      | ○       | ○    | 自サイトURL（OG等）                                                                                                 |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | △      | △       | △    | Maps API。S_MAP 実装までは未設定で動く                                                                              |
+| `AWS_S3_BUCKET`                   | ✕      | ✕       | ✕    | **MVP未使用**。画像は Supabase Storage（[pending-items A5](../product/pending-items.md) で決定）。S3 移行時に有効化 |
+| `AWS_S3_REGION`                   | ✕      | ✕       | ✕    | 同上                                                                                                                |
+| `AWS_ACCESS_KEY_ID`               | ✕      | ✕       | ✕    | 同上 / Server-side only                                                                                             |
+| `AWS_SECRET_ACCESS_KEY`           | ✕      | ✕       | ✕    | 同上 / Server-side only                                                                                             |
+| `RESEND_API_KEY`                  | ✕      | △       | ○    | 保護者同意メール等。本番は未成年フローに必須                                                                        |
+| `SENTRY_DSN`                      | ✕      | △       | ○    | エラー通知                                                                                                          |
 
 **AWS 系を optional のまま残す理由:** MVP では使わないが、S3 移行時に `lib/env.ts` を書き換えずに済むよう定義だけ残す。Maps は S_MAP 実装まで未設定で動かせるほうが都合がよいので optional のままにする。
 
@@ -520,14 +518,14 @@ git commit -m "feat: regular_customers テーブル追加"
 
 **移行候補構成:**
 
-| レイヤー | 選択肢 |
-|---|---|
+| レイヤー | 選択肢                                                                  |
+| -------- | ----------------------------------------------------------------------- |
 | Frontend | AWS Amplify Hosting（Vercel互換に近い） / CloudFront + S3 + Lambda@Edge |
-| Backend | Supabase継続（統合コスト小） / 自前 (Cognito + RDS + Lambda) |
-| 画像 | S3 + CloudFront |
-| DNS | Route 53 |
-| メール | Amazon SES |
-| 監視 | CloudWatch + Sentry |
+| Backend  | Supabase継続（統合コスト小） / 自前 (Cognito + RDS + Lambda)            |
+| 画像     | S3 + CloudFront                                                         |
+| DNS      | Route 53                                                                |
+| メール   | Amazon SES                                                              |
+| 監視     | CloudWatch + Sentry                                                     |
 
 **推奨判断基準:**
 - **可能な限り Supabase を継続** — 移行工数を最小化
@@ -537,15 +535,15 @@ git commit -m "feat: regular_customers テーブル追加"
 
 ## コスト見積り（フェーズ1、月額）
 
-| サービス | プラン | 月額 |
-|---|---|---|
-| Vercel | Hobby | $0 |
-| Supabase | Free | $0 |
-| Sentry | Developer | $0 |
-| Google Maps Platform | 従量課金 | 〜$0-30 |
-| ドメイン | Cloudflare Registrar | ~$10/年 |
-| Uptime monitoring | Better Stack Free | $0 |
-| **合計** | | **$0-30/月** |
+| サービス             | プラン               | 月額         |
+| -------------------- | -------------------- | ------------ |
+| Vercel               | Hobby                | $0           |
+| Supabase             | Free                 | $0           |
+| Sentry               | Developer            | $0           |
+| Google Maps Platform | 従量課金             | 〜$0-30      |
+| ドメイン             | Cloudflare Registrar | ~$10/年      |
+| Uptime monitoring    | Better Stack Free    | $0           |
+| **合計**             |                      | **$0-30/月** |
 
 **スケール時（Vercel Pro + Supabase Pro）:**
 - Vercel Pro: $20/月

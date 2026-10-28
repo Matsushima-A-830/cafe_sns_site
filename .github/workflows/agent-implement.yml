@@ -41,7 +41,7 @@ jobs:
       # エージェントに触らせてよい範囲。1 = docs のみ / 2 = + テスト / 3 = + アプリコード。
       # 無人マージが使えない現在は「範囲外なら PR 本文で警告する」ための指標だが、
       # 常時禁止パス（.github/ supabase/migrations/ 等）の判定はこの値に関係なく効く
-      AGENT_AUTOMERGE_STAGE: '1'
+      AGENT_AUTOMERGE_STAGE: "1"
     steps:
       # persist-credentials: false が無いと checkout が PAT を .git/config に
       # 焼き込み、次のステップのエージェント（Bash 付き）がそのまま git push できる。

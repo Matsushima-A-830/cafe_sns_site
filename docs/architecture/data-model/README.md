@@ -15,18 +15,18 @@ Supabase (PostgreSQL) を前提としたデータモデル設計です。詳細�
 
 ## エンティティ分類
 
-| 分類 | テーブル |
-|---|---|
-| ユーザー | `profiles`, `user_settings`, `user_interest_tags`, `follows`, `blocks` |
-| エリア | `areas` |
-| カフェ | `cafes`, `cafe_business_hours`, `cafe_congestion_reports`, `cafe_owner_verifications` |
-| 幹C（オーナー連携） | `regular_customers` |
-| コンテンツ | `posts`, `post_images`, `drafts`, `comments` |
-| タグ | `tags`, `post_tags` |
-| インタラクション | `likes`, `user_cafe_lists`, `post_bookmarks` |
-| モデレーション | `reports`, `ng_words`, `audit_logs` |
-| 通知 | `notifications` |
-| ゲーミフィケーション | `badges`, `user_badges`, `area_visits` |
+| 分類                 | テーブル                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------- |
+| ユーザー             | `profiles`, `user_settings`, `user_interest_tags`, `follows`, `blocks`                |
+| エリア               | `areas`                                                                               |
+| カフェ               | `cafes`, `cafe_business_hours`, `cafe_congestion_reports`, `cafe_owner_verifications` |
+| 幹C（オーナー連携）  | `regular_customers`                                                                   |
+| コンテンツ           | `posts`, `post_images`, `drafts`, `comments`                                          |
+| タグ                 | `tags`, `post_tags`                                                                   |
+| インタラクション     | `likes`, `user_cafe_lists`, `post_bookmarks`                                          |
+| モデレーション       | `reports`, `ng_words`, `audit_logs`                                                   |
+| 通知                 | `notifications`                                                                       |
+| ゲーミフィケーション | `badges`, `user_badges`, `area_visits`                                                |
 
 ## ER図（概観）
 
@@ -78,11 +78,11 @@ erDiagram
 
 3種類の保存機能を以下のように分離しました:
 
-| 種別 | 対象 | テーブル | 意味 |
-|---|---|---|---|
-| お気に入り | カフェ | `user_cafe_lists` (type='favorite') | 常連・好きなカフェ |
-| 行きたい | カフェ | `user_cafe_lists` (type='want_to_go') | まだ行っていない候補 |
-| 保存 | 投稿 | `post_bookmarks` | 参考にしたい投稿 |
+| 種別       | 対象   | テーブル                              | 意味                 |
+| ---------- | ------ | ------------------------------------- | -------------------- |
+| お気に入り | カフェ | `user_cafe_lists` (type='favorite')   | 常連・好きなカフェ   |
+| 行きたい   | カフェ | `user_cafe_lists` (type='want_to_go') | まだ行っていない候補 |
+| 保存       | 投稿   | `post_bookmarks`                      | 参考にしたい投稿     |
 
 カフェ2種は同一テーブルに `list_type` enum で統一。将来「行った」「マイリスト」等の追加も柔軟。
 
@@ -146,11 +146,13 @@ INSERT する想定だったが、両テーブルともユーザー向け INSERT
 export async function checkAndAwardBadges(
   supabase: SupabaseClient,
   userId: string,
-  trigger: BadgeTrigger,  // 'POST_CREATED' | 'LIKE_GIVEN' | 'LIKE_RECEIVED' | ...
+  trigger: BadgeTrigger, // 'POST_CREATED' | 'LIKE_GIVEN' | 'LIKE_RECEIVED' | ...
 ): Promise<void> {
-  const candidates = badges.filter(b => TRIGGER_CRITERIA_TYPES[trigger].includes(b.criteria.type))
-  const unearned = candidates.filter(b => !alreadyAwarded.has(b.id))
-  const earned = await Promise.all(unearned.map(b => evaluateCriteria(supabase, userId, b.criteria)))
+  const candidates = badges.filter((b) => TRIGGER_CRITERIA_TYPES[trigger].includes(b.criteria.type))
+  const unearned = candidates.filter((b) => !alreadyAwarded.has(b.id))
+  const earned = await Promise.all(
+    unearned.map((b) => evaluateCriteria(supabase, userId, b.criteria)),
+  )
   for (const badge of unearned.filter((_, i) => earned[i])) {
     await supabase.rpc('award_badge', { p_user_id: userId, p_badge_code: badge.code })
   }
@@ -180,12 +182,12 @@ export async function checkAndAwardBadges(
 
 ### バケット構成
 
-| バケット | 公開 | 参照元の列 | 内容 |
-|---|---|---|---|
-| `post-images` | public | [`post_images.storage_path`](./tables.md#post_images) | 投稿画像（最大10枚/投稿・10MB/枚） |
-| `cafe-images` | public | [`cafes.main_image_path`](./tables.md#cafes) | カフェのメイン画像 |
-| `avatars` | public | [`profiles.avatar_url`](./tables.md#profiles) | アバター（2MB） |
-| `owner-documents` | **private** | [`cafe_owner_verifications.document_urls`](./tables.md#cafe_owner_verifications) | オーナー認証の提出書類 |
+| バケット          | 公開        | 参照元の列                                                                       | 内容                               |
+| ----------------- | ----------- | -------------------------------------------------------------------------------- | ---------------------------------- |
+| `post-images`     | public      | [`post_images.storage_path`](./tables.md#post_images)                            | 投稿画像（最大10枚/投稿・10MB/枚） |
+| `cafe-images`     | public      | [`cafes.main_image_path`](./tables.md#cafes)                                     | カフェのメイン画像                 |
+| `avatars`         | public      | [`profiles.avatar_url`](./tables.md#profiles)                                    | アバター（2MB）                    |
+| `owner-documents` | **private** | [`cafe_owner_verifications.document_urls`](./tables.md#cafe_owner_verifications) | オーナー認証の提出書類             |
 
 ### オブジェクトパスの規約
 
@@ -249,26 +251,26 @@ Supabase Free の Storage は 1GB。投稿画像を 1枚 1MB に圧縮しても�
 
 ## RLSポリシー方針（概要）
 
-| テーブル | SELECT | INSERT | UPDATE | DELETE |
-|---|---|---|---|---|
-| profiles | 全公開（プライベート項目は除外View） | 認証済みユーザー本人 | 本人のみ | 不可（無効化のみ） |
-| posts | 公開状態のみ / ブロック相手を除外 | 認証済みユーザー本人 | 作者のみ | 作者のみ（論理削除） |
-| comments | 同上 | 認証済み | 作者のみ | 作者・投稿主 |
-| likes / bookmarks | 本人のみ | 本人 | 不可 | 本人 |
-| reports | 本人 + admin | 認証済み | admin | 不可 |
-| cafes | 全公開 | 認証済み + active | owner(active) or admin | admin |
-| cafe_business_hours | 全公開 | owner(active) or admin | owner(active) or admin | owner(active) or admin |
-| cafe_congestion_reports | 本人 + admin（集計は関数経由で全公開） | 認証済み本人 + active | 不可 | 不可 |
+| テーブル                | SELECT                                 | INSERT                 | UPDATE                 | DELETE                 |
+| ----------------------- | -------------------------------------- | ---------------------- | ---------------------- | ---------------------- |
+| profiles                | 全公開（プライベート項目は除外View）   | 認証済みユーザー本人   | 本人のみ               | 不可（無効化のみ）     |
+| posts                   | 公開状態のみ / ブロック相手を除外      | 認証済みユーザー本人   | 作者のみ               | 作者のみ（論理削除）   |
+| comments                | 同上                                   | 認証済み               | 作者のみ               | 作者・投稿主           |
+| likes / bookmarks       | 本人のみ                               | 本人                   | 不可                   | 本人                   |
+| reports                 | 本人 + admin                           | 認証済み               | admin                  | 不可                   |
+| cafes                   | 全公開                                 | 認証済み + active      | owner(active) or admin | admin                  |
+| cafe_business_hours     | 全公開                                 | owner(active) or admin | owner(active) or admin | owner(active) or admin |
+| cafe_congestion_reports | 本人 + admin（集計は関数経由で全公開） | 認証済み本人 + active  | 不可                   | 不可                   |
 
 詳細は tables.md の各テーブル節を参照。
 
 ## エリアコードの一貫性
 
 制覇マップ機能の実現には、投稿対象カフェとエリア訪問実績の紐付けが必要。以下のルールで整合を保つ:
-
 - `cafes.area_code` と `area_visits.area_code` は同一のコード体系（例: `JP-13-shibuya-ku`）
 - **副地域に投稿したら親の区も訪問済みにする** — カフェが `JP-13-omotesando`（`level='sub_area'`）に紐づく場合、`JP-13-shibuya-ku`（`level='ward'`）にも訪問を記録する。これをしないと「東京23区制覇」「3エリア訪問」系バッジが永久に達成できない
 - 投稿の公開時にトリガーで自エリア + 親エリアの2行を upsert する:
+
   ```sql
   CREATE OR REPLACE FUNCTION public.record_area_visit() RETURNS trigger
   LANGUAGE plpgsql SECURITY DEFINER AS $$
@@ -294,6 +296,7 @@ Supabase Free の Storage は 1GB。投稿画像を 1枚 1MB に圧縮しても�
   WHEN (NEW.status = 'published' AND NEW.deleted_at IS NULL AND NEW.cafe_id IS NOT NULL)
   EXECUTE FUNCTION public.record_area_visit();
   ```
+
   - `published_at` は nullable でデフォルトを持たないため、そのまま `first_visited_at` / `last_visited_at`（ともに NOT NULL）へ入れると NOT NULL 違反になる。`coalesce` でフォールバックする
   - `area_visits` の RLS は「INSERT・UPDATE はシステム」なので、トリガー関数は `SECURITY DEFINER` で実行する
   - `AFTER UPDATE OF status` も対象にするのは、`archived` → `published` の復帰を取りこぼさないため。同一投稿の再公開で `visit_count` が二重に増えるのは許容する（訪問実績の粒度は「投稿回数」であり厳密な来店回数ではない）

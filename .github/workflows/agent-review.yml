@@ -28,7 +28,7 @@ permissions:
 
 env:
   # ここに収まる PR だけが落とされる。広げるときはこの1行だけを変える
-  BLOCKING_PATHS: 'docs/ tests/'
+  BLOCKING_PATHS: "docs/ tests/"
 
 jobs:
   review:

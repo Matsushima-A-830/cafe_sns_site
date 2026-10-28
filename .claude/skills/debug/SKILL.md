@@ -1,4 +1,5 @@
 ---
+
 name: debug
 description: 実装中の詰まり所を体系的に解消する。RLS、Server Actions、キャッシュ、型エラー、環境変数など。
 ---
@@ -19,20 +20,22 @@ description: 実装中の詰まり所を体系的に解消する。RLS、Server 
 ### 症状: 「あるはずのデータが取れない」
 
 **チェック順:**
-
 1. Service Role ではなく **RLS が効くクライアント** で呼んでいるか
 2. `auth.uid()` が期待するユーザーIDを返しているか
+
    ```sql
    -- Supabase Studio の SQL エディタで実行
    select auth.uid();
    ```
 3. 対象テーブルのポリシーを確認
+
    ```sql
    select policyname, cmd, qual, with_check
    from pg_policies
    where schemaname = 'public' and tablename = 'posts';
    ```
 4. **ポリシーを一時的に無効化して確認** — 権限が原因か、クエリの問題か切り分け
+
    ```sql
    -- 検証時のみ、本番禁止
    alter table public.posts disable row level security;
@@ -54,7 +57,6 @@ description: 実装中の詰まり所を体系的に解消する。RLS、Server 
 ### 症状: 「Server Action がクライアントで `undefined` を返す」
 
 **チェック順:**
-
 1. **`'use server'` ディレクティブがファイル冒頭にあるか**
 2. Action が async 関数か（同期関数は Server Action にできない）
 3. **`redirect()` を try/catch で握っていないか** — `redirect()` は throw されて Next.js に伝わる。catch すると挙動が壊れる
@@ -88,7 +90,6 @@ cookie を読む**動的レンダリング**で、フルルートキャッシュ
 ### 症状: 「更新したのに古いデータが表示される」
 
 **チェック順:**
-
 1. `pnpm build` でそのルートが `ƒ (Dynamic)` か `○ (Static)` かを確認する。`ƒ` ならサーバー側のキャッシュは無関係
 2. **Client Component の state が古いままではないか** — 最有力。`useState` の初期値はサーバーから
    新しい props が来ても更新されない。`router.refresh()` はサーバーを再描画するが**子の state は捨てない**
@@ -111,6 +112,7 @@ cookie を読む**動的レンダリング**で、フルルートキャッシュ
 
 1. `pnpm db:types` を再実行（`types/database.ts` が古い）
 2. Supabase Client を型付きで初期化しているか
+
    ```typescript
    createClient<Database>(url, key)  // ← <Database> ジェネリクス必須
    ```

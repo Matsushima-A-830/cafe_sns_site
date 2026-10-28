@@ -3,8 +3,8 @@ name: Migration Check
 on:
   pull_request:
     paths:
-      - 'supabase/migrations/**'
-      - 'supabase/config.toml'
+      - "supabase/migrations/**"
+      - "supabase/config.toml"
 
 jobs:
   migration-lint:

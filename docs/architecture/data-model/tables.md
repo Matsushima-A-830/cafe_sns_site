@@ -38,26 +38,26 @@ Supabase (PostgreSQL) のスキーマ定義草案です。すべて `public` ス
 
 Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 
-| カラム | 型 | 制約 | 説明 |
-|---|---|---|---|
-| id | uuid | PK, FK → auth.users(id) | ユーザーID |
-| username | citext | UNIQUE, NOT NULL | 表示用ID（英数字_） |
-| display_name | text | NOT NULL | 表示名 |
-| bio | text | | 自己紹介 |
-| avatar_url | text | | アイコン画像URL |
-| birth_date | date | NOT NULL | 生年月日（年齢確認必須） |
-| status | text | NOT NULL, DEFAULT 'active' | active / pending_consent / suspended / deleted |
-| guardian_email | text | | 保護者メール（未成年時） |
-| guardian_consent_at | timestamptz | | 保護者同意日時 |
-| guardian_consent_token_hash | text | UNIQUE（部分インデックス、NULL除外） | 保護者同意リンクのワンタイムトークンのSHA-256ハッシュ。生の値はメールにのみ存在しDBには置かない。承認後null（B3） |
-| guardian_consent_token_expires_at | timestamptz | | guardian_consent_token_hash の有効期限（発行から7日） |
-| guardian_consent_token_issued_at | timestamptz | | 再発行クールダウン判定専用の発行時刻。expires_atからの逆算だとTTL定数変更に弱いため独立列にした（B3） |
-| role | text | NOT NULL, DEFAULT 'user' | user / owner / admin |
-| home_area_code | text | FK → [areas](#areas)(code) | ホームエリア（初期タグサジェスト用）— マスタ参照 |
-| onboarded_at | timestamptz | | オンボーディング完了日時（NULL = 未完了） |
-| metadata | jsonb | NOT NULL, DEFAULT '{}' | 拡張用 |
-| created_at | timestamptz | NOT NULL, DEFAULT now() | |
-| updated_at | timestamptz | NOT NULL, DEFAULT now() | |
+| カラム                            | 型          | 制約                                 | 説明                                                                                                              |
+| --------------------------------- | ----------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| id                                | uuid        | PK, FK → auth.users(id)              | ユーザーID                                                                                                        |
+| username                          | citext      | UNIQUE, NOT NULL                     | 表示用ID（英数字_）                                                                                               |
+| display_name                      | text        | NOT NULL                             | 表示名                                                                                                            |
+| bio                               | text        |                                      | 自己紹介                                                                                                          |
+| avatar_url                        | text        |                                      | アイコン画像URL                                                                                                   |
+| birth_date                        | date        | NOT NULL                             | 生年月日（年齢確認必須）                                                                                          |
+| status                            | text        | NOT NULL, DEFAULT 'active'           | active / pending_consent / suspended / deleted                                                                    |
+| guardian_email                    | text        |                                      | 保護者メール（未成年時）                                                                                          |
+| guardian_consent_at               | timestamptz |                                      | 保護者同意日時                                                                                                    |
+| guardian_consent_token_hash       | text        | UNIQUE（部分インデックス、NULL除外） | 保護者同意リンクのワンタイムトークンのSHA-256ハッシュ。生の値はメールにのみ存在しDBには置かない。承認後null（B3） |
+| guardian_consent_token_expires_at | timestamptz |                                      | guardian_consent_token_hash の有効期限（発行から7日）                                                             |
+| guardian_consent_token_issued_at  | timestamptz |                                      | 再発行クールダウン判定専用の発行時刻。expires_atからの逆算だとTTL定数変更に弱いため独立列にした（B3）             |
+| role                              | text        | NOT NULL, DEFAULT 'user'             | user / owner / admin                                                                                              |
+| home_area_code                    | text        | FK → [areas](#areas)(code)           | ホームエリア（初期タグサジェスト用）— マスタ参照                                                                  |
+| onboarded_at                      | timestamptz |                                      | オンボーディング完了日時（NULL = 未完了）                                                                         |
+| metadata                          | jsonb       | NOT NULL, DEFAULT '{}'               | 拡張用                                                                                                            |
+| created_at                        | timestamptz | NOT NULL, DEFAULT now()              |                                                                                                                   |
+| updated_at                        | timestamptz | NOT NULL, DEFAULT now()              |                                                                                                                   |
 
 **`home_area_code` を FK にする理由:** エリアの正は [`areas` マスタ](#areas)（[glossary.md](../../glossary.md)）。自由テキストで持つと `cafes.area_code` / `area_visits.area_code` とコード体系がずれ、ホームエリア起点のレコメンドが結合できなくなる。
 
@@ -67,6 +67,7 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
 - `CHECK (status IN ('active','pending_consent','suspended','deleted'))`
 - `CHECK (role IN ('user','owner','admin'))`
 - 13歳未満のブロックは **BEFORE INSERT OR UPDATE トリガー**で実装する。`current_date` は IMMUTABLE ではないため CHECK 制約には書けない:
+
   ```sql
   CREATE OR REPLACE FUNCTION public.enforce_min_age() RETURNS trigger
   LANGUAGE plpgsql AS $$
@@ -77,6 +78,7 @@ Supabase Auth (`auth.users`) と 1:1 対応するプロフィール。
     RETURN NEW;
   END $$;
   ```
+
   アプリ層（サインアップの Zod スキーマ）でも同じ判定を行い、二重にガードする
 
 **RLS:**
@@ -112,17 +114,17 @@ anon の直接読み出しで盗まれメールを介さず承認を偽装でき
 
 `S_SETTINGS` の永続化項目。**`profiles.metadata` の jsonb ではなく型付きの1:1テーブルにする**（決定 2026-09-05）。通知トリガーが SQL から直接参照するため、jsonb だと毎回のキャストとキー欠落の考慮が必要になり、型と DEFAULT で守れなくなるのが理由。
 
-| カラム | 型 | 制約 | 説明 |
-|---|---|---|---|
-| user_id | uuid | PK, FK → profiles(id) ON DELETE CASCADE | |
-| notify_like | boolean | NOT NULL, DEFAULT true | いいね通知 |
-| notify_comment | boolean | NOT NULL, DEFAULT true | コメント通知 |
-| notify_follow | boolean | NOT NULL, DEFAULT true | フォロー通知 |
-| notify_email | boolean | NOT NULL, DEFAULT true | メールでも通知するか |
-| use_location | boolean | NOT NULL, DEFAULT true | 位置情報の使用（タグサジェスト等） |
-| allow_recommendation | boolean | NOT NULL, DEFAULT true | おすすめ表示に行動履歴を活用してよいか |
-| font_scale | text | NOT NULL, DEFAULT 'normal' | 文字サイズ: small / normal / large |
-| updated_at | timestamptz | NOT NULL, DEFAULT now() | |
+| カラム               | 型          | 制約                                    | 説明                                   |
+| -------------------- | ----------- | --------------------------------------- | -------------------------------------- |
+| user_id              | uuid        | PK, FK → profiles(id) ON DELETE CASCADE |                                        |
+| notify_like          | boolean     | NOT NULL, DEFAULT true                  | いいね通知                             |
+| notify_comment       | boolean     | NOT NULL, DEFAULT true                  | コメント通知                           |
+| notify_follow        | boolean     | NOT NULL, DEFAULT true                  | フォロー通知                           |
+| notify_email         | boolean     | NOT NULL, DEFAULT true                  | メールでも通知するか                   |
+| use_location         | boolean     | NOT NULL, DEFAULT true                  | 位置情報の使用（タグサジェスト等）     |
+| allow_recommendation | boolean     | NOT NULL, DEFAULT true                  | おすすめ表示に行動履歴を活用してよいか |
+| font_scale           | text        | NOT NULL, DEFAULT 'normal'              | 文字サイズ: small / normal / large     |
+| updated_at           | timestamptz | NOT NULL, DEFAULT now()                 |                                        |
 
 **制約:** `CHECK (font_scale IN ('small','normal','large'))`
 
@@ -140,11 +142,11 @@ anon の直接読み出しで盗まれメールを介さず承認を偽装でき
 
 オンボーディング `S_ONBOARD_INTERESTS` で選ぶ「好きな気分」。**幹A（気分起点の発見）のレコメンドはこの行を入力にする。**
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| user_id | uuid | PK, FK → profiles(id) ON DELETE CASCADE |
-| tag_id | uuid | PK, FK → tags(id) |
-| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| カラム     | 型          | 制約                                    |
+| ---------- | ----------- | --------------------------------------- |
+| user_id    | uuid        | PK, FK → profiles(id) ON DELETE CASCADE |
+| tag_id     | uuid        | PK, FK → tags(id)                       |
+| created_at | timestamptz | NOT NULL, DEFAULT now()                 |
 
 **インデックス:** `(tag_id, user_id)` — 「同じ気分の人」の逆引き
 
@@ -163,11 +165,11 @@ anon の直接読み出しで盗まれメールを介さず承認を偽装でき
 
 ## follows
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| follower_id | uuid | PK, FK → profiles(id) |
-| followee_id | uuid | PK, FK → profiles(id) |
-| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| カラム      | 型          | 制約                    |
+| ----------- | ----------- | ----------------------- |
+| follower_id | uuid        | PK, FK → profiles(id)   |
+| followee_id | uuid        | PK, FK → profiles(id)   |
+| created_at  | timestamptz | NOT NULL, DEFAULT now() |
 
 **制約:** `CHECK (follower_id <> followee_id)`
 
@@ -208,11 +210,11 @@ anon の直接読み出しで盗まれメールを介さず承認を偽装でき
 
 ## blocks
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| blocker_id | uuid | PK, FK → profiles(id) |
-| blocked_id | uuid | PK, FK → profiles(id) |
-| reason | text | |
+| カラム     | 型          | 制約                    |
+| ---------- | ----------- | ----------------------- |
+| blocker_id | uuid        | PK, FK → profiles(id)   |
+| blocked_id | uuid        | PK, FK → profiles(id)   |
+| reason     | text        |                         |
 | created_at | timestamptz | NOT NULL, DEFAULT now() |
 
 **RLS:** SELECT・INSERT・DELETE は本人（blocker_id）のみ
@@ -223,27 +225,27 @@ anon の直接読み出しで盗まれメールを介さず承認を偽装でき
 
 ## cafes
 
-| カラム | 型 | 制約 | 説明 |
-|---|---|---|---|
-| id | uuid | PK, DEFAULT gen_random_uuid() | |
-| name | text | NOT NULL | 店名 |
-| name_kana | text | | フリガナ（検索用） |
-| prefecture | text | NOT NULL | 都道府県 |
-| city | text | NOT NULL | 市区町村 |
-| area_code | text | FK → [areas](#areas)(code) | エリアコード（例: `JP-13-shibuya-ku`）— マスタテーブル参照 |
-| address | text | | 住所 |
-| main_image_path | text | | メイン画像（Supabase Storage の `cafe-images` オブジェクトパス） |
-| location | geography(POINT, 4326) | | 緯度経度 |
-| phone | text | | |
-| website | text | | |
-| description | text | | 店舗説明 |
-| external_ids | jsonb | NOT NULL, DEFAULT '{}' | `{ google_place_id?: string, tabelog_url?: string }`。キー名は S_OWNER_CAFE_EDIT 実装時に固定（lib/validators/cafes.ts の externalIdsSchema） |
-| verified_owner_id | uuid | FK → profiles(id) | 認証済みオーナー |
-| status | text | NOT NULL, DEFAULT 'active' | active / closed / hidden |
-| created_by | uuid | FK → profiles(id) | 登録者 |
-| metadata | jsonb | NOT NULL, DEFAULT '{}' | |
-| created_at | timestamptz | NOT NULL, DEFAULT now() | |
-| updated_at | timestamptz | NOT NULL, DEFAULT now() | |
+| カラム            | 型                     | 制約                          | 説明                                                                                                                                          |
+| ----------------- | ---------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| id                | uuid                   | PK, DEFAULT gen_random_uuid() |                                                                                                                                               |
+| name              | text                   | NOT NULL                      | 店名                                                                                                                                          |
+| name_kana         | text                   |                               | フリガナ（検索用）                                                                                                                            |
+| prefecture        | text                   | NOT NULL                      | 都道府県                                                                                                                                      |
+| city              | text                   | NOT NULL                      | 市区町村                                                                                                                                      |
+| area_code         | text                   | FK → [areas](#areas)(code)    | エリアコード（例: `JP-13-shibuya-ku`）— マスタテーブル参照                                                                                    |
+| address           | text                   |                               | 住所                                                                                                                                          |
+| main_image_path   | text                   |                               | メイン画像（Supabase Storage の `cafe-images` オブジェクトパス）                                                                              |
+| location          | geography(POINT, 4326) |                               | 緯度経度                                                                                                                                      |
+| phone             | text                   |                               |                                                                                                                                               |
+| website           | text                   |                               |                                                                                                                                               |
+| description       | text                   |                               | 店舗説明                                                                                                                                      |
+| external_ids      | jsonb                  | NOT NULL, DEFAULT '{}'        | `{ google_place_id?: string, tabelog_url?: string }`。キー名は S_OWNER_CAFE_EDIT 実装時に固定（lib/validators/cafes.ts の externalIdsSchema） |
+| verified_owner_id | uuid                   | FK → profiles(id)             | 認証済みオーナー                                                                                                                              |
+| status            | text                   | NOT NULL, DEFAULT 'active'    | active / closed / hidden                                                                                                                      |
+| created_by        | uuid                   | FK → profiles(id)             | 登録者                                                                                                                                        |
+| metadata          | jsonb                  | NOT NULL, DEFAULT '{}'        |                                                                                                                                               |
+| created_at        | timestamptz            | NOT NULL, DEFAULT now()       |                                                                                                                                               |
+| updated_at        | timestamptz            | NOT NULL, DEFAULT now()       |                                                                                                                                               |
 
 **インデックス:**
 - `GIST(location)` — 地図検索
@@ -282,19 +284,19 @@ anon の直接読み出しで盗まれメールを介さず承認を偽装でき
 
 エリアマスタ。制覇マップ・検索フィルタで使う。**ISO 3166-2 準拠のコード体系**（都道府県は `JP-13` 等）。詳細な初期セットは [seed/areas-initial-set.md](../../seed/areas-initial-set.md) 参照。
 
-| カラム | 型 | 制約 | 説明 |
-|---|---|---|---|
-| code | text | PK | 例: `JP-13-shibuya-ku` |
-| prefecture_code | text | NOT NULL | 例: `JP-13` (東京都) — ISO 3166-2 |
-| slug | text | NOT NULL | 例: `shibuya-ku`（URL・タグ用） |
-| label | text | NOT NULL | 例: `渋谷区` |
-| label_kana | text | | 例: `シブヤク`（検索用） |
-| level | text | NOT NULL | `ward`（市区町村レベル） / `sub_area`（副地域・人気エリア） |
-| parent_code | text | FK → areas(code) | 上位エリア（例: `JP-13-shibuya-ku` 配下に `JP-13-omotesando`） |
-| center_location | geography(POINT, 4326) | | 地図中心座標 |
-| priority | smallint | NOT NULL, DEFAULT 0 | 表示優先度（副都心系を上位に） |
-| is_active | boolean | NOT NULL, DEFAULT true | 論理削除相当 |
-| created_at | timestamptz | NOT NULL, DEFAULT now() | |
+| カラム          | 型                     | 制約                    | 説明                                                           |
+| --------------- | ---------------------- | ----------------------- | -------------------------------------------------------------- |
+| code            | text                   | PK                      | 例: `JP-13-shibuya-ku`                                         |
+| prefecture_code | text                   | NOT NULL                | 例: `JP-13` (東京都) — ISO 3166-2                              |
+| slug            | text                   | NOT NULL                | 例: `shibuya-ku`（URL・タグ用）                                |
+| label           | text                   | NOT NULL                | 例: `渋谷区`                                                   |
+| label_kana      | text                   |                         | 例: `シブヤク`（検索用）                                       |
+| level           | text                   | NOT NULL                | `ward`（市区町村レベル） / `sub_area`（副地域・人気エリア）    |
+| parent_code     | text                   | FK → areas(code)        | 上位エリア（例: `JP-13-shibuya-ku` 配下に `JP-13-omotesando`） |
+| center_location | geography(POINT, 4326) |                         | 地図中心座標                                                   |
+| priority        | smallint               | NOT NULL, DEFAULT 0     | 表示優先度（副都心系を上位に）                                 |
+| is_active       | boolean                | NOT NULL, DEFAULT true  | 論理削除相当                                                   |
+| created_at      | timestamptz            | NOT NULL, DEFAULT now() |                                                                |
 
 **制約:**
 - `UNIQUE (prefecture_code, slug)` — 都道府県内でslug重複禁止
@@ -339,14 +341,14 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 
 ## cafe_business_hours
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| cafe_id | uuid | PK, FK → cafes(id) |
+| カラム      | 型       | 制約                      |
+| ----------- | -------- | ------------------------- |
+| cafe_id     | uuid     | PK, FK → cafes(id)        |
 | day_of_week | smallint | PK, CHECK BETWEEN 0 AND 6 |
-| opens_at | time | |
-| closes_at | time | |
-| is_closed | boolean | NOT NULL, DEFAULT false |
-| notes | text | |
+| opens_at    | time     |                           |
+| closes_at   | time     |                           |
+| is_closed   | boolean  | NOT NULL, DEFAULT false   |
+| notes       | text     |                           |
 
 **制約:**
 - `CHECK (is_closed OR (opens_at IS NOT NULL AND closes_at IS NOT NULL))` — 定休日でないのに営業時間が両方未設定の状態を防ぐ。深夜営業（22:00始まり〜翌02:00終わり等）は `opens_at > closes_at` として許容し、日をまたぐ判定はアプリ側で行う
@@ -361,13 +363,13 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 
 ユーザー投稿による混雑度報告（1〜5段階）。
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| id | uuid | PK, DEFAULT gen_random_uuid() |
-| cafe_id | uuid | NOT NULL, FK → cafes(id) |
-| user_id | uuid | NOT NULL, FK → profiles(id) |
-| level | smallint | NOT NULL, CHECK BETWEEN 1 AND 5 |
-| reported_at | timestamptz | NOT NULL, DEFAULT now() |
+| カラム      | 型          | 制約                            |
+| ----------- | ----------- | ------------------------------- |
+| id          | uuid        | PK, DEFAULT gen_random_uuid()   |
+| cafe_id     | uuid        | NOT NULL, FK → cafes(id)        |
+| user_id     | uuid        | NOT NULL, FK → profiles(id)     |
+| level       | smallint    | NOT NULL, CHECK BETWEEN 1 AND 5 |
+| reported_at | timestamptz | NOT NULL, DEFAULT now()         |
 
 **インデックス:**
 - `(cafe_id, reported_at DESC)` — `get_cafe_congestion_current()` の recent/historical 両CTEが使う唯一のインデックス。生の行のSELECTは本人+adminのみなので「一覧表示用」ではなく集計関数専用（2026-09-06 RLS変更に伴い用途を訂正）
@@ -380,7 +382,6 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 ### 表示ロジック（決定 2026-09-03）
 
 `S_CAFE_DETAIL` の混雑度セクションで、以下の3段階の表示切替を実装:
-
 1. **直近30分以内のレポートあり** → 「今の混雑度」として直近平均を表示
 2. **なければ** → 「同曜日同時間帯の過去4週間平均」を表示（同じ `get_cafe_congestion_current()` 内でフォールバック）
 3. **データ全くなし** → 「情報なし / 最初の報告者になろう」
@@ -393,7 +394,6 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 ### Postgres関数（MVP実装案）
 
 実装は `supabase/migrations/20260906140100_create_cafe_congestion_reports.sql` を単一の情報源とする（要点のみ記載）:
-
 - `security definer`（SELECT ポリシーを「本人+admin」に絞ったため、invoker のままだと呼び出し元本人の投稿しか集計できない）
 - ±1時間の時間帯窓は `extract(hour ...) between h-1 and h+1` ではなく、`now()` に `interval` を加減してから曜日・時間を取り直す方式にする（`between` 方式は UTC 0時/23時で日をまたぐラップができず、JST 09:00 前後＝開店直後の投稿ピーク帯でサンプルが半減する不具合があった）
 - 第2引数 `p_now timestamptz default now()` で基準時刻を注入可能にする。実運用は省略して実時刻を使うが、統合テストはこれを固定値で渡すことで「テストがデータを作ってから RPC を呼ぶまでの間に本当に1時間ティックして境界のバケットが窓から外れる」フレークを構造的に排除する
@@ -406,19 +406,19 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 
 ## cafe_owner_verifications
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| id | uuid | PK, DEFAULT gen_random_uuid() |
-| user_id | uuid | NOT NULL, FK → profiles(id) |
-| cafe_id | uuid | NOT NULL, FK → cafes(id) |
-| status | text | NOT NULL, DEFAULT 'pending' |
-| document_urls | jsonb | NOT NULL, DEFAULT '[]' |
-| contact_email | text | NOT NULL |
-| applicant_note | text | |
-| review_notes | text | |
-| reviewed_by | uuid | FK → profiles(id) |
-| created_at | timestamptz | NOT NULL, DEFAULT now() |
-| reviewed_at | timestamptz | |
+| カラム         | 型          | 制約                          |
+| -------------- | ----------- | ----------------------------- |
+| id             | uuid        | PK, DEFAULT gen_random_uuid() |
+| user_id        | uuid        | NOT NULL, FK → profiles(id)   |
+| cafe_id        | uuid        | NOT NULL, FK → cafes(id)      |
+| status         | text        | NOT NULL, DEFAULT 'pending'   |
+| document_urls  | jsonb       | NOT NULL, DEFAULT '[]'        |
+| contact_email  | text        | NOT NULL                      |
+| applicant_note | text        |                               |
+| review_notes   | text        |                               |
+| reviewed_by    | uuid        | FK → profiles(id)             |
+| created_at     | timestamptz | NOT NULL, DEFAULT now()       |
+| reviewed_at    | timestamptz |                               |
 
 **制約:**
 - `CHECK (status IN ('pending','approved','rejected','withdrawn'))`
@@ -451,14 +451,14 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 
 オーナーが顧客に付与する「常連さん」認定（幹C）。ユーザー側は自分の「行きつけカフェ」として表示。
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| user_id | uuid | PK, FK → profiles(id) |
-| cafe_id | uuid | PK, FK → cafes(id) |
-| awarded_by | uuid | NOT NULL, FK → profiles(id) | 認定したオーナー |
-| note | text | | オーナーからのメモ（任意） |
-| awarded_at | timestamptz | NOT NULL, DEFAULT now() |
-| revoked_at | timestamptz | | 取消時（NULL=有効） |
+| カラム     | 型          | 制約                        |
+| ---------- | ----------- | --------------------------- |
+| user_id    | uuid        | PK, FK → profiles(id)       |
+| cafe_id    | uuid        | PK, FK → cafes(id)          |
+| awarded_by | uuid        | NOT NULL, FK → profiles(id) | 認定したオーナー           |
+| note       | text        |                             | オーナーからのメモ（任意） |
+| awarded_at | timestamptz | NOT NULL, DEFAULT now()     |
+| revoked_at | timestamptz |                             | 取消時（NULL=有効）        |
 
 **インデックス:**
 - `(cafe_id, awarded_at DESC)` — ダッシュボードでの一覧
@@ -481,28 +481,28 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 
 ## posts
 
-| カラム | 型 | 制約 | 説明 |
-|---|---|---|---|
-| id | uuid | PK, DEFAULT gen_random_uuid() | |
-| author_id | uuid | NOT NULL, FK → profiles(id) | |
-| cafe_id | uuid | FK → cafes(id) | 紐付くカフェ（任意） |
-| post_type | text | NOT NULL, DEFAULT 'short' | short / blog |
-| title | text | | ブログ形式時のみ必須（アプリ層で制御） |
-| body_json | jsonb | NOT NULL | 本文（Tiptap JSON） |
-| body_text | text | GENERATED | 本文の平文（`tiptap_to_plaintext(body_json)`）— 部分一致検索・抜粋表示用 |
-| body_search | tsvector | GENERATED | 全文検索用（`simple` 設定） |
-| status | text | NOT NULL, DEFAULT 'published' | published / archived / hidden ※下書きは別テーブル `drafts` |
-| visibility | text | NOT NULL, DEFAULT 'public' | public / followers |
-| like_count | int | NOT NULL, DEFAULT 0 | トリガーで維持 |
-| comment_count | int | NOT NULL, DEFAULT 0 | 同上 |
-| bookmark_count | int | NOT NULL, DEFAULT 0 | 同上 |
-| is_official | boolean | NOT NULL, DEFAULT false | 経営者による公式投稿フラグ（幹C） |
-| official_format | text | | オーナー限定フォーマット: `tip` / `today_special` / `closure` / `new_menu` / NULL |
-| metadata | jsonb | NOT NULL, DEFAULT '{}' | 公式投稿のフォーマット別項目 + 社会的証明カウンタ等の追加余地（下記） |
-| published_at | timestamptz | | |
-| created_at | timestamptz | NOT NULL, DEFAULT now() | |
-| updated_at | timestamptz | NOT NULL, DEFAULT now() | |
-| deleted_at | timestamptz | | 論理削除 |
+| カラム          | 型          | 制約                          | 説明                                                                              |
+| --------------- | ----------- | ----------------------------- | --------------------------------------------------------------------------------- |
+| id              | uuid        | PK, DEFAULT gen_random_uuid() |                                                                                   |
+| author_id       | uuid        | NOT NULL, FK → profiles(id)   |                                                                                   |
+| cafe_id         | uuid        | FK → cafes(id)                | 紐付くカフェ（任意）                                                              |
+| post_type       | text        | NOT NULL, DEFAULT 'short'     | short / blog                                                                      |
+| title           | text        |                               | ブログ形式時のみ必須（アプリ層で制御）                                            |
+| body_json       | jsonb       | NOT NULL                      | 本文（Tiptap JSON）                                                               |
+| body_text       | text        | GENERATED                     | 本文の平文（`tiptap_to_plaintext(body_json)`）— 部分一致検索・抜粋表示用          |
+| body_search     | tsvector    | GENERATED                     | 全文検索用（`simple` 設定）                                                       |
+| status          | text        | NOT NULL, DEFAULT 'published' | published / archived / hidden ※下書きは別テーブル `drafts`                        |
+| visibility      | text        | NOT NULL, DEFAULT 'public'    | public / followers                                                                |
+| like_count      | int         | NOT NULL, DEFAULT 0           | トリガーで維持                                                                    |
+| comment_count   | int         | NOT NULL, DEFAULT 0           | 同上                                                                              |
+| bookmark_count  | int         | NOT NULL, DEFAULT 0           | 同上                                                                              |
+| is_official     | boolean     | NOT NULL, DEFAULT false       | 経営者による公式投稿フラグ（幹C）                                                 |
+| official_format | text        |                               | オーナー限定フォーマット: `tip` / `today_special` / `closure` / `new_menu` / NULL |
+| metadata        | jsonb       | NOT NULL, DEFAULT '{}'        | 公式投稿のフォーマット別項目 + 社会的証明カウンタ等の追加余地（下記）             |
+| published_at    | timestamptz |                               |                                                                                   |
+| created_at      | timestamptz | NOT NULL, DEFAULT now()       |                                                                                   |
+| updated_at      | timestamptz | NOT NULL, DEFAULT now()       |                                                                                   |
+| deleted_at      | timestamptz |                               | 論理削除                                                                          |
 
 **制約:**
 - `CHECK (status IN ('published','archived','hidden'))`
@@ -511,6 +511,7 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
 - `CHECK (official_format IS NULL OR official_format IN ('tip','today_special','closure','new_menu'))`
 - `CHECK (is_official = false OR cafe_id IS NOT NULL)` — 公式投稿は必ずカフェに紐づく
 - **「`is_official=true` は認証済みオーナーのみ」は CHECK 制約では表現できない**（CHECK にサブクエリは書けない）。RLS の INSERT/UPDATE ポリシーで担保する:
+
   ```sql
   CREATE POLICY posts_insert ON public.posts FOR INSERT TO authenticated
   WITH CHECK (
@@ -522,6 +523,7 @@ non-nullable (`Returns: string`) として生成するため、RPC 経由で呼�
     )
   );
   ```
+
   service_role 経由の書き込みは RLS を迂回するため、同等のチェックを BEFORE INSERT トリガーにも置く
 
 **インデックス:**
@@ -589,10 +591,10 @@ USING (author_id = auth.uid());
 
 素の PostgreSQL に `'japanese'` テキスト検索設定は存在せず、`to_tsvector('japanese', ...)` は実行時エラーになる。かといって PGroonga を入れると tsvector 方式をやめて専用索引に寄せる設計変更が要り、索引サイズも増える。**幹A は「気分タグ起点の発見」が主軸で全文検索は補助**（[positioning.md](../../product/positioning.md)）なので、MVP は確実に動く構成を取る。
 
-| 用途 | 仕組み |
-|---|---|
-| 日本語の部分一致（実質の主役） | `body_text` に `gin_trgm_ops` の GIN 索引。`body_text ILIKE '%渋谷%'` が索引で効く |
-| 英数字の語一致（店名・`Wi-Fi` 等） | `body_search`（`simple` 設定の tsvector）に GIN 索引 |
+| 用途                               | 仕組み                                                                             |
+| ---------------------------------- | ---------------------------------------------------------------------------------- |
+| 日本語の部分一致（実質の主役）     | `body_text` に `gin_trgm_ops` の GIN 索引。`body_text ILIKE '%渋谷%'` が索引で効く |
+| 英数字の語一致（店名・`Wi-Fi` 等） | `body_search`（`simple` 設定の tsvector）に GIN 索引                               |
 
 `simple` 設定は空白区切りでしかトークン化しないため、日本語の文は1つの巨大トークンになり tsvector 側はほぼ効かない。**日本語検索の精度は pg_trgm が担う**と理解して使う。
 
@@ -649,7 +651,6 @@ body_search tsvector GENERATED ALWAYS AS (
 ```
 
 **`official_format` ごとの `post_type` 割り当て（決定 2026-09-22）:** `tip`（豆知識）は Tiptap 長文本体を持つため `blog`。`today_special` / `new_menu` / `closure` は画像＋短文＋`metadata` 中心の構造化フォーマットなので `short` に寄せる（`lib/constants/posts.ts` の `officialFormatPostType`）。
-
 - `price_yen` は表示専用。価格の比較・アンカリング表示はフェーズ2（[mvp-scope.md](../../product/mvp-scope.md)）
 - `closure` の期間は `cafe_business_hours` を上書きしない。営業時間そのものへの反映は `cafe_special_hours` テーブルの導入後（[pending-items B5](../../product/pending-items.md)）
 
@@ -659,16 +660,16 @@ body_search tsvector GENERATED ALWAYS AS (
 
 ## post_images
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| id | uuid | PK, DEFAULT gen_random_uuid() |
-| post_id | uuid | NOT NULL, FK → posts(id) ON DELETE CASCADE |
-| storage_path | text | NOT NULL, **UNIQUE** | Supabase Storage `post-images` のオブジェクトパス |
-| display_order | smallint | NOT NULL, DEFAULT 0 |
-| width | int | |
-| height | int | |
-| alt_text | text | |
-| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| カラム        | 型          | 制約                                       |
+| ------------- | ----------- | ------------------------------------------ |
+| id            | uuid        | PK, DEFAULT gen_random_uuid()              |
+| post_id       | uuid        | NOT NULL, FK → posts(id) ON DELETE CASCADE |
+| storage_path  | text        | NOT NULL, **UNIQUE**                       | Supabase Storage `post-images` のオブジェクトパス |
+| display_order | smallint    | NOT NULL, DEFAULT 0                        |
+| width         | int         |                                            |
+| height        | int         |                                            |
+| alt_text      | text        |                                            |
+| created_at    | timestamptz | NOT NULL, DEFAULT now()                    |
 
 **アプリ層の責務:** アップロード時にEXIFを剥がしてから Storage に PUT する（クライアント側で exifr 等で処理）。
 署名付きURLで直PUTする構成上サーバーはバイト列を検証できず、クライアント処理は改造クライアント・実装バグで迂回され得るため、
@@ -690,14 +691,14 @@ body_search tsvector GENERATED ALWAYS AS (
 
 下書き自動保存用。ブログ形式投稿の離脱防止（損失回避）。
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| id | uuid | PK, DEFAULT gen_random_uuid() |
-| author_id | uuid | NOT NULL, FK → profiles(id) |
-| client_draft_key | text | NOT NULL | 端末側で発行するキー |
-| payload | jsonb | NOT NULL | 投稿途中データ（`v`, post_id, post_type, title, body_json, tag_ids, image_paths, cafe_id, visibility） |
-| last_saved_at | timestamptz | NOT NULL, DEFAULT now() |
-| expires_at | timestamptz | NOT NULL, DEFAULT now() + interval '30 days' |
+| カラム           | 型          | 制約                                         |
+| ---------------- | ----------- | -------------------------------------------- |
+| id               | uuid        | PK, DEFAULT gen_random_uuid()                |
+| author_id        | uuid        | NOT NULL, FK → profiles(id)                  |
+| client_draft_key | text        | NOT NULL                                     | 端末側で発行するキー                                                                                   |
+| payload          | jsonb       | NOT NULL                                     | 投稿途中データ（`v`, post_id, post_type, title, body_json, tag_ids, image_paths, cafe_id, visibility） |
+| last_saved_at    | timestamptz | NOT NULL, DEFAULT now()                      |
+| expires_at       | timestamptz | NOT NULL, DEFAULT now() + interval '30 days' |
 
 **制約:** `UNIQUE (author_id, client_draft_key)`
 
@@ -729,17 +730,17 @@ body_search tsvector GENERATED ALWAYS AS (
 
 ## comments
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| id | uuid | PK, DEFAULT gen_random_uuid() |
-| post_id | uuid | NOT NULL, FK → posts(id) ON DELETE CASCADE |
-| author_id | uuid | NOT NULL, FK → profiles(id) |
-| parent_id | uuid | FK → comments(id) | 返信スレッド。**1階層まで**（返信への返信は不可、トリガーで強制） |
-| body | text | NOT NULL |
-| is_official | boolean | NOT NULL, DEFAULT false | オーナー公式返信フラグ（幹C） — UIで区別表示 |
-| created_at | timestamptz | NOT NULL, DEFAULT now() |
-| updated_at | timestamptz | NOT NULL, DEFAULT now() |
-| deleted_at | timestamptz | |
+| カラム      | 型          | 制約                                       |
+| ----------- | ----------- | ------------------------------------------ |
+| id          | uuid        | PK, DEFAULT gen_random_uuid()              |
+| post_id     | uuid        | NOT NULL, FK → posts(id) ON DELETE CASCADE |
+| author_id   | uuid        | NOT NULL, FK → profiles(id)                |
+| parent_id   | uuid        | FK → comments(id)                          | 返信スレッド。**1階層まで**（返信への返信は不可、トリガーで強制） |
+| body        | text        | NOT NULL                                   |
+| is_official | boolean     | NOT NULL, DEFAULT false                    | オーナー公式返信フラグ（幹C） — UIで区別表示                      |
+| created_at  | timestamptz | NOT NULL, DEFAULT now()                    |
+| updated_at  | timestamptz | NOT NULL, DEFAULT now()                    |
+| deleted_at  | timestamptz |                                            |
 
 **インデックス:** `(post_id, created_at)`
 
@@ -752,7 +753,7 @@ body_search tsvector GENERATED ALWAYS AS (
 - SELECT: 2本の permissive policy の OR。
   1. `comments_select_visible`: `deleted_at IS NULL` かつ **投稿が見える場合のみ**（`exists (select 1 from posts p where p.id = comments.post_id) or is_post_author(post_id)` — サブクエリに呼び出し元ロールの `posts` RLS がそのまま適用されるため、hidden・論理削除済み・非公開投稿・作者ブロック済みのコメントは第三者から読めない。[post_images](#post_images) / [post_tags](#post_tags) と同じパターン）かつブロック相手（`author_id`）を除外
   2. `comments_select_own`: `author_id = auth.uid() or is_post_author(post_id)`（`deleted_at` を見ない）。[posts_select_own](#posts) と同じ理由 — PostgreSQL の RLS は UPDATE 対象行の選択だけでなく「更新後の新しい行が何らかの SELECT ポリシーを満たすか」も検証するため、`deleted_at` を立てる論理削除の UPDATE は当人であっても`comments_select_visible`単独では常に RLS 違反になる。この permissive policy が無いと投稿主も作者も自分のコメントを一切削除できない。
-  **注意:** 2番目のポリシーにより「削除済みコメントは誰にも見えない」という保証は RLS だけでは成立しない（作者・投稿主には見え続ける）。一覧取得は必ずアプリ層で `deleted_at is null` を明示すること（`posts_select_own` と同じ運用）
+     **注意:** 2番目のポリシーにより「削除済みコメントは誰にも見えない」という保証は RLS だけでは成立しない（作者・投稿主には見え続ける）。一覧取得は必ずアプリ層で `deleted_at is null` を明示すること（`posts_select_own` と同じ運用）
 - INSERT: 認証済み。`is_official = true` は該当カフェの `verified_owner_id = auth.uid()` の場合のみ許可（RLS の `WITH CHECK` に加えて、posts と同様に `security definer` トリガー `guard_comments_official_owner` も併置する。RLS の `WITH CHECK` は `auth.uid()` 前提のため service_role 経由の書き込みでは迂回できてしまうため）
 - UPDATE: `auth.uid() = author_id or is_post_author(post_id)`。ただし `body` を変更できるのはコメント作者本人のみで、投稿主は `deleted_at`（論理削除）以外の列を変更できない — `guard_comments_moderation_columns` トリガーで列単位に強制する（[profiles の `guard_privileged_profile_columns`](#profiles) と同じ形）。
   さらに、**返信が付いたトップレベルコメントは、投稿主でない作者本人には削除させない**（`COMMENT_HAS_REPLIES` を raise）。他人が書いた返信を、コメントの作者というだけの権限で道連れに消せてしまうのを防ぐため。投稿主が削除する場合は制限を受けず、`cascade_delete_comment_replies` トリガーが未削除の返信を連動して論理削除し、`comment_count` も行単位のカウントトリガーで正しく減算される（そうしないと、返信だけが `comment_count` に残ったまま `getPostComments` の親フィルタ越しに永久に取得できなくなる）
@@ -762,17 +763,17 @@ body_search tsvector GENERATED ALWAYS AS (
 
 ## tags
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| id | uuid | PK, DEFAULT gen_random_uuid() |
-| slug | text | UNIQUE, NOT NULL |
-| label | text | NOT NULL |
-| category | text | NOT NULL | area / mood / occasion / other |
-| priority | smallint | NOT NULL, DEFAULT 0 | 表示優先度（高いほど先頭に出す）— 幹Aでシーンタグを最上位に |
-| description | text | |
-| usage_count | int | NOT NULL, DEFAULT 0 |
-| is_curated | boolean | NOT NULL, DEFAULT false | 運営厳選タグ |
-| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| カラム      | 型          | 制約                          |
+| ----------- | ----------- | ----------------------------- |
+| id          | uuid        | PK, DEFAULT gen_random_uuid() |
+| slug        | text        | UNIQUE, NOT NULL              |
+| label       | text        | NOT NULL                      |
+| category    | text        | NOT NULL                      | area / mood / occasion / other                              |
+| priority    | smallint    | NOT NULL, DEFAULT 0           | 表示優先度（高いほど先頭に出す）— 幹Aでシーンタグを最上位に |
+| description | text        |                               |
+| usage_count | int         | NOT NULL, DEFAULT 0           |
+| is_curated  | boolean     | NOT NULL, DEFAULT false       | 運営厳選タグ                                                |
+| created_at  | timestamptz | NOT NULL, DEFAULT now()       |
 
 **インデックス:** `(category, priority DESC)` — 「今、どんなカフェ気分？」のカテゴリ別 priority 順表示
 
@@ -786,11 +787,11 @@ body_search tsvector GENERATED ALWAYS AS (
 
 ## post_tags
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| post_id | uuid | PK, FK → posts(id) ON DELETE CASCADE |
-| tag_id | uuid | PK, FK → tags(id) |
-| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| カラム     | 型          | 制約                                 |
+| ---------- | ----------- | ------------------------------------ |
+| post_id    | uuid        | PK, FK → posts(id) ON DELETE CASCADE |
+| tag_id     | uuid        | PK, FK → tags(id)                    |
+| created_at | timestamptz | NOT NULL, DEFAULT now()              |
 
 **インデックス:** `(tag_id, post_id)` — タグからの逆引き
 
@@ -800,11 +801,11 @@ body_search tsvector GENERATED ALWAYS AS (
 
 ## likes
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| user_id | uuid | PK, FK → profiles(id) ON DELETE CASCADE |
-| post_id | uuid | PK, FK → posts(id) ON DELETE CASCADE |
-| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| カラム     | 型          | 制約                                    |
+| ---------- | ----------- | --------------------------------------- |
+| user_id    | uuid        | PK, FK → profiles(id) ON DELETE CASCADE |
+| post_id    | uuid        | PK, FK → posts(id) ON DELETE CASCADE    |
+| created_at | timestamptz | NOT NULL, DEFAULT now()                 |
 
 **インデックス:** `(post_id, created_at desc)` — 主キーは `post_id` が第2列なので
 「この投稿へのいいね」を引けない
@@ -886,13 +887,13 @@ hidden/archived/削除済みぶんを除外し、`badge_criteria_met` はそれ�
 
 お気に入り + 行きたい を統合。将来の拡張余地あり。
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| user_id | uuid | PK, FK → profiles(id) ON DELETE CASCADE |
-| cafe_id | uuid | PK, FK → cafes(id) ON DELETE CASCADE |
-| list_type | text | PK, NOT NULL |
-| note | text | ユーザーメモ |
-| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| カラム     | 型          | 制約                                    |
+| ---------- | ----------- | --------------------------------------- |
+| user_id    | uuid        | PK, FK → profiles(id) ON DELETE CASCADE |
+| cafe_id    | uuid        | PK, FK → cafes(id) ON DELETE CASCADE    |
+| list_type  | text        | PK, NOT NULL                            |
+| note       | text        | ユーザーメモ                            |
+| created_at | timestamptz | NOT NULL, DEFAULT now()                 |
 
 **制約:** `CHECK (list_type IN ('favorite','want_to_go'))`
 
@@ -913,11 +914,11 @@ hidden/archived/削除済みぶんを除外し、`badge_criteria_met` はそれ�
 
 ## post_bookmarks
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| user_id | uuid | PK, FK → profiles(id) ON DELETE CASCADE |
-| post_id | uuid | PK, FK → posts(id) ON DELETE CASCADE |
-| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| カラム     | 型          | 制約                                    |
+| ---------- | ----------- | --------------------------------------- |
+| user_id    | uuid        | PK, FK → profiles(id) ON DELETE CASCADE |
+| post_id    | uuid        | PK, FK → posts(id) ON DELETE CASCADE    |
+| created_at | timestamptz | NOT NULL, DEFAULT now()                 |
 
 **インデックス:** `(user_id, created_at desc)` — `/me/bookmarks`（S_BOOKMARKS）の
 「本人の保存を新しい順」に対応する
@@ -933,31 +934,33 @@ hidden/archived/削除済みぶんを除外し、`badge_criteria_met` はそれ�
 
 ## reports
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| id | uuid | PK, DEFAULT gen_random_uuid() |
-| reporter_id | uuid | NOT NULL, FK → profiles(id) |
-| target_type | text | NOT NULL | post / comment / user / cafe |
-| target_id | uuid | NOT NULL |
-| reason | text | NOT NULL | spam / harassment / minor_risk / copyright / privacy / other |
-| description | text | |
-| status | text | NOT NULL, DEFAULT 'pending' | pending / reviewing / resolved / rejected |
-| reviewer_id | uuid | FK → profiles(id) |
-| resolution_notes | text | |
-| created_at | timestamptz | NOT NULL, DEFAULT now() |
-| resolved_at | timestamptz | |
+| カラム           | 型          | 制約                          |
+| ---------------- | ----------- | ----------------------------- |
+| id               | uuid        | PK, DEFAULT gen_random_uuid() |
+| reporter_id      | uuid        | NOT NULL, FK → profiles(id)   |
+| target_type      | text        | NOT NULL                      | post / comment / user / cafe                                 |
+| target_id        | uuid        | NOT NULL                      |
+| reason           | text        | NOT NULL                      | spam / harassment / minor_risk / copyright / privacy / other |
+| description      | text        |                               |
+| status           | text        | NOT NULL, DEFAULT 'pending'   | pending / reviewing / resolved / rejected                    |
+| reviewer_id      | uuid        | FK → profiles(id)             |
+| resolution_notes | text        |                               |
+| created_at       | timestamptz | NOT NULL, DEFAULT now()       |
+| resolved_at      | timestamptz |                               |
 
 **制約:**
 - `CHECK (reason IN ('spam','harassment','minor_risk','copyright','privacy','other'))`
 - `CHECK (target_type IN ('post','comment','user','cafe'))`
 - `CHECK (status IN ('pending','reviewing','resolved','rejected'))`
 - **同一ユーザーによる同一対象への重複通報を DB で弾く**（[error-catalog](../error-catalog.md) `REPORT_ALREADY_SUBMITTED`）:
+
   ```sql
   -- 未処理の通報が既にある間だけ重複を禁止する（部分ユニークインデックス）
   CREATE UNIQUE INDEX reports_open_unique
   ON public.reports (reporter_id, target_type, target_id)
   WHERE status IN ('pending','reviewing');
   ```
+
   **全期間の UNIQUE にはしない。** 一度 `resolved` / `rejected` になった対象が後に再び違反状態になる（投稿が編集される等）ケースで、同じ人が二度と通報できなくなるため
 
 **インデックス:** `(status, created_at)` — モデレーションキュー
@@ -966,27 +969,27 @@ hidden/archived/削除済みぶんを除外し、`badge_criteria_met` はそれ�
 
 **理由コードと UI ラベルの対応**（[wireframes/composer.md S_REPORT_FORM](../../design/wireframes/composer.md#s_report_form通報フォーム)）:
 
-| code | UIラベル |
-|---|---|
-| `spam` | スパム / 宣伝 |
+| code         | UIラベル            |
+| ------------ | ------------------- |
+| `spam`       | スパム / 宣伝       |
 | `harassment` | 嫌がらせ / 誹謗中傷 |
-| `minor_risk` | 未成年に不適切 |
-| `copyright` | 著作権侵害 |
-| `privacy` | 個人情報を含む |
-| `other` | その他 |
+| `minor_risk` | 未成年に不適切      |
+| `copyright`  | 著作権侵害          |
+| `privacy`    | 個人情報を含む      |
+| `other`      | その他              |
 
 ---
 
 ## ng_words
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| id | uuid | PK, DEFAULT gen_random_uuid() |
-| word | text | UNIQUE, NOT NULL |
-| severity | text | NOT NULL, DEFAULT 'warn' | warn / block |
-| category | text | | harassment / adult / spam / other |
-| created_by | uuid | FK → profiles(id) |
-| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| カラム     | 型          | 制約                          |
+| ---------- | ----------- | ----------------------------- |
+| id         | uuid        | PK, DEFAULT gen_random_uuid() |
+| word       | text        | UNIQUE, NOT NULL              |
+| severity   | text        | NOT NULL, DEFAULT 'warn'      | warn / block                      |
+| category   | text        |                               | harassment / adult / spam / other |
+| created_by | uuid        | FK → profiles(id)             |
+| created_at | timestamptz | NOT NULL, DEFAULT now()       |
 
 **運用:** `createPost` / `createComment` から `check_ng_words()`（security definer 関数、`ng_words` の
 admin限定RLSをバイパスして参照する）で単語一致チェック。一致は大文字小文字を無視した部分一致。
@@ -1001,32 +1004,32 @@ security definer で RLS をバイパスし、authenticated から実行可能
 
 ## notifications
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| id | uuid | PK, DEFAULT gen_random_uuid() |
-| recipient_id | uuid | NOT NULL, FK → profiles(id) |
-| actor_id | uuid | FK → profiles(id) |
-| type | text | NOT NULL | 下の CHECK 制約と同じ値域（説明は下表） |
-| entity_type | text | | post / comment / user 等 |
-| entity_id | uuid | |
-| payload | jsonb | NOT NULL, DEFAULT '{}' |
-| read_at | timestamptz | |
-| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| カラム       | 型          | 制約                          |
+| ------------ | ----------- | ----------------------------- |
+| id           | uuid        | PK, DEFAULT gen_random_uuid() |
+| recipient_id | uuid        | NOT NULL, FK → profiles(id)   |
+| actor_id     | uuid        | FK → profiles(id)             |
+| type         | text        | NOT NULL                      | 下の CHECK 制約と同じ値域（説明は下表） |
+| entity_type  | text        |                               | post / comment / user 等                |
+| entity_id    | uuid        |                               |
+| payload      | jsonb       | NOT NULL, DEFAULT '{}'        |
+| read_at      | timestamptz |                               |
+| created_at   | timestamptz | NOT NULL, DEFAULT now()       |
 
 **制約:** `CHECK (type IN ('like','comment','follow','mention','badge','owner_verified','owner_verification_rejected','regular_awarded','official_post','report_resolved'))`
 
-| type | 発火元 | 宛先 |
-|---|---|---|
-| `like` | `likes` INSERT | 投稿者 |
-| `comment` | `comments` INSERT | 投稿者 / 親コメント作者 |
-| `follow` | `follows` INSERT | フォローされた人 |
-| `mention` | 本文中の @メンション（MVP未実装、[pending-items D2](../../product/pending-items.md)） | 対象ユーザー |
-| `badge` | `checkAndAwardBadges` | 獲得者 |
-| `owner_verified` | オーナー認証の承認 | 申請者 |
-| `owner_verification_rejected` | オーナー認証の却下（`review_notes` に理由） | 申請者 |
-| `regular_awarded` | 常連認定（幹C） | 認定されたユーザー |
-| `official_post` | オーナー限定投稿の公開（幹C） | 当該カフェを「お気に入り」「行きたい」に入れているユーザー |
-| `report_resolved` | 通報の `status` が resolved / rejected に遷移 | 通報者 |
+| type                          | 発火元                                                                                | 宛先                                                       |
+| ----------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `like`                        | `likes` INSERT                                                                        | 投稿者                                                     |
+| `comment`                     | `comments` INSERT                                                                     | 投稿者 / 親コメント作者                                    |
+| `follow`                      | `follows` INSERT                                                                      | フォローされた人                                           |
+| `mention`                     | 本文中の @メンション（MVP未実装、[pending-items D2](../../product/pending-items.md)） | 対象ユーザー                                               |
+| `badge`                       | `checkAndAwardBadges`                                                                 | 獲得者                                                     |
+| `owner_verified`              | オーナー認証の承認                                                                    | 申請者                                                     |
+| `owner_verification_rejected` | オーナー認証の却下（`review_notes` に理由）                                           | 申請者                                                     |
+| `regular_awarded`             | 常連認定（幹C）                                                                       | 認定されたユーザー                                         |
+| `official_post`               | オーナー限定投稿の公開（幹C）                                                         | 当該カフェを「お気に入り」「行きたい」に入れているユーザー |
+| `report_resolved`             | 通報の `status` が resolved / rejected に遷移                                         | 通報者                                                     |
 
 **インデックス:** `(recipient_id, created_at DESC) WHERE read_at IS NULL` — 未読
 
@@ -1041,15 +1044,15 @@ S_ADMIN_OWNER_REVIEW の Server Action から直接書き込むため。他の t
 
 ## badges
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| id | uuid | PK, DEFAULT gen_random_uuid() |
-| code | text | UNIQUE, NOT NULL |
-| name | text | NOT NULL |
-| description | text | |
-| icon_url | text | |
-| criteria | jsonb | NOT NULL | 付与条件（訪問数等） |
-| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| カラム      | 型          | 制約                          |
+| ----------- | ----------- | ----------------------------- |
+| id          | uuid        | PK, DEFAULT gen_random_uuid() |
+| code        | text        | UNIQUE, NOT NULL              |
+| name        | text        | NOT NULL                      |
+| description | text        |                               |
+| icon_url    | text        |                               |
+| criteria    | jsonb       | NOT NULL                      | 付与条件（訪問数等） |
+| created_at  | timestamptz | NOT NULL, DEFAULT now()       |
 
 **制約:** `CHECK (coalesce(jsonb_typeof(criteria->'type'),'') = 'string' AND coalesce(jsonb_typeof(criteria->'threshold'),'') = 'number')`
 — **`coalesce` が要る。** `jsonb_typeof` は STRICT なのでキーが無いと NULL を返し、CHECK は NULL を「通過」と扱うため、
@@ -1063,12 +1066,12 @@ S_ADMIN_OWNER_REVIEW の Server Action から直接書き込むため。他の t
 
 ## user_badges
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| user_id | uuid | PK, FK → profiles(id) |
-| badge_id | uuid | PK, FK → badges(id) |
+| カラム     | 型          | 制約                    |
+| ---------- | ----------- | ----------------------- |
+| user_id    | uuid        | PK, FK → profiles(id)   |
+| badge_id   | uuid        | PK, FK → badges(id)     |
 | awarded_at | timestamptz | NOT NULL, DEFAULT now() |
-| context | jsonb | 付与時のコンテキスト |
+| context    | jsonb       | 付与時のコンテキスト    |
 
 **RLS:** SELECT 全ユーザー / INSERT はシステム（admin）のみ
 
@@ -1078,13 +1081,13 @@ S_ADMIN_OWNER_REVIEW の Server Action から直接書き込むため。他の t
 
 エリア制覇マップ用。カフェへの投稿・保存を通じてエリア単位の訪問実績を集計。
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| user_id | uuid | PK, FK → profiles(id) |
-| area_code | text | PK, FK → [areas](#areas)(code) | エリアコード（例: `JP-13-shibuya-ku`） |
-| first_visited_at | timestamptz | NOT NULL |
-| last_visited_at | timestamptz | NOT NULL |
-| visit_count | int | NOT NULL, DEFAULT 1 |
+| カラム           | 型          | 制約                           |
+| ---------------- | ----------- | ------------------------------ |
+| user_id          | uuid        | PK, FK → profiles(id)          |
+| area_code        | text        | PK, FK → [areas](#areas)(code) | エリアコード（例: `JP-13-shibuya-ku`） |
+| first_visited_at | timestamptz | NOT NULL                       |
+| last_visited_at  | timestamptz | NOT NULL                       |
+| visit_count      | int         | NOT NULL, DEFAULT 1            |
 
 **運用:** 投稿が `published` になった時にトリガーで自エリア + 親エリアを upsert する。トリガー定義と NULL 対策は [README.md #エリアコードの一貫性](./README.md#エリアコードの一貫性) を参照
 
@@ -1096,15 +1099,15 @@ S_ADMIN_OWNER_REVIEW の Server Action から直接書き込むため。他の t
 
 運営操作の監査記録。
 
-| カラム | 型 | 制約 |
-|---|---|---|
-| id | uuid | PK, DEFAULT gen_random_uuid() |
-| actor_id | uuid | FK → profiles(id) |
-| action | text | NOT NULL |
-| target_type | text | |
-| target_id | uuid | |
-| metadata | jsonb | NOT NULL, DEFAULT '{}' |
-| created_at | timestamptz | NOT NULL, DEFAULT now() |
+| カラム      | 型          | 制約                          |
+| ----------- | ----------- | ----------------------------- |
+| id          | uuid        | PK, DEFAULT gen_random_uuid() |
+| actor_id    | uuid        | FK → profiles(id)             |
+| action      | text        | NOT NULL                      |
+| target_type | text        |                               |
+| target_id   | uuid        |                               |
+| metadata    | jsonb       | NOT NULL, DEFAULT '{}'        |
+| created_at  | timestamptz | NOT NULL, DEFAULT now()       |
 
 **RLS:** SELECT admin のみ / INSERT は admin 本人のみ（`actor_id = auth.uid()` を RLS で強制。
 S_ADMIN_REVIEW の Server Action から security definer 関数を介さず直接書き込む方式を採用したため。
