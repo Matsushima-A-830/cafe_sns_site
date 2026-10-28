@@ -934,7 +934,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - 参照: S_CAFE_DETAIL 実装時にスコープ外と判断（2026-09-17）／いいねのみ解消（2026-09-19）／通報リンク解消（2026-09-21）／
   地図・徒歩3分解消（2026-09-28）
 
-### D31. カフェのヒーロー画像が最新投稿へのフォールバックだけで成り立っている
+### D31. カフェのヒーロー画像が最新投稿へのフォールバックだけで成り立っている ✅ 解消済（2026-10-26）
 
 - **課題:** `cafes.main_image_path` は「Supabase Storage の `cafe-images` オブジェクトパス」と
   定義されている（[tables.md](../architecture/data-model/tables.md) #cafes）が、**`cafe-images`
@@ -952,6 +952,11 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **2026-09-23 追記:** S_OWNER_CAFE_EDIT 実装時にバケット新設を見送った（PRの見積もりが
   約2倍に膨らむため。S_CAFE_NEW が地図・郵便番号自動入力を見送ったのと同じ判断）。
   基本情報・外部連携・営業時間のみ編集可能にし、メイン画像アップロードは引き続き未解消のまま次に送る
+- **2026-10-26 追記（解消）:** 対応案a採用。`cafe-images` バケット＋RLS（`is_cafe_owner()` で
+  判定。他バケットの「先頭セグメント=auth.uid()」パターンは cafe_id が所有者を表さないため使えない。
+  [README.md #オブジェクトパスの規約](../architecture/data-model/README.md#オブジェクトパスの規約)）を
+  新設し、S_OWNER_CAFE_EDIT にメイン画像アップロード欄を追加。`resolveHeroImageUrl`
+  （`lib/cafes/cafe-detail.ts`）を main_image_path 優先・投稿フォールバックの順に修正した
 
 ### D32. S_MYPAGE と一覧3画面で「出していない」もの
 
@@ -2068,6 +2073,26 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   投稿数が増えて実害が見え始めた時点で再判断する
 - **対応（2026-10-24）:** 2は `chunk` ユーティリティで同時実行数を20件に制限して対応。
   1はSentryの `reportError` 呼び出しに `imagePaths` を含めて可視化のみ対応（再試行機構は未実装）
+
+### D76. cafe-images 関連 `/code-review` 指摘の残課題（D31フォローアップ）
+
+- **課題:** D31（cafe-imagesバケット新設、PR未作成）の `/code-review` で5件の指摘が出た。うち
+  cafeIdとパスの不一致・所有権チェック前のEXIF処理・保存失敗時のプレビュー不整合の3件は同PRで
+  対応済み（`app/_actions/cafes.ts` に `startsWith` チェックと `is_cafe_owner` 早期確認を追加、
+  `cafe-edit-form.tsx` で保存失敗時に `mainImageUrl` を復元）。残り2件は同PRでは対応せず記録のみ
+  1. **`createCafeImageUploadUrl`（`lib/storage/cafe-images.ts`）の認可チェックが
+     `is_active_user()` を含まない:** 対応する `cafe_images_objects_insert_own` RLS
+     （`storage/objects` 側）は `is_cafe_owner() and is_active_user()` をANDしているが、
+     署名URL発行時のアプリ層チェックは `is_cafe_owner()` のみ。停止中オーナーに対して
+     署名URL発行自体は `ok: true` を返し、実アップロード時にRLSで初めて失敗する
+     （`UPLOAD_FAILED` という紛らわしいエラーになる）
+  2. **GPS検出時の `deleteCafeImageFile` がRLSで黙って失敗しうる:** 呼び出し元が所有しない
+     オブジェクトを指すと `cafe_images_objects_delete_own` RLS が削除対象から静かに除外し、
+     `deleted.ok` が `true` のまま返る（avatars.ts に既存の同型の限界があり、新規introductionではない）。
+     D76-1の修正でcafeId不一致を事前に弾いているため実害経路は塞がれているが、理論上は残る
+- **対応方針（未着手）:** 1はavatars/owner-documentsの署名URL発行関数も同じ構造なら横断で
+  `is_active_user()` を追加する一括対応を検討（単独修正は「3回ルール」に反するため、他2バケットの
+  現状を先に確認してから判断）。2は対応しない（D3・D65と同じトーンで、実害が見えてから再判断）
 
 ## 削除・アーカイブ判断待ち
 
