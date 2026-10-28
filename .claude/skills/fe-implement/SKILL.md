@@ -1,4 +1,5 @@
 ---
+
 name: fe-implement
 description: フロントエンド実装（ページ・コンポーネント・レイアウト）を進める。Next.js App Router + Tailwind + shadcn/ui + Tiptap。
 ---
@@ -96,7 +97,7 @@ export function LikeButton({ postId, initialLiked, initialCount }: Props) {
 ### 良い例
 
 ```tsx
-<div className="p-4 md:p-6 lg:p-8 bg-brown-50 text-brown-900 border border-brown-200 rounded-lg">
+;<div className="p-4 md:p-6 lg:p-8 bg-brown-50 text-brown-900 border border-brown-200 rounded-lg">
   <h2 className="text-2xl font-bold text-brown-900 mb-4">見出し</h2>
   <p className="text-base text-brown-700">本文</p>
   <button className="mt-6 px-6 py-3 bg-brown-500 hover:bg-brown-600 text-brown-50 rounded-md">
@@ -108,8 +109,10 @@ export function LikeButton({ postId, initialLiked, initialCount }: Props) {
 ### 悪い例（すべて修正必須）
 
 ```tsx
-<div className="p-5 bg-black text-black">          ❌ p-5禁止 / black禁止
-  <h2 className="text-[15px] mt-7">見出し</h2>       ❌ 任意値サイズ / mt-7禁止
+;<div className="p-5 bg-black text-black">
+  {' '}
+  ❌ p-5禁止 / black禁止
+  <h2 className="text-[15px] mt-7">見出し</h2> ❌ 任意値サイズ / mt-7禁止
   <p style={{ color: '#000', padding: 10 }}>本文</p> ❌ インラインstyle / #000
 </div>
 ```
@@ -130,12 +133,12 @@ pnpm dlx shadcn@latest add button dialog form input textarea
 
 CLAUDE.md の方針に従う:
 
-| BP | 幅 | 用途 |
-|---|---|---|
-| 無印 | ~ 767px | モバイル |
-| `md:` | 768〜 | タブレット |
-| `lg:` | 1024〜 | PC基本 |
-| `xl:` | 1280〜 | PC贅沢 |
+| BP    | 幅      | 用途       |
+| ----- | ------- | ---------- |
+| 無印  | ~ 767px | モバイル   |
+| `md:` | 768〜   | タブレット |
+| `lg:` | 1024〜  | PC基本     |
+| `xl:` | 1280〜  | PC贅沢     |
 
 ```tsx
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 lg:gap-8">
@@ -198,7 +201,7 @@ const editor = useEditor({
   ],
   content: initial ?? null,
   onUpdate: ({ editor }) => {
-    debouncedSave(editor.getJSON())  // drafts テーブルへ
+    debouncedSave(editor.getJSON()) // drafts テーブルへ
   },
 })
 ```
@@ -228,7 +231,6 @@ async function handleFile(file: File) {
 ## エラー・空状態の設計
 
 必ず用意する:
-
 - **`loading.tsx`** — スケルトンUI（レイアウトシフト回避）
 - **`error.tsx`** — フレンドリなメッセージ + [再読み込み] [ホームへ]
 - **`not-found.tsx`** — 「投稿が見つかりません」等の意味のあるコピー
@@ -237,7 +239,6 @@ async function handleFile(file: File) {
 ## 行動経済学の適用チェック（CLAUDE.md 参照）
 
 該当する要素があれば適用:
-
 - **デフォルト効果:** フォーム初期値、タブの初期選択
 - **選択のパラドックス回避:** 選択肢は5〜7個まで、「もっと見る」で拡張
 - **ピークエンド則:** 完了アニメーション、成功トースト

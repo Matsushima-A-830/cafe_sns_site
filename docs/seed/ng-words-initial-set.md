@@ -13,28 +13,28 @@
 
 ## 初期セット
 
-| word | severity | category | 意図 |
-|---|---|---|---|
-| 死ね | block | harassment | 直接的な加害・脅迫表現 |
-| 殺す | block | harassment | 直接的な加害・脅迫表現 |
-| きもい | warn | harassment | 侮辱表現（文脈次第で許容されうるため warn） |
-| うざい | warn | harassment | 侮辱表現 |
-| ぶす | warn | harassment | 容姿への侮辱 |
-| デブ | warn | harassment | 容姿への侮辱 |
-| 消えろ | warn | harassment | 攻撃的表現 |
-| 出会い系 | block | adult | 未成年メインターゲットへの勧誘対策 |
-| 援助交際 | block | adult | 違法行為の勧誘 |
-| パパ活 | block | adult | 未成年への勧誘対策 |
-| ライン交換 | warn | adult | 個人間連絡先交換の勧誘（文脈次第） |
-| セフレ | block | adult | 性的関係の勧誘 |
-| 儲かる副業 | block | spam | 詐欺的副業勧誘の定型句 |
-| 今すぐ稼げる | block | spam | 詐欺的副業勧誘の定型句 |
-| 副業紹介 | warn | spam | 勧誘の可能性がある定型句 |
-| 相互フォロー | warn | spam | フォロー乞い（スパム的な定型句） |
-| クリックして | warn | spam | フィッシング誘導の定型句 |
-| 無料プレゼント | warn | spam | 景品詐欺の定型句 |
-| 個人情報 | warn | other | 個人情報の書き込み・要求への注意喚起 |
-| 住所を教えて | block | other | 未成年への個人情報要求対策 |
+| word           | severity | category   | 意図                                        |
+| -------------- | -------- | ---------- | ------------------------------------------- |
+| 死ね           | block    | harassment | 直接的な加害・脅迫表現                      |
+| 殺す           | block    | harassment | 直接的な加害・脅迫表現                      |
+| きもい         | warn     | harassment | 侮辱表現（文脈次第で許容されうるため warn） |
+| うざい         | warn     | harassment | 侮辱表現                                    |
+| ぶす           | warn     | harassment | 容姿への侮辱                                |
+| デブ           | warn     | harassment | 容姿への侮辱                                |
+| 消えろ         | warn     | harassment | 攻撃的表現                                  |
+| 出会い系       | block    | adult      | 未成年メインターゲットへの勧誘対策          |
+| 援助交際       | block    | adult      | 違法行為の勧誘                              |
+| パパ活         | block    | adult      | 未成年への勧誘対策                          |
+| ライン交換     | warn     | adult      | 個人間連絡先交換の勧誘（文脈次第）          |
+| セフレ         | block    | adult      | 性的関係の勧誘                              |
+| 儲かる副業     | block    | spam       | 詐欺的副業勧誘の定型句                      |
+| 今すぐ稼げる   | block    | spam       | 詐欺的副業勧誘の定型句                      |
+| 副業紹介       | warn     | spam       | 勧誘の可能性がある定型句                    |
+| 相互フォロー   | warn     | spam       | フォロー乞い（スパム的な定型句）            |
+| クリックして   | warn     | spam       | フィッシング誘導の定型句                    |
+| 無料プレゼント | warn     | spam       | 景品詐欺の定型句                            |
+| 個人情報       | warn     | other      | 個人情報の書き込み・要求への注意喚起        |
+| 住所を教えて   | block    | other      | 未成年への個人情報要求対策                  |
 
 ## 運用メモ
 

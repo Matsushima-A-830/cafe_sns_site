@@ -14,7 +14,6 @@ pnpm dev                    # http://localhost:3000
 ## ドキュメント
 
 すべての設計は [`docs/`](./docs/README.md) にあります。実装前に必ず参照:
-
 - [ポジショニング](./docs/product/positioning.md) — 差別化戦略の幹
 - [MVPスコープ](./docs/product/mvp-scope.md)
 - [デザインシステム](./docs/design/design-system.md)

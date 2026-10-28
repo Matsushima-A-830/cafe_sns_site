@@ -14,15 +14,15 @@ Next.js 16 の App Router を前提とした、URL・ディレクトリ・レイ
 
 Supabase の `profiles.role` と `profiles.status` の2軸で権限を判定し、`profiles.onboarded_at` で導線を分ける。
 
-| 権限概念 | 判定条件 | アクセス可能グループ |
-|---|---|---|
-| **guest** | セッションなし | `(browsing)`, `(auth)` |
-| **pending** | セッションあり `status = 'pending_consent'` | `(browsing)`, `/account/pending`, `/settings/account`（メール変更・退会のみ） |
-| **suspended** | `status = 'suspended'` | `/account/suspended` のみ |
-| **onboarding** | `status = 'active'`, `onboarded_at IS NULL` | `(browsing)` + `/onboarding/*` のみ（`(user)` 以降は `/onboarding/profile` へ誘導） |
-| **user** | `status = 'active'`, `onboarded_at IS NOT NULL`, `role = 'user'` | 上記 + `(user)` |
-| **owner** | 同上 + `role = 'owner'` | 上記 + `(owner)` + `/new/official` |
-| **admin** | 同上 + `role = 'admin'` | 上記 + `(admin)` |
+| 権限概念       | 判定条件                                                         | アクセス可能グループ                                                                |
+| -------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| **guest**      | セッションなし                                                   | `(browsing)`, `(auth)`                                                              |
+| **pending**    | セッションあり `status = 'pending_consent'`                      | `(browsing)`, `/account/pending`, `/settings/account`（メール変更・退会のみ）       |
+| **suspended**  | `status = 'suspended'`                                           | `/account/suspended` のみ                                                           |
+| **onboarding** | `status = 'active'`, `onboarded_at IS NULL`                      | `(browsing)` + `/onboarding/*` のみ（`(user)` 以降は `/onboarding/profile` へ誘導） |
+| **user**       | `status = 'active'`, `onboarded_at IS NOT NULL`, `role = 'user'` | 上記 + `(user)`                                                                     |
+| **owner**      | 同上 + `role = 'owner'`                                          | 上記 + `(owner)` + `/new/official`                                                  |
+| **admin**      | 同上 + `role = 'admin'`                                          | 上記 + `(admin)`                                                                    |
 
 **重要:**
 - `role` と `status` は `profiles` テーブルの独立カラム。middleware ではこの2軸を必ず別変数として扱う
@@ -172,53 +172,53 @@ app/
 
 ## URLとスクリーンIDの対応表
 
-| Screen ID | URL | レンダリング |
-|---|---|---|
-| S_HOME / S_MY_HOME | `/` | SSR（認証状態で分岐） |
-| S_EXPLORE | `/explore` | SSR ※ISR (60s) を想定していたが、S_POST_DETAIL と同じ理由で断念（[pending-items D23](../product/pending-items.md)） |
-| S_MAP | `/map` | SSR（Client Component主体） |
-| S_SEARCH | `/search` | SSR |
-| S_POST_DETAIL | `/posts/[id]` | SSR ※ISR (300s) を想定していたが未達（[pending-items D23](../product/pending-items.md)） |
-| S_CAFE_DETAIL | `/cafes/[id]` | SSR ※ISR (300s) を想定していたが、S_POST_DETAIL と同じ理由で断念（[pending-items D23](../product/pending-items.md)） |
-| S_USER_PROFILE_PUBLIC | `/users/[username]` | SSR ※ISR (60s) を想定していたが、S_POST_DETAIL と同じ理由で断念（[pending-items D23](../product/pending-items.md)） |
-| S_LOGIN | `/login` | SSR |
-| S_SIGNUP (1〜3) | `/signup` `/signup/verify` `/signup/birthdate` | SSR |
-| S_SIGNUP_BLOCKED | `/signup/blocked` | Static |
-| S_MINOR_CONSENT | `/signup/consent` | SSR |
-| S_ACCOUNT_PENDING | `/account/pending` | SSR |
-| S_ACCOUNT_SUSPENDED | `/account/suspended` | SSR |
-| S_ONBOARD_* | `/onboarding/{profile,area,interests}` | SSR |
-| S_MYPAGE | `/me` | SSR |
-| S_PROFILE_EDIT | `/me/edit` | SSR |
-| S_FAVORITES | `/me/favorites` | SSR |
-| S_WANT_TO_GO | `/me/want-to-go` | SSR |
-| S_BOOKMARKS | `/me/bookmarks` | SSR |
-| S_DRAFTS | `/me/drafts` | SSR |
-| S_BADGES | `/me/badges` | SSR |
-| S_MYPAGE「私の行きつけ」すべて見る | `/me/regulars` | SSR |
-| S_NOTIFICATIONS | `/notifications` | SSR |
-| S_SETTINGS | `/settings` | SSR |
-| S_BLOCKED_USERS | `/settings/blocked` | SSR |
-| S_POST_SHORT | `/new/short` | SSR |
-| S_POST_BLOG | `/new/blog` | SSR |
-| S_POST_SUCCESS | `/new/success` | SSR |
-| S_REPORT_FORM | `/report/[targetType]/[id]` | SSR |
-| S_OWNER_CLAIM | `/owner/claim/[cafeId]` | SSR |
-| S_OWNER_PENDING | `/owner/pending` | SSR |
-| S_OWNER_DASHBOARD | `/owner/[cafeId]` | SSR |
-| S_OWNER_CAFE_EDIT | `/owner/[cafeId]/edit` | SSR |
-| S_OWNER_ANALYTICS | `/owner/[cafeId]/analytics` | SSR |
-| S_OWNER_REGULARS | `/owner/[cafeId]/regulars` | SSR |
-| S_POST_OFFICIAL | `/new/official` (+ サブルート4種) | SSR（要オーナー権限） |
-| S_CAFE_NEW | `/cafes/new` | SSR（要ログイン） |
-| S_ACCOUNT_DELETE | `/settings/account/delete` | SSR |
-| S_FILTER_AREA / _MOOD / _OCCASION / _KEYWORD | `/search`（インラインSSRフォームで内包、Drawerなし） | SSR |
-| S_SEARCH_RESULT | `/search?...`（クエリで結果） | SSR |
-| S_ADMIN_REPORTS | `/admin/reports` | SSR |
-| S_ADMIN_REVIEW | `/admin/reports/[id]` | SSR |
-| S_ADMIN_OWNER_REVIEW | `/admin/verifications/[id]` | SSR |
-| S_ADMIN_NG_WORDS | `/admin/ng-words` | SSR |
-| S_EXPLORE_DEFAULT / S_MAP_CARD / S_ACCOUNT_ACTIVATED | 独立ルートなし | 上位画面内の状態 |
+| Screen ID                                            | URL                                                  | レンダリング                                                                                                         |
+| ---------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| S_HOME / S_MY_HOME                                   | `/`                                                  | SSR（認証状態で分岐）                                                                                                |
+| S_EXPLORE                                            | `/explore`                                           | SSR ※ISR (60s) を想定していたが、S_POST_DETAIL と同じ理由で断念（[pending-items D23](../product/pending-items.md)）  |
+| S_MAP                                                | `/map`                                               | SSR（Client Component主体）                                                                                          |
+| S_SEARCH                                             | `/search`                                            | SSR                                                                                                                  |
+| S_POST_DETAIL                                        | `/posts/[id]`                                        | SSR ※ISR (300s) を想定していたが未達（[pending-items D23](../product/pending-items.md)）                             |
+| S_CAFE_DETAIL                                        | `/cafes/[id]`                                        | SSR ※ISR (300s) を想定していたが、S_POST_DETAIL と同じ理由で断念（[pending-items D23](../product/pending-items.md)） |
+| S_USER_PROFILE_PUBLIC                                | `/users/[username]`                                  | SSR ※ISR (60s) を想定していたが、S_POST_DETAIL と同じ理由で断念（[pending-items D23](../product/pending-items.md)）  |
+| S_LOGIN                                              | `/login`                                             | SSR                                                                                                                  |
+| S_SIGNUP (1〜3)                                      | `/signup` `/signup/verify` `/signup/birthdate`       | SSR                                                                                                                  |
+| S_SIGNUP_BLOCKED                                     | `/signup/blocked`                                    | Static                                                                                                               |
+| S_MINOR_CONSENT                                      | `/signup/consent`                                    | SSR                                                                                                                  |
+| S_ACCOUNT_PENDING                                    | `/account/pending`                                   | SSR                                                                                                                  |
+| S_ACCOUNT_SUSPENDED                                  | `/account/suspended`                                 | SSR                                                                                                                  |
+| S_ONBOARD_*                                          | `/onboarding/{profile,area,interests}`               | SSR                                                                                                                  |
+| S_MYPAGE                                             | `/me`                                                | SSR                                                                                                                  |
+| S_PROFILE_EDIT                                       | `/me/edit`                                           | SSR                                                                                                                  |
+| S_FAVORITES                                          | `/me/favorites`                                      | SSR                                                                                                                  |
+| S_WANT_TO_GO                                         | `/me/want-to-go`                                     | SSR                                                                                                                  |
+| S_BOOKMARKS                                          | `/me/bookmarks`                                      | SSR                                                                                                                  |
+| S_DRAFTS                                             | `/me/drafts`                                         | SSR                                                                                                                  |
+| S_BADGES                                             | `/me/badges`                                         | SSR                                                                                                                  |
+| S_MYPAGE「私の行きつけ」すべて見る                   | `/me/regulars`                                       | SSR                                                                                                                  |
+| S_NOTIFICATIONS                                      | `/notifications`                                     | SSR                                                                                                                  |
+| S_SETTINGS                                           | `/settings`                                          | SSR                                                                                                                  |
+| S_BLOCKED_USERS                                      | `/settings/blocked`                                  | SSR                                                                                                                  |
+| S_POST_SHORT                                         | `/new/short`                                         | SSR                                                                                                                  |
+| S_POST_BLOG                                          | `/new/blog`                                          | SSR                                                                                                                  |
+| S_POST_SUCCESS                                       | `/new/success`                                       | SSR                                                                                                                  |
+| S_REPORT_FORM                                        | `/report/[targetType]/[id]`                          | SSR                                                                                                                  |
+| S_OWNER_CLAIM                                        | `/owner/claim/[cafeId]`                              | SSR                                                                                                                  |
+| S_OWNER_PENDING                                      | `/owner/pending`                                     | SSR                                                                                                                  |
+| S_OWNER_DASHBOARD                                    | `/owner/[cafeId]`                                    | SSR                                                                                                                  |
+| S_OWNER_CAFE_EDIT                                    | `/owner/[cafeId]/edit`                               | SSR                                                                                                                  |
+| S_OWNER_ANALYTICS                                    | `/owner/[cafeId]/analytics`                          | SSR                                                                                                                  |
+| S_OWNER_REGULARS                                     | `/owner/[cafeId]/regulars`                           | SSR                                                                                                                  |
+| S_POST_OFFICIAL                                      | `/new/official` (+ サブルート4種)                    | SSR（要オーナー権限）                                                                                                |
+| S_CAFE_NEW                                           | `/cafes/new`                                         | SSR（要ログイン）                                                                                                    |
+| S_ACCOUNT_DELETE                                     | `/settings/account/delete`                           | SSR                                                                                                                  |
+| S_FILTER_AREA / _MOOD / _OCCASION / _KEYWORD         | `/search`（インラインSSRフォームで内包、Drawerなし） | SSR                                                                                                                  |
+| S_SEARCH_RESULT                                      | `/search?...`（クエリで結果）                        | SSR                                                                                                                  |
+| S_ADMIN_REPORTS                                      | `/admin/reports`                                     | SSR                                                                                                                  |
+| S_ADMIN_REVIEW                                       | `/admin/reports/[id]`                                | SSR                                                                                                                  |
+| S_ADMIN_OWNER_REVIEW                                 | `/admin/verifications/[id]`                          | SSR                                                                                                                  |
+| S_ADMIN_NG_WORDS                                     | `/admin/ng-words`                                    | SSR                                                                                                                  |
+| S_EXPLORE_DEFAULT / S_MAP_CARD / S_ACCOUNT_ACTIVATED | 独立ルートなし                                       | 上位画面内の状態                                                                                                     |
 
 ## middleware.ts 設計
 
@@ -330,7 +330,6 @@ end $$;
 **`raw_app_meta_data` を profiles のトリガーで書き換える方式は採らない。** 書き換えても既発行のアクセストークンは失効せず、次のリフレッシュ（既定1時間）まで古い値が残るため。
 
 **それでもクレイムには反映遅延がある**（アクセストークンの寿命ぶん）。したがって:
-
 - **middleware のロール判定は「UXのための誘導」であり、認可の最終防衛線ではない**
 - 実際の認可は常に **RLS が担保する**（[data-model/README.md](./data-model/README.md#rlsポリシー方針概要)）。`suspended` 化・ブロック・通報対応は RLS 側で即時に効く
 - 即時のセッション遮断が必要なケース（アカウント停止）は、admin 操作時に Supabase Admin API でリフレッシュトークンを失効させる
@@ -408,31 +407,30 @@ app/_actions/
 
 Server Actionsで代替できないものだけを Route Handlers で実装。
 
-| エンドポイント | 用途 |
-|---|---|
-| `POST /api/auth/callback` | Supabase Auth のリダイレクト受け |
-| `POST /api/uploads/sign` | Supabase Storage の署名付きアップロードURL発行（クライアントから直PUT）。サイズ・MIME・パス規約の検証をここで通す |
-| `POST /api/uploads/owner-document/sign` | 同上（owner-documents バケット） |
-| `POST /api/uploads/avatar/sign` | 同上（avatars バケット） |
-| `GET /api/consent/confirm?token=...` | 保護者同意リンククリック処理（ワンタイムトークン検証）。メールリンクの通常ナビゲーションなのでGET。検証後 `/account/pending` へ結果付きでリダイレクト |
-| `POST /api/revalidate` | 手動 ISR revalidation（管理者用） |
-| `POST /api/cron/cleanup-drafts` | 期限切れ下書き（`drafts.expires_at < now()`）とその Storage 画像の日次削除。GitHub Actions の `schedule` からのみ呼ぶ想定で、`Authorization: Bearer <CRON_SECRET>` が無いと `{ ok: false, error: 'FORBIDDEN' }`（HTTP 200固定、[pending-items D3/A6](../product/pending-items.md)） |
+| エンドポイント                          | 用途                                                                                                                                                                                                                                                                                |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/auth/callback`               | Supabase Auth のリダイレクト受け                                                                                                                                                                                                                                                    |
+| `POST /api/uploads/sign`                | Supabase Storage の署名付きアップロードURL発行（クライアントから直PUT）。サイズ・MIME・パス規約の検証をここで通す                                                                                                                                                                   |
+| `POST /api/uploads/owner-document/sign` | 同上（owner-documents バケット）                                                                                                                                                                                                                                                    |
+| `POST /api/uploads/avatar/sign`         | 同上（avatars バケット）                                                                                                                                                                                                                                                            |
+| `GET /api/consent/confirm?token=...`    | 保護者同意リンククリック処理（ワンタイムトークン検証）。メールリンクの通常ナビゲーションなのでGET。検証後 `/account/pending` へ結果付きでリダイレクト                                                                                                                               |
+| `POST /api/revalidate`                  | 手動 ISR revalidation（管理者用）                                                                                                                                                                                                                                                   |
+| `POST /api/cron/cleanup-drafts`         | 期限切れ下書き（`drafts.expires_at < now()`）とその Storage 画像の日次削除。GitHub Actions の `schedule` からのみ呼ぶ想定で、`Authorization: Bearer <CRON_SECRET>` が無いと `{ ok: false, error: 'FORBIDDEN' }`（HTTP 200固定、[pending-items D3/A6](../product/pending-items.md)） |
 
 ## 特殊ファイル配置
 
-| ファイル | 配置場所 | 用途 |
-|---|---|---|
-| `loading.tsx` | 各主要ルート | Suspense fallback（スケルトンUI） |
-| `error.tsx` | 各グループのlayout付近 | エラーバウンダリ |
-| `not-found.tsx` | `app/`, `posts/[id]/`, `cafes/[id]/` 等 | 404画面 |
-| `robots.ts` | `app/robots.ts` | クローラ制御。管理・オーナー画面はDisallow（検証ベータ期間中は`lib/constants/beta.ts`の締切と連動して全面Disallow。[pending-items D67](../product/pending-items.md#d67-招待制検証ベータの技術的準備)） |
-| `sitemap.ts` | `app/sitemap.ts` | 公開投稿・カフェを含む動的サイトマップ |
-| `manifest.ts` | `app/manifest.ts` | PWA用（アプリ化を見据えて早めに用意） |
+| ファイル        | 配置場所                                | 用途                                                                                                                                                                                                   |
+| --------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `loading.tsx`   | 各主要ルート                            | Suspense fallback（スケルトンUI）                                                                                                                                                                      |
+| `error.tsx`     | 各グループのlayout付近                  | エラーバウンダリ                                                                                                                                                                                       |
+| `not-found.tsx` | `app/`, `posts/[id]/`, `cafes/[id]/` 等 | 404画面                                                                                                                                                                                                |
+| `robots.ts`     | `app/robots.ts`                         | クローラ制御。管理・オーナー画面はDisallow（検証ベータ期間中は`lib/constants/beta.ts`の締切と連動して全面Disallow。[pending-items D67](../product/pending-items.md#d67-招待制検証ベータの技術的準備)） |
+| `sitemap.ts`    | `app/sitemap.ts`                        | 公開投稿・カフェを含む動的サイトマップ                                                                                                                                                                 |
+| `manifest.ts`   | `app/manifest.ts`                       | PWA用（アプリ化を見据えて早めに用意）                                                                                                                                                                  |
 
 ## MVPで採用しない予定の機能
 
 以下は Next.js App Router の高度な機能。実装後に必要性が明確になってから追加する。
-
 - **Parallel Routes（`@modal` 等）** — モーダル表示に便利だが、まずは通常ルート + shadcn Dialog で十分
 - **Intercepting Routes（`(.)`, `(..)`）** — 「一覧からモーダルで詳細表示、直接URLでもフルページ表示」の実現に有用。写真ライトボックス等で後日採用検討
 - **Server-only import 制約 (`server-only`)** — 段階的に導入
@@ -441,7 +439,6 @@ Server Actionsで代替できないものだけを Route Handlers で実装。
 ## メタデータ・OG設計
 
 SEO とシェア導線のため、以下のページで動的メタデータを設定:
-
 - `/posts/[id]`: 投稿タイトル or 冒頭 + 1枚目画像
 - `/cafes/[id]`: カフェ名 + 説明 + メイン画像（`cafes.main_image_path`。未設定なら最新投稿の1枚目にフォールバック）
 - `/users/[username]`: 表示名 + bio + アバター
@@ -465,7 +462,6 @@ export async function generateMetadata({ params }): Promise<Metadata> {
 ## 未確定事項（実装時に判断）
 
 以下は実装フェーズ入り後に決定:
-
 - 認証状態の同期方法（`revalidatePath` vs `revalidateTag` vs `router.refresh`）
 - Supabase Realtime を使う画面の範囲（通知バッジ、コメント等）
 - グローバルモーダル・トーストのProvider設計

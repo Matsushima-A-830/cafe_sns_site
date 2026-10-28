@@ -4,23 +4,23 @@ MVP主要画面のレイアウトをテキスト/ASCIIで示します。デザ�
 
 ## 対応端末とブレークポイント
 
-| 端末 | 想定幅 | Tailwindプレフィックス | 主レイアウト |
-|---|---|---|---|
-| モバイル | ~ 767px | 無印 | 単一カラム + ボトムナビ |
-| タブレット | 768 - 1023px | `md:` | 2カラム or 拡張モバイル |
-| PC | 1024px ~ | `lg:` `xl:` | サイドナビ + メイン + 補助カラム |
+| 端末       | 想定幅       | Tailwindプレフィックス | 主レイアウト                     |
+| ---------- | ------------ | ---------------------- | -------------------------------- |
+| モバイル   | ~ 767px      | 無印                   | 単一カラム + ボトムナビ          |
+| タブレット | 768 - 1023px | `md:`                  | 2カラム or 拡張モバイル          |
+| PC         | 1024px ~     | `lg:` `xl:`            | サイドナビ + メイン + 補助カラム |
 
 **方針:** モバイルファースト。タブレットは基本的にPCの縮小版として設計し、必要に応じてモバイル寄りへ切り替え。以降の各画面は「モバイル」「PC」の2種を主に示し、タブレットの扱いは注記で補足します。
 
 ## 目次
 
-| カテゴリ | ファイル |
-|---|---|
+| カテゴリ               | ファイル                     |
+| ---------------------- | ---------------------------- |
 | 閲覧系（未ログイン可） | [browsing.md](./browsing.md) |
-| 認証・オンボーディング | [auth.md](./auth.md) |
-| マイページ・通知・設定 | [mypage.md](./mypage.md) |
-| 投稿作成 | [composer.md](./composer.md) |
-| カフェ経営者 | [owner.md](./owner.md) |
+| 認証・オンボーディング | [auth.md](./auth.md)         |
+| マイページ・通知・設定 | [mypage.md](./mypage.md)     |
+| 投稿作成               | [composer.md](./composer.md) |
+| カフェ経営者           | [owner.md](./owner.md)       |
 
 ## ASCII凡例
 
@@ -136,45 +136,45 @@ Card:...    カードコンポーネントの略記
 
 ## 全画面インデックス
 
-| 画面ID | 画面名 | ドキュメント |
-|---|---|---|
-| S_HOME | 未ログインホーム / タイムライン | browsing.md |
-| S_MY_HOME | ログイン後ホーム | browsing.md |
-| S_EXPLORE | 発見（Explore） | browsing.md |
-| S_MAP | 地図ビュー | browsing.md |
-| S_SEARCH | タグ検索 | browsing.md |
-| S_POST_DETAIL | 投稿詳細 | browsing.md |
-| S_CAFE_DETAIL | カフェ詳細 | browsing.md |
-| S_USER_PROFILE_PUBLIC | 他人のプロフィール | browsing.md |
-| S_LOGIN | ログイン | auth.md |
-| S_SIGNUP | 新規登録 | auth.md |
-| S_SIGNUP_BLOCKED | 登録不可（13歳未満） | auth.md |
-| S_MINOR_CONSENT | 保護者同意 | auth.md |
-| S_ACCOUNT_PENDING | 同意待ち | auth.md |
-| S_ONBOARD_PROFILE | プロフィール初期設定 | auth.md |
-| S_ONBOARD_AREA | ホームエリア選択 | auth.md |
-| S_ONBOARD_INTERESTS | 好きな気分の選択（必須） | auth.md |
-| S_MYPAGE | マイページ | mypage.md |
-| S_PROFILE_EDIT | プロフィール編集 | mypage.md |
-| S_FAVORITES | お気に入りカフェ | mypage.md |
-| S_WANT_TO_GO | 行きたいリスト | mypage.md |
-| S_BOOKMARKS | 保存投稿 | mypage.md |
-| S_DRAFTS | 下書き一覧 | mypage.md |
-| S_BADGES | バッジ・制覇マップ | mypage.md |
-| S_NOTIFICATIONS | 通知 | mypage.md |
-| S_SETTINGS | 設定 | mypage.md |
-| S_BLOCKED_USERS | ブロック管理 | mypage.md |
-| S_POST_SHORT | 短文投稿 | composer.md |
-| S_POST_BLOG | ブログ投稿 | composer.md |
-| S_POST_OFFICIAL | オーナー限定投稿（4フォーマット） | composer.md |
-| S_POST_SUCCESS | 投稿完了 | composer.md |
-| S_REPORT_FORM | 通報フォーム | composer.md |
-| S_OWNER_CLAIM | オーナー認証申請 | owner.md |
-| S_OWNER_PENDING | 審査中 | owner.md |
-| S_OWNER_DASHBOARD | 経営者ダッシュボード | owner.md |
-| S_OWNER_CAFE_EDIT | 店舗情報編集 | owner.md |
-| S_OWNER_ANALYTICS | 投稿分析 | owner.md |
-| S_OWNER_REGULARS | 常連認定管理 | owner.md |
+| 画面ID                | 画面名                            | ドキュメント |
+| --------------------- | --------------------------------- | ------------ |
+| S_HOME                | 未ログインホーム / タイムライン   | browsing.md  |
+| S_MY_HOME             | ログイン後ホーム                  | browsing.md  |
+| S_EXPLORE             | 発見（Explore）                   | browsing.md  |
+| S_MAP                 | 地図ビュー                        | browsing.md  |
+| S_SEARCH              | タグ検索                          | browsing.md  |
+| S_POST_DETAIL         | 投稿詳細                          | browsing.md  |
+| S_CAFE_DETAIL         | カフェ詳細                        | browsing.md  |
+| S_USER_PROFILE_PUBLIC | 他人のプロフィール                | browsing.md  |
+| S_LOGIN               | ログイン                          | auth.md      |
+| S_SIGNUP              | 新規登録                          | auth.md      |
+| S_SIGNUP_BLOCKED      | 登録不可（13歳未満）              | auth.md      |
+| S_MINOR_CONSENT       | 保護者同意                        | auth.md      |
+| S_ACCOUNT_PENDING     | 同意待ち                          | auth.md      |
+| S_ONBOARD_PROFILE     | プロフィール初期設定              | auth.md      |
+| S_ONBOARD_AREA        | ホームエリア選択                  | auth.md      |
+| S_ONBOARD_INTERESTS   | 好きな気分の選択（必須）          | auth.md      |
+| S_MYPAGE              | マイページ                        | mypage.md    |
+| S_PROFILE_EDIT        | プロフィール編集                  | mypage.md    |
+| S_FAVORITES           | お気に入りカフェ                  | mypage.md    |
+| S_WANT_TO_GO          | 行きたいリスト                    | mypage.md    |
+| S_BOOKMARKS           | 保存投稿                          | mypage.md    |
+| S_DRAFTS              | 下書き一覧                        | mypage.md    |
+| S_BADGES              | バッジ・制覇マップ                | mypage.md    |
+| S_NOTIFICATIONS       | 通知                              | mypage.md    |
+| S_SETTINGS            | 設定                              | mypage.md    |
+| S_BLOCKED_USERS       | ブロック管理                      | mypage.md    |
+| S_POST_SHORT          | 短文投稿                          | composer.md  |
+| S_POST_BLOG           | ブログ投稿                        | composer.md  |
+| S_POST_OFFICIAL       | オーナー限定投稿（4フォーマット） | composer.md  |
+| S_POST_SUCCESS        | 投稿完了                          | composer.md  |
+| S_REPORT_FORM         | 通報フォーム                      | composer.md  |
+| S_OWNER_CLAIM         | オーナー認証申請                  | owner.md     |
+| S_OWNER_PENDING       | 審査中                            | owner.md     |
+| S_OWNER_DASHBOARD     | 経営者ダッシュボード              | owner.md     |
+| S_OWNER_CAFE_EDIT     | 店舗情報編集                      | owner.md     |
+| S_OWNER_ANALYTICS     | 投稿分析                          | owner.md     |
+| S_OWNER_REGULARS      | 常連認定管理                      | owner.md     |
 
 ## 全画面共通の行動経済学的配慮
 
@@ -188,12 +188,12 @@ Card:...    カードコンポーネントの略記
 
 Tailwindブレークポイントで以下のように分岐:
 
-| BP | 幅 | レイアウト適用 |
-|---|---|---|
-| 無印 | ~ 767px | モバイル（単一カラム + ボトムナビ） |
-| `md:` | 768px ~ | **タブレット寄り**（PC寄せ、ただし補助カラム非表示・サイドナビはアイコンレール） |
-| `lg:` | 1024px ~ | **PC基本**（サイドナビ label 表示・補助カラム表示） |
-| `xl:` | 1280px ~ | **PC贅沢**（3列グリッド等） |
+| BP    | 幅       | レイアウト適用                                                                   |
+| ----- | -------- | -------------------------------------------------------------------------------- |
+| 無印  | ~ 767px  | モバイル（単一カラム + ボトムナビ）                                              |
+| `md:` | 768px ~  | **タブレット寄り**（PC寄せ、ただし補助カラム非表示・サイドナビはアイコンレール） |
+| `lg:` | 1024px ~ | **PC基本**（サイドナビ label 表示・補助カラム表示）                              |
+| `xl:` | 1280px ~ | **PC贅沢**（3列グリッド等）                                                      |
 
 ### タブレット時（`md:` 適用）の具体差分
 

@@ -13,7 +13,6 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 ### A1. Safari対応方針 🟡 部分決定（2026-09-03）
 
 **現状:** MVP開発期間中は **明示的に非対応**、リリース前に再判断。
-
 - **開発中の必須ルール:** CSS/JSは Safari互換を意識して書く（`-webkit-` プレフィックス、`100vh` iOS挙動、date input差異、`backdrop-filter` 等）
 - **Playwrightで WebKit エンジン** も並行してテスト実行
 - **MVPリリース前:** BrowserStack Live を1ヶ月契約 ($29) して主要画面を集中検証
@@ -316,7 +315,6 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 ### C5. 幹B「コミュニティ・オフライン連動」機能（PMF後に検討）
 
 差別化戦略 [positioning.md](./positioning.md) の幹Bとして保留:
-
 - 趣味グループ（「朝活カフェ部」「読書カフェ部」等）
 - オフラインイベント機能（カフェ巡り会）
 - 「似た好みの人」マッチング
@@ -417,7 +415,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 - **対応案:**
   - a) GitHub Pro に加入 ($4/月) して protection/rulesets を有効化
     → `Agent Review` を必須チェックに登録でき、無人マージも解禁される。
-      Actions 予算 $5 と合わせて月 $9
+    Actions 予算 $5 と合わせて月 $9
   - b) リポジトリを Public 化して protection を無料で有効化
   - c) 現状維持（個人開発の自己規律で補完）
 - **決定期限:** チームメンバーが増える時、または PMF 後。
@@ -438,10 +436,12 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
 ### D11. `is_admin()` は `revoke ... from public` 後も anon から呼べる（意図と実態のズレ）
 
 - **課題:** [`20260905130000_create_profiles.sql`](../../supabase/migrations/20260905130000_create_profiles.sql) は
+
   ```sql
   revoke execute on function public.is_admin() from public;
   grant execute on function public.is_admin() to authenticated, service_role;
   ```
+
   で `anon` を締め出したつもりだったが、実際には締め出せていない。`revoke ... from public` が消すのは **PUBLIC 疑似ロール**への権限だけで、Supabase が `public` スキーマの新規関数作成時にデフォルト権限で `anon`/`authenticated`/`service_role` へ**直接**付与する EXECUTE には効かない（`pg_default_acl` で実測確認済み）。結果として `anon` は今も `is_admin()` を呼べる
 - **実害:** 現状は無い。`anon` から呼んでも `auth.uid()` が `NULL` になるため常に `false` を返す
 - **対応方針:** `anon` を本当に締め出す意図なら、後続マイグレーションで `revoke execute on function public.is_admin() from anon;` を明示する。この場合、[cafes のロール別 SELECT ポリシー分割](../architecture/data-model/tables.md#cafes)（`anon` 経路では `is_admin()` を一切呼ばない設計）は「望ましい設計」から「無いと壊れる必須の構造」に格上げされる
@@ -1026,19 +1026,18 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   #29 / #30 / #32 / #33 / #34 はすべて未チェックのままマージされている
 - **状況の整理（2026-10-09 更新）:**
 
-| 画面 | 実装PR | 実機確認 | E2E |
-|---|---|---|---|
-| `/new` `/new/short` `/new/success`（composer・短文） | #29 / #30 | ✅（2026-10-07） | ✅ `composer-short.spec.ts` |
-| `/new/blog`（composer・ブログ、Tiptap） | #29 / #30 | ✅（2026-10-09） | ✅ `composer-blog.spec.ts` |
-| `/posts/[id]`（S_POST_DETAIL） | #32 | ✅（2026-10-07、D39でコメント導線まで確認） | ✅ `likes.spec.ts`（いいね）+ `comments.spec.ts`（コメント投稿・返信・削除・公式バッジ・ページング） |
-| `/`（S_HOME） | #33 | ✅（2026-10-09、ムードチップ・発見⇄フォロー中タブ・おすすめページングを確認） | ✅ `home-feed.spec.ts` |
-| `/explore`（S_EXPLORE） | #33 | ✅（2026-10-09、おすすめ⇄新着タブを確認。「近くのカフェ」は既存の`explore-nearby.spec.ts`） | ✅ `explore-tabs.spec.ts` |
-| `/users/[username]`（S_USER_PROFILE_PUBLIC） | #34 | ✅（2026-10-09、FollowButton⇄PostFeed協調・行きつけタブを確認） | ✅ `profile-follow.spec.ts` |
-| `/signup/*` `/onboarding/*` | 初期 | ❌ | ✅ `signup-onboarding.spec.ts` が4ブラウザで完走 |
-| `/cafes/[id]`（S_CAFE_DETAIL） | #37 | ✅ | ✅ `cafe-list-toggle.spec.ts` |
-| `/me`（S_MYPAGE） | #39 | ✅ | ✅ 同上 |
-| `/me/favorites` `/me/want-to-go` `/me/drafts` | #39 | ✅（2026-10-11） | ✅ `cafe-list-page.spec.ts` + `drafts.spec.ts` |
-
+| 画面                                                 | 実装PR    | 実機確認                                                                                    | E2E                                                                                                  |
+| ---------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `/new` `/new/short` `/new/success`（composer・短文） | #29 / #30 | ✅（2026-10-07）                                                                            | ✅ `composer-short.spec.ts`                                                                          |
+| `/new/blog`（composer・ブログ、Tiptap）              | #29 / #30 | ✅（2026-10-09）                                                                            | ✅ `composer-blog.spec.ts`                                                                           |
+| `/posts/[id]`（S_POST_DETAIL）                       | #32       | ✅（2026-10-07、D39でコメント導線まで確認）                                                 | ✅ `likes.spec.ts`（いいね）+ `comments.spec.ts`（コメント投稿・返信・削除・公式バッジ・ページング） |
+| `/`（S_HOME）                                        | #33       | ✅（2026-10-09、ムードチップ・発見⇄フォロー中タブ・おすすめページングを確認）               | ✅ `home-feed.spec.ts`                                                                               |
+| `/explore`（S_EXPLORE）                              | #33       | ✅（2026-10-09、おすすめ⇄新着タブを確認。「近くのカフェ」は既存の`explore-nearby.spec.ts`） | ✅ `explore-tabs.spec.ts`                                                                            |
+| `/users/[username]`（S_USER_PROFILE_PUBLIC）         | #34       | ✅（2026-10-09、FollowButton⇄PostFeed協調・行きつけタブを確認）                             | ✅ `profile-follow.spec.ts`                                                                          |
+| `/signup/*` `/onboarding/*`                          | 初期      | ❌                                                                                          | ✅ `signup-onboarding.spec.ts` が4ブラウザで完走                                                     |
+| `/cafes/[id]`（S_CAFE_DETAIL）                       | #37       | ✅                                                                                          | ✅ `cafe-list-toggle.spec.ts`                                                                        |
+| `/me`（S_MYPAGE）                                    | #39       | ✅                                                                                          | ✅ 同上                                                                                              |
+| `/me/favorites` `/me/want-to-go` `/me/drafts`        | #39       | ✅（2026-10-11）                                                                            | ✅ `cafe-list-page.spec.ts` + `drafts.spec.ts`                                                       |
 - **とくに危ないもの — composer の画像処理と自動保存:**
   ロジック自体はユニット/コンポーネントテストで厚く覆われている
   （`lib/storage/post-image-processing.test.ts` が縮小・品質段階的低下・`FILE_TOO_LARGE` /
@@ -1420,8 +1419,7 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   今回スコープ外（実運用で問題が起きたら対応）
 - **audit_logs の INSERT は admin の Server Action から直接書き込む方式** — `docs/architecture/
   data-model/tables.md` は元々「INSERT はシステム」とだけ書いていたが、security definer 関数を
-  介さず `actor_id = auth.uid()` を RLS で強制する形にした（[tables.md #audit_logs](
-  ../architecture/data-model/tables.md#audit_logs)）
+  介さず `actor_id = auth.uid()` を RLS で強制する形にした（[tables.md #audit_logs](../architecture/data-model/tables.md#audit_logs)）
 - **通知は通報者のみ** — screen-flow.md の「対応選択 → 通知」は「通報者・被通報者に通知」と読めるが、
   `notification-item.tsx` の `report_resolved` ラベル（「通報の対応が完了しました」）が通報者向けの
   文言だったため、被通報者への通知は実装しなかった。被通報者はユーザー停止等の効果自体で状態変化に

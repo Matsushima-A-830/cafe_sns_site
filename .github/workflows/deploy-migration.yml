@@ -6,7 +6,7 @@ on:
     paths:
       # マスタデータもマイグレーションに入っているのでこれで足りる。
       # supabase/seed.sql はローカル専用（db push は流さない）
-      - 'supabase/migrations/**'
+      - "supabase/migrations/**"
 
 concurrency:
   group: deploy-migration
@@ -17,7 +17,7 @@ jobs:
     name: Push migrations to production
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    environment: production  # 手動承認ゲート
+    environment: production # 手動承認ゲート
     steps:
       - uses: actions/checkout@v5
       - uses: supabase/setup-cli@v1

@@ -1,7 +1,7 @@
 name: エージェント実装タスク
 description: 実装エージェントに自動で着手させるタスク。agent:auto ラベルが起動トリガーになる
-title: 'feat: '
-labels: ['agent:auto']
+title: "feat: "
+labels: ["agent:auto"]
 body:
   - type: markdown
     attributes:

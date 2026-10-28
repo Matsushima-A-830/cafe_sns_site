@@ -1,4 +1,5 @@
 ---
+
 name: db-implement
 description: DBスキーマ・マイグレーション・RLSポリシー実装。テーブル追加、列変更、インデックス、Postgres関数、seedデータを扱う。
 ---
@@ -255,7 +256,6 @@ on conflict (code) do nothing;
 ## 破壊的変更の運用
 
 **MVPフェーズは以下の順序:**
-
 1. 新しい列を追加（nullable）
 2. アプリ側で新旧両方を書き込む
 3. データ移行スクリプト実行

@@ -61,18 +61,18 @@ main (常にデプロイ可能。保護設定は下記「ブランチ保護」�
 
 **type 一覧（コミット用、ブランチ命名と同じ）:**
 
-| type | 用途 |
-|---|---|
-| `feat` | 新機能追加 |
-| `fix` | バグ修正 |
-| `refactor` | リファクタ（挙動変更なし） |
-| `docs` | ドキュメントのみ |
-| `chore` | 依存更新・設定・雑務 |
-| `test` | テスト追加のみ |
-| `perf` | パフォーマンス改善 |
-| `style` | フォーマット（Biome/Prettier適用） |
-| `build` | ビルドシステム変更 |
-| `ci` | CI設定変更 |
+| type       | 用途                               |
+| ---------- | ---------------------------------- |
+| `feat`     | 新機能追加                         |
+| `fix`      | バグ修正                           |
+| `refactor` | リファクタ（挙動変更なし）         |
+| `docs`     | ドキュメントのみ                   |
+| `chore`    | 依存更新・設定・雑務               |
+| `test`     | テスト追加のみ                     |
+| `perf`     | パフォーマンス改善                 |
+| `style`    | フォーマット（Biome/Prettier適用） |
+| `build`    | ビルドシステム変更                 |
+| `ci`       | CI設定変更                         |
 
 **言語:** 日本語基本。ただし依存更新や自動生成は英語でも可。
 
@@ -191,7 +191,6 @@ feat: 気分入り口をS_HOMEに追加
 > 詳細と選択肢: [pending-items D7](../product/pending-items.md)
 
 有効化できるようになったら以下を設定:
-
 - ✅ 直接 push 禁止
 - ✅ PR 必須（自分含む）
 - ✅ Status checks 必須（CI パス）— **名前は GitHub 上の「ジョブ名」で指定する**（ワークフロー名ではない）
@@ -221,7 +220,6 @@ feat: 気分入り口をS_HOMEに追加
 - ❌ Approval 必須にはしない（個人開発）
 
 **保護が無効な間の運用ルール（自己規律で担保）:**
-
 - `main` への直接 push はしない。必ずブランチ → PR → Squash Merge
 - CI が赤い PR はマージしない
 - `--no-verify` で pre-push を飛ばさない
@@ -333,7 +331,6 @@ scratch/
 ### ⚠️ git 操作は WSL 側のシェルから行う
 
 このリポジトリは **WSL のファイルシステム上**にある。Windows 側（PowerShell / Git Bash）から `git commit` すると:
-
 - `node_modules` に入っている lefthook は **Linux バイナリ**なので Windows から起動できない
 - 生成された hook は候補を一通り探した末に `Can't find lefthook in PATH` と表示して **終了コード 0 を返す**
 - 結果、**Biome もデザインシステム検査も commitlint も走らないままコミットが成立する**（失敗ではなく無音のスキップ）
@@ -395,11 +392,12 @@ pre-push:
 export default {
   extends: ['@commitlint/config-conventional'],
   rules: {
-    'type-enum': [2, 'always', [
-      'feat', 'fix', 'refactor', 'docs', 'chore',
-      'test', 'perf', 'style', 'build', 'ci'
-    ]],
-    'subject-case': [0],  // 日本語対応のため無効化
+    'type-enum': [
+      2,
+      'always',
+      ['feat', 'fix', 'refactor', 'docs', 'chore', 'test', 'perf', 'style', 'build', 'ci'],
+    ],
+    'subject-case': [0], // 日本語対応のため無効化
   },
 }
 ```

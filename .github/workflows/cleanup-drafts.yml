@@ -9,7 +9,7 @@ name: Cleanup Expired Drafts
 # 一度手動起動して再開させること。
 on:
   schedule:
-    - cron: '0 17 * * *'  # UTC 17:00 = JST 02:00（あくまで目安）
+    - cron: "0 17 * * *" # UTC 17:00 = JST 02:00（あくまで目安）
   workflow_dispatch:
 
 concurrency:

@@ -21,7 +21,7 @@ export function AreaForm({ areas }: { areas: Area[] }) {
 
   // 位置情報の拒否・失敗（HTTPS未提供のプレビュー環境等）は一覧選択にフォールバックするだけ
   // — 補助機能であり、失敗を握りつぶさず早期リターンする対象ではなく単に「使わない」だけ
-  const useCurrentLocation = () => {
+  const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
       setFormError('この端末では位置情報が使えません')
       return
@@ -83,7 +83,7 @@ export function AreaForm({ areas }: { areas: Area[] }) {
           type="button"
           variant="outline"
           disabled={isLocating || isSubmitting}
-          onClick={useCurrentLocation}
+          onClick={handleUseCurrentLocation}
         >
           {isLocating ? '取得中…' : '位置情報を使う'}
         </Button>

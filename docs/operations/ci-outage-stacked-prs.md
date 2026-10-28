@@ -58,12 +58,12 @@ CI が動かない間は、CIが本来担保していたチェックを**すべ�
 lefthook の pre-commit / pre-push は通常通り動くが、それだけでは `Migration Lint` /
 `Supabase Integration` / `Playwright` 相当が抜ける。
 
-| CIジョブ相当 | ローカル代替コマンド | 備考 |
-|---|---|---|
-| `Lint / Typecheck / Test` | `pnpm lint && pnpm typecheck && pnpm test:run` | pre-push でも実行されるが、push前に手元で先に確認する |
-| `Migration Lint` | マイグレーション追加時は `pnpm db:reset` が素直に通ることを確認 | CIの `migration-check.yml` 相当。ローカルSupabase起動が前提 |
-| `Supabase Integration` | `pnpm test:integration` | RLS統合テスト。DB変更が無いPRでも既存分がデグレしていないか確認 |
-| `Playwright` | UI変更時のみ `pnpm test:e2e` | 変更が無ければスキップ可。UIを触ったPRは必ず実行 |
+| CIジョブ相当              | ローカル代替コマンド                                            | 備考                                                            |
+| ------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------- |
+| `Lint / Typecheck / Test` | `pnpm lint && pnpm typecheck && pnpm test:run`                  | pre-push でも実行されるが、push前に手元で先に確認する           |
+| `Migration Lint`          | マイグレーション追加時は `pnpm db:reset` が素直に通ることを確認 | CIの `migration-check.yml` 相当。ローカルSupabase起動が前提     |
+| `Supabase Integration`    | `pnpm test:integration`                                         | RLS統合テスト。DB変更が無いPRでも既存分がデグレしていないか確認 |
+| `Playwright`              | UI変更時のみ `pnpm test:e2e`                                    | 変更が無ければスキップ可。UIを触ったPRは必ず実行                |
 
 **このPR個別の判断も忘れずに:** `/self-review` → `/code-review` は通常通り実施する
 （CI云々に関係なく品質ゲートとして必須）。
@@ -87,6 +87,7 @@ PR本文には、通常のテンプレート（[git-workflow.md #PRタイトル�
 
 ```markdown
 ## スタックPR（CI予算切れ対応）
+
 - Base: #75（このPRがマージされるまでマージ不可）
 - ローカル検証: lint / typecheck / test:run / test:integration 実行済み（CI相当）
 ```

@@ -16,21 +16,21 @@
 
 ### 許可される値
 
-| px | Tailwind | 用途例 |
-|---|---|---|
-| 0 | `0` | リセット |
-| 4 | `1` ⚠例外 | アイコンとテキストの隙間など、8pxでは広すぎる場合 |
-| 8 | `2` | 標準の小余白 |
-| 12 | `3` ⚠例外 | 8/16の中間が必要な場合のみ |
-| 16 | `4` | 標準の中余白 |
-| 24 | `6` | 標準の大余白 |
-| 32 | `8` | セクション区切り |
-| 40 | `10` | 大きめの区切り |
-| 48 | `12` | 画面ブロック区切り |
-| 56 | `14` | 大セクション |
-| 64 | `16` | 特大セクション |
-| 80 | `20` | ヒーロー等 |
-| 96 | `24` | 特大ヒーロー |
+| px  | Tailwind  | 用途例                                            |
+| --- | --------- | ------------------------------------------------- |
+| 0   | `0`       | リセット                                          |
+| 4   | `1` ⚠例外 | アイコンとテキストの隙間など、8pxでは広すぎる場合 |
+| 8   | `2`       | 標準の小余白                                      |
+| 12  | `3` ⚠例外 | 8/16の中間が必要な場合のみ                        |
+| 16  | `4`       | 標準の中余白                                      |
+| 24  | `6`       | 標準の大余白                                      |
+| 32  | `8`       | セクション区切り                                  |
+| 40  | `10`      | 大きめの区切り                                    |
+| 48  | `12`      | 画面ブロック区切り                                |
+| 56  | `14`      | 大セクション                                      |
+| 64  | `16`      | 特大セクション                                    |
+| 80  | `20`      | ヒーロー等                                        |
+| 96  | `24`      | 特大ヒーロー                                      |
 
 ### 禁止される Tailwind ユーティリティ
 
@@ -76,16 +76,16 @@ p-[4px]   ✅  = p-1 で書ける、arbitrary不要
 
 Tailwind 標準のサイズを使用（すべて整数 px）:
 
-| Tailwind | px | line-height | 用途 |
-|---|---|---|---|
-| `text-xs` | 12 | 16 | キャプション、補助テキスト |
-| `text-sm` | 14 | 20 | メタ情報、ラベル |
-| `text-base` | 16 | 24 | 本文（デフォルト） |
-| `text-lg` | 18 | 28 | やや大きい本文 |
-| `text-xl` | 20 | 28 | 小見出し |
-| `text-2xl` | 24 | 32 | 見出し h3 |
-| `text-3xl` | 30 | 36 | 見出し h2 |
-| `text-4xl` | 36 | 40 | 見出し h1（PC） |
+| Tailwind    | px  | line-height | 用途                       |
+| ----------- | --- | ----------- | -------------------------- |
+| `text-xs`   | 12  | 16          | キャプション、補助テキスト |
+| `text-sm`   | 14  | 20          | メタ情報、ラベル           |
+| `text-base` | 16  | 24          | 本文（デフォルト）         |
+| `text-lg`   | 18  | 28          | やや大きい本文             |
+| `text-xl`   | 20  | 28          | 小見出し                   |
+| `text-2xl`  | 24  | 32          | 見出し h3                  |
+| `text-3xl`  | 30  | 36          | 見出し h2                  |
+| `text-4xl`  | 36  | 40          | 見出し h1（PC）            |
 
 **禁止:** `text-[13.5px]`, `text-[15px]` 等の任意サイズ（Tailwind標準以外）は使用しない。
 
@@ -93,15 +93,15 @@ Tailwind 標準のサイズを使用（すべて整数 px）:
 
 Tailwind の height/width で指定、整数px:
 
-| Tailwind | px | 用途 |
-|---|---|---|
-| `h-4 w-4` | 16 | インラインアイコン |
-| `h-5 w-5` | 20 | ボタン内アイコン |
-| `h-6 w-6` | 24 | ナビゲーション |
-| `h-8 w-8` | 32 | 見出しアクセント |
-| `h-10 w-10` | 40 | アバター小 |
-| `h-12 w-12` | 48 | アバター中 |
-| `h-16 w-16` | 64 | アバター大 |
+| Tailwind    | px  | 用途               |
+| ----------- | --- | ------------------ |
+| `h-4 w-4`   | 16  | インラインアイコン |
+| `h-5 w-5`   | 20  | ボタン内アイコン   |
+| `h-6 w-6`   | 24  | ナビゲーション     |
+| `h-8 w-8`   | 32  | 見出しアクセント   |
+| `h-10 w-10` | 40  | アバター小         |
+| `h-12 w-12` | 48  | アバター中         |
+| `h-16 w-16` | 64  | アバター大         |
 
 ### 画像サイズ
 
@@ -112,10 +112,10 @@ Tailwind の height/width で指定、整数px:
 
 ### フォント
 
-| セマンティック | Tailwindユーティリティ | 実体 | 用途 |
-|---|---|---|---|
-| 本文 | `font-sans`（デフォルト） | Plus Jakarta Sans → Noto Sans JP | 本文・ラベル・UI全般 |
-| 見出し | `font-heading` | Epilogue → Noto Sans JP | 任意の見出しに明示指定する場合（`h1`〜`h4` は globals.css の基底スタイルで自動適用） |
+| セマンティック | Tailwindユーティリティ    | 実体                             | 用途                                                                                 |
+| -------------- | ------------------------- | -------------------------------- | ------------------------------------------------------------------------------------ |
+| 本文           | `font-sans`（デフォルト） | Plus Jakarta Sans → Noto Sans JP | 本文・ラベル・UI全般                                                                 |
+| 見出し         | `font-heading`            | Epilogue → Noto Sans JP          | 任意の見出しに明示指定する場合（`h1`〜`h4` は globals.css の基底スタイルで自動適用） |
 
 和文（ひらがな・カタカナ・漢字）は `Plus Jakarta Sans` / `Epilogue` に字形が無いため、
 自動で `Noto Sans JP`（latin サブセットのみ self-host、和文はシステムフォント）にフォールバックする。
@@ -132,33 +132,33 @@ Tailwind の height/width で指定、整数px:
 
 Tailwind CSS のカスタムカラーとして `brown` を定義:
 
-| トークン | HEX | 用途 |
-|---|---|---|
-| `brown-50` | `#FCF9F2` | 最淡背景（ページ背景・オートミルク） |
-| `brown-100` | `#F6F3EC` | カード背景・非活性面 |
-| `brown-200` | `#EDE8DE` | ボーダー淡（ヘアライン） |
-| `brown-300` | `#D3C3C0` | ボーダー強・入力欄枠 |
-| `brown-400` | `#AE8D87` | プレースホルダー・非活性アイコン |
-| `brown-500` | `#8D7B75` | キャプション・メタ情報（ヘーゼルナッツグレー） |
-| `brown-600` | `#504442` | 副情報テキスト |
-| `brown-700` | `#3E2723` | **プライマリ**（ロースト・エスプレッソ、主要ボタン） |
-| `brown-800` | `#2B1613` | プライマリ hover |
+| トークン    | HEX       | 用途                                                     |
+| ----------- | --------- | -------------------------------------------------------- |
+| `brown-50`  | `#FCF9F2` | 最淡背景（ページ背景・オートミルク）                     |
+| `brown-100` | `#F6F3EC` | カード背景・非活性面                                     |
+| `brown-200` | `#EDE8DE` | ボーダー淡（ヘアライン）                                 |
+| `brown-300` | `#D3C3C0` | ボーダー強・入力欄枠                                     |
+| `brown-400` | `#AE8D87` | プレースホルダー・非活性アイコン                         |
+| `brown-500` | `#8D7B75` | キャプション・メタ情報（ヘーゼルナッツグレー）           |
+| `brown-600` | `#504442` | 副情報テキスト                                           |
+| `brown-700` | `#3E2723` | **プライマリ**（ロースト・エスプレッソ、主要ボタン）     |
+| `brown-800` | `#2B1613` | プライマリ hover                                         |
 | `brown-900` | `#1C1C18` | **`#000000` の代替**（最も濃い黒に近い茶、主要テキスト） |
 
 ### アクセント基礎スケール: terracotta / sage
 
 CTA・リンク・成功状態など、brown 単色では表現できないインタラクティブ要素に使う:
 
-| トークン | HEX | 用途 |
-|---|---|---|
-| `terracotta-100` | `#FFDBD0` | タグ・バッジの淡い背景 |
-| `terracotta-300` | `#FE997A` | バッジ強調色（装飾専用。地に対し約3.5:1しか出ないため**テキストには使わない**） |
+| トークン         | HEX       | 用途                                                                                                            |
+| ---------------- | --------- | --------------------------------------------------------------------------------------------------------------- |
+| `terracotta-100` | `#FFDBD0` | タグ・バッジの淡い背景                                                                                          |
+| `terracotta-300` | `#FE997A` | バッジ強調色（装飾専用。地に対し約3.5:1しか出ないため**テキストには使わない**）                                 |
 | `terracotta-400` | `#C86D51` | 装飾アクセント専用（枠線・アイコン等）。地(`#FCF9F2`/白)に対し約3.5:1で**AA未達のためテキスト色として使わない** |
-| `terracotta-500` | `#97472E` | **セカンダリ**（CTA・リンク・テイスティングタグ）。地に対し約6.1:1、白文字でも約6.5:1でAA適合 |
-| `terracotta-600` | `#7A3A25` | セカンダリ hover |
-| `sage-100` | `#D3E8D1` | 成功系の淡い背景 |
-| `sage-400` | `#768A76` | セージアクセント（植物・抹茶モチーフ） |
-| `sage-500` | `#5B7B63` | **成功**（`success`）、いいね系の状態色 |
+| `terracotta-500` | `#97472E` | **セカンダリ**（CTA・リンク・テイスティングタグ）。地に対し約6.1:1、白文字でも約6.5:1でAA適合                   |
+| `terracotta-600` | `#7A3A25` | セカンダリ hover                                                                                                |
+| `sage-100`       | `#D3E8D1` | 成功系の淡い背景                                                                                                |
+| `sage-400`       | `#768A76` | セージアクセント（植物・抹茶モチーフ）                                                                          |
+| `sage-500`       | `#5B7B63` | **成功**（`success`）、いいね系の状態色                                                                         |
 
 ### セマンティックトークン（推奨: この命名で使う）
 
@@ -168,58 +168,58 @@ CTA・リンク・成功状態など、brown 単色では表現できないイ�
 
 #### レイアウト系
 
-| セマンティック | Tailwindユーティリティ | 意味 |
-|---|---|---|
-| `bg-background` | 内部で `brown-50` | ページ全体の背景 |
-| `bg-surface` | 内部で `white` | カード・パネル背景（フラット） |
+| セマンティック        | Tailwindユーティリティ  | 意味                           |
+| --------------------- | ----------------------- | ------------------------------ |
+| `bg-background`       | 内部で `brown-50`       | ページ全体の背景               |
+| `bg-surface`          | 内部で `white`          | カード・パネル背景（フラット） |
 | `bg-surface-elevated` | 内部で `white` + shadow | 浮き上がるカード（モーダル等） |
-| `bg-muted` | 内部で `brown-100` | 非活性・補助背景 |
+| `bg-muted`            | 内部で `brown-100`      | 非活性・補助背景               |
 
 #### テキスト系
 
-| セマンティック | Tailwindユーティリティ | 意味 |
-|---|---|---|
-| `text-foreground` | 内部で `brown-900` | 主要テキスト（本文・見出し）⭐️ `#000` 代替 |
-| `text-muted-foreground` | 内部で `brown-700` | 副情報・補助テキスト |
-| `text-subtle` | 内部で `brown-500` | 更に薄い補助（キャプション等） |
+| セマンティック          | Tailwindユーティリティ | 意味                                       |
+| ----------------------- | ---------------------- | ------------------------------------------ |
+| `text-foreground`       | 内部で `brown-900`     | 主要テキスト（本文・見出し）⭐️ `#000` 代替 |
+| `text-muted-foreground` | 内部で `brown-700`     | 副情報・補助テキスト                       |
+| `text-subtle`           | 内部で `brown-500`     | 更に薄い補助（キャプション等）             |
 
 #### インタラクティブ系
 
-| セマンティック | Tailwindユーティリティ | 意味 |
-|---|---|---|
-| `bg-primary` | 内部で `brown-700` | 主要ボタン背景（ロースト・エスプレッソ） |
-| `bg-primary-hover` | 内部で `brown-800` | 主要ボタン hover |
-| `text-primary-foreground` | 内部で `brown-50` | 主要ボタン上のテキスト |
-| `bg-secondary` | 内部で `terracotta-500` | 副次ボタン・CTA背景（`terracotta-400`はAA未達のため使わない） |
-| `bg-secondary-hover` | 内部で `terracotta-600` | 副次ボタン hover |
-| `text-secondary-foreground` | 内部で `white` | 副次ボタン上のテキスト |
-| `text-link` | 内部で `terracotta-500` | リンク色（`terracotta-400`はAA未達のため使わない） |
-| `text-link-hover` | 内部で `terracotta-600` | リンク hover |
+| セマンティック              | Tailwindユーティリティ  | 意味                                                          |
+| --------------------------- | ----------------------- | ------------------------------------------------------------- |
+| `bg-primary`                | 内部で `brown-700`      | 主要ボタン背景（ロースト・エスプレッソ）                      |
+| `bg-primary-hover`          | 内部で `brown-800`      | 主要ボタン hover                                              |
+| `text-primary-foreground`   | 内部で `brown-50`       | 主要ボタン上のテキスト                                        |
+| `bg-secondary`              | 内部で `terracotta-500` | 副次ボタン・CTA背景（`terracotta-400`はAA未達のため使わない） |
+| `bg-secondary-hover`        | 内部で `terracotta-600` | 副次ボタン hover                                              |
+| `text-secondary-foreground` | 内部で `white`          | 副次ボタン上のテキスト                                        |
+| `text-link`                 | 内部で `terracotta-500` | リンク色（`terracotta-400`はAA未達のため使わない）            |
+| `text-link-hover`           | 内部で `terracotta-600` | リンク hover                                                  |
 
 #### 構造系
 
-| セマンティック | Tailwindユーティリティ | 意味 |
-|---|---|---|
-| `border-border-default` | 内部で `brown-200` | 標準ボーダー |
-| `border-border-strong` | 内部で `brown-300` | 強調ボーダー |
-| `bg-input` | 内部で `white` | 入力欄背景 |
-| `border-border-input` | 内部で `brown-300` | 入力欄ボーダー |
-| `ring-ring-focus` | 内部で `terracotta-400` | フォーカスリング（フォーム focus 時の枠色） |
+| セマンティック          | Tailwindユーティリティ  | 意味                                        |
+| ----------------------- | ----------------------- | ------------------------------------------- |
+| `border-border-default` | 内部で `brown-200`      | 標準ボーダー                                |
+| `border-border-strong`  | 内部で `brown-300`      | 強調ボーダー                                |
+| `bg-input`              | 内部で `white`          | 入力欄背景                                  |
+| `border-border-input`   | 内部で `brown-300`      | 入力欄ボーダー                              |
+| `ring-ring-focus`       | 内部で `terracotta-400` | フォーカスリング（フォーム focus 時の枠色） |
 
 #### 状態系
 
-| セマンティック | Tailwindユーティリティ | 意味 |
-|---|---|---|
-| `bg-success` / `text-success-foreground` | 内部で `sage-500`(`#5B7B63`) / `white` | 成功トースト・いいね状態 |
-| `bg-warning` / `text-warning-foreground` | 内部で `#D97736` / `white` | 警告トースト |
-| `bg-danger` / `text-danger-foreground` | 内部で `#A94438` / `white` | 危険操作・エラー |
-| `bg-info` / `text-info-foreground` | 内部で `#5E548E` / `white` | 情報通知（訪問済みバッジ等） |
+| セマンティック                           | Tailwindユーティリティ                 | 意味                         |
+| ---------------------------------------- | -------------------------------------- | ---------------------------- |
+| `bg-success` / `text-success-foreground` | 内部で `sage-500`(`#5B7B63`) / `white` | 成功トースト・いいね状態     |
+| `bg-warning` / `text-warning-foreground` | 内部で `#D97736` / `white`             | 警告トースト                 |
+| `bg-danger` / `text-danger-foreground`   | 内部で `#A94438` / `white`             | 危険操作・エラー             |
+| `bg-info` / `text-info-foreground`       | 内部で `#5E548E` / `white`             | 情報通知（訪問済みバッジ等） |
 
 ### 使い分けの目安
 
 **推奨:**
 ```tsx
-<div className="bg-surface text-foreground border border-border-default rounded-lg p-4">
+;<div className="bg-surface text-foreground border border-border-default rounded-lg p-4">
   <h2 className="text-foreground text-2xl font-bold">タイトル</h2>
   <p className="text-muted-foreground text-base">本文</p>
   <button className="bg-primary hover:bg-primary-hover text-primary-foreground px-6 py-3">
@@ -242,20 +242,20 @@ CTA・リンク・成功状態など、brown 単色では表現できないイ�
 
 `background` と同系統の、より明るい背景バリエーション:
 
-| トークン | HEX | 用途 |
-|---|---|---|
-| `cream-50` | `#FFFDF9` | 最も明るいホワイト系背景 |
+| トークン    | HEX       | 用途                              |
+| ----------- | --------- | --------------------------------- |
+| `cream-50`  | `#FFFDF9` | 最も明るいホワイト系背景          |
 | `cream-100` | `#FCF9F2` | ページ背景（`background` と同値） |
-| `cream-200` | `#F6F3EC` | カード内の控えめな区切り面 |
+| `cream-200` | `#F6F3EC` | カード内の控えめな区切り面        |
 
 ### アクセント（terracotta / sage を主役に）
 
-| 用途 | トークン | HEX |
-|---|---|---|
-| 成功 | `success` | `#5B7B63`（ディープセージ） |
-| 警告 | `warning` | `#D97736`（アンバー・テラコッタ） |
-| 危険 | `danger` | `#A94438`（ワインレッド） |
-| 情報 | `info` | `#5E548E`（京都トワイライト・インディゴ） |
+| 用途 | トークン  | HEX                                       |
+| ---- | --------- | ----------------------------------------- |
+| 成功 | `success` | `#5B7B63`（ディープセージ）               |
+| 警告 | `warning` | `#D97736`（アンバー・テラコッタ）         |
+| 危険 | `danger`  | `#A94438`（ワインレッド）                 |
+| 情報 | `info`    | `#5E548E`（京都トワイライト・インディゴ） |
 
 これらもすべて暖色寄り、彩度控えめ。純色（`#FF0000` 等）は使用しない。
 
@@ -263,10 +263,10 @@ CTA・リンク・成功状態など、brown 単色では表現できないイ�
 
 以下は **絶対に使わない**:
 
-| 禁止色 | 代替 |
-|---|---|
-| `#000000` / `text-black` / `bg-black` | `text-brown-900` / `bg-brown-900` |
-| Tailwind default `text-black` | 上記 |
+| 禁止色                                | 代替                                                                                                        |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `#000000` / `text-black` / `bg-black` | `text-brown-900` / `bg-brown-900`                                                                           |
+| Tailwind default `text-black`         | 上記                                                                                                        |
 | **ページ地色**に純白 `#FFFFFF` を使う | `bg-background`（= `brown-50`）<br>※ カード面 `bg-surface` / 入力欄 `bg-input` は純白でよい（意図的な設計） |
 
 **チェック:** `scripts/check-design-system.sh` が自動検出する（`pnpm lint:design`）。CI と pre-commit hook の両方で実行されるため、違反はコミットできない。
@@ -284,75 +284,75 @@ CTA・リンク・成功状態など、brown 単色では表現できないイ�
 
 @theme {
   /* ===== 基礎スケール ===== */
-  --color-brown-50:  #FCF9F2;
-  --color-brown-100: #F6F3EC;
-  --color-brown-200: #EDE8DE;
-  --color-brown-300: #D3C3C0;
-  --color-brown-400: #AE8D87;
-  --color-brown-500: #8D7B75;
+  --color-brown-50: #fcf9f2;
+  --color-brown-100: #f6f3ec;
+  --color-brown-200: #ede8de;
+  --color-brown-300: #d3c3c0;
+  --color-brown-400: #ae8d87;
+  --color-brown-500: #8d7b75;
   --color-brown-600: #504442;
-  --color-brown-700: #3E2723;
-  --color-brown-800: #2B1613;
-  --color-brown-900: #1C1C18;
+  --color-brown-700: #3e2723;
+  --color-brown-800: #2b1613;
+  --color-brown-900: #1c1c18;
 
-  --color-cream-50:  #FFFDF9;
-  --color-cream-100: #FCF9F2;
-  --color-cream-200: #F6F3EC;
+  --color-cream-50: #fffdf9;
+  --color-cream-100: #fcf9f2;
+  --color-cream-200: #f6f3ec;
 
-  --color-terracotta-100: #FFDBD0;
-  --color-terracotta-300: #FE997A;
-  --color-terracotta-400: #C86D51;
-  --color-terracotta-500: #97472E;
-  --color-terracotta-600: #7A3A25;
+  --color-terracotta-100: #ffdbd0;
+  --color-terracotta-300: #fe997a;
+  --color-terracotta-400: #c86d51;
+  --color-terracotta-500: #97472e;
+  --color-terracotta-600: #7a3a25;
 
-  --color-sage-100: #D3E8D1;
-  --color-sage-400: #768A76;
-  --color-sage-500: #5B7B63;
+  --color-sage-100: #d3e8d1;
+  --color-sage-400: #768a76;
+  --color-sage-500: #5b7b63;
 
   /* ===== セマンティック（実装時はこちらを優先） ===== */
   /* レイアウト */
-  --color-background:       var(--color-brown-50);
-  --color-surface:          #FFFFFF;
-  --color-surface-elevated: #FFFFFF;
-  --color-muted:            var(--color-brown-100);
+  --color-background: var(--color-brown-50);
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-muted: var(--color-brown-100);
 
   /* テキスト */
-  --color-foreground:         var(--color-brown-900);
-  --color-muted-foreground:   var(--color-brown-600);
-  --color-subtle:             var(--color-brown-500);
+  --color-foreground: var(--color-brown-900);
+  --color-muted-foreground: var(--color-brown-600);
+  --color-subtle: var(--color-brown-500);
 
   /* インタラクティブ */
-  --color-primary:              var(--color-brown-700);
-  --color-primary-hover:        var(--color-brown-800);
-  --color-primary-foreground:   var(--color-brown-50);
-  --color-secondary:            var(--color-terracotta-500);
-  --color-secondary-hover:      var(--color-terracotta-600);
-  --color-secondary-foreground: #FFFFFF;
-  --color-link:                 var(--color-terracotta-500);
-  --color-link-hover:           var(--color-terracotta-600);
+  --color-primary: var(--color-brown-700);
+  --color-primary-hover: var(--color-brown-800);
+  --color-primary-foreground: var(--color-brown-50);
+  --color-secondary: var(--color-terracotta-500);
+  --color-secondary-hover: var(--color-terracotta-600);
+  --color-secondary-foreground: #ffffff;
+  --color-link: var(--color-terracotta-500);
+  --color-link-hover: var(--color-terracotta-600);
 
   /* 構造 */
   --color-border-default: var(--color-brown-200);
-  --color-border-strong:  var(--color-brown-300);
-  --color-input:          #FFFFFF;
-  --color-border-input:   var(--color-brown-300);
-  --color-ring-focus:     var(--color-terracotta-400);
+  --color-border-strong: var(--color-brown-300);
+  --color-input: #ffffff;
+  --color-border-input: var(--color-brown-300);
+  --color-ring-focus: var(--color-terracotta-400);
 
   /* 状態 */
-  --color-success:            var(--color-sage-500);
-  --color-success-foreground: #FFFFFF;
-  --color-warning:            #D97736;
-  --color-warning-foreground: #FFFFFF;
-  --color-danger:             #A94438;
-  --color-danger-foreground:  #FFFFFF;
-  --color-info:               #5E548E;
-  --color-info-foreground:    #FFFFFF;
+  --color-success: var(--color-sage-500);
+  --color-success-foreground: #ffffff;
+  --color-warning: #d97736;
+  --color-warning-foreground: #ffffff;
+  --color-danger: #a94438;
+  --color-danger-foreground: #ffffff;
+  --color-info: #5e548e;
+  --color-info-foreground: #ffffff;
 
   /* ===== 角丸 (ceramic roundness) ===== */
-  --radius-sm:  0.25rem;
-  --radius-md:  0.5rem;
-  --radius-lg:  0.75rem;
-  --radius-xl:  1rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
   --radius-2xl: 1.5rem;
 
   /* ===== 影（暖色の拡散シャドウ。灰色の硬いドロップシャドウは使わない） ===== */
@@ -362,7 +362,7 @@ CTA・リンク・成功状態など、brown 単色では表現できないイ�
   /* ===== フォント =====
      本文: Plus Jakarta Sans（欧文・数字）→ Noto Sans JP（和文はシステムフォールバック）
      見出し: Epilogue → Noto Sans JP */
-  --font-sans:    var(--font-plus-jakarta-sans), var(--font-noto-sans-jp), system-ui, sans-serif;
+  --font-sans: var(--font-plus-jakarta-sans), var(--font-noto-sans-jp), system-ui, sans-serif;
   --font-heading: var(--font-epilogue), var(--font-noto-sans-jp), system-ui, sans-serif;
 }
 ```
@@ -385,7 +385,10 @@ currentColor＝ほぼ黒で描画される）。同様に `--color-ring-focus` �
 以下の基底スタイルのみ例外的に許可する。新しいグローバル規則を増やす場合はこのセクションに追記すること。
 
 ```css
-h1, h2, h3, h4 {
+h1,
+h2,
+h3,
+h4 {
   font-family: var(--font-heading);
   font-weight: 600;
 }
@@ -401,7 +404,7 @@ h1, h2, h3, h4 {
 ### 良い例
 
 ```tsx
-<div className="p-4 md:p-6 lg:p-8 bg-surface text-foreground border border-border-default rounded-lg">
+;<div className="p-4 md:p-6 lg:p-8 bg-surface text-foreground border border-border-default rounded-lg">
   <h2 className="text-2xl font-bold text-foreground mb-4">見出し</h2>
   <p className="text-base text-muted-foreground">本文テキスト</p>
   <button className="mt-6 px-6 py-3 bg-primary hover:bg-primary-hover text-primary-foreground rounded-md">
@@ -418,41 +421,42 @@ h1, h2, h3, h4 {
 ### 悪い例
 
 ```tsx
-<div className="p-5 bg-black text-black">        ❌ p-5(20px)禁止、black禁止
-  <h2 className="text-[15px]">見出し</h2>          ❌ 15px（8倍数でも4/12でもない）
-  <p style={{ padding: '13px' }}>本文</p>          ❌ インラインstyle禁止
+;<div className="p-5 bg-black text-black">
+  {' '}
+  ❌ p-5(20px)禁止、black禁止
+  <h2 className="text-[15px]">見出し</h2> ❌ 15px（8倍数でも4/12でもない）
+  <p style={{ padding: '13px' }}>本文</p> ❌ インラインstyle禁止
 </div>
 ```
 
 ### shadcn/ui の色調整
 
 shadcn/ui はデフォルトで `slate` / `zinc` 系。導入時に以下を必ず実施:
-
 1. `components.json` の `baseColor` は `neutral` を選ぶ
 2. shadcn/ui が使う CSS 変数を、**上で定義したセマンティックトークンにマッピング**
 3. すでにセマンティックが揃っているので、変数名を橋渡しするだけ
 
 ```css
 :root {
-  --background:          var(--color-background);
-  --foreground:          var(--color-foreground);
-  --card:                var(--color-surface);
-  --card-foreground:     var(--color-foreground);
-  --popover:             var(--color-surface-elevated);
-  --popover-foreground:  var(--color-foreground);
-  --primary:             var(--color-primary);
-  --primary-foreground:  var(--color-primary-foreground);
-  --secondary:           var(--color-secondary);
+  --background: var(--color-background);
+  --foreground: var(--color-foreground);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-foreground);
+  --popover: var(--color-surface-elevated);
+  --popover-foreground: var(--color-foreground);
+  --primary: var(--color-primary);
+  --primary-foreground: var(--color-primary-foreground);
+  --secondary: var(--color-secondary);
   --secondary-foreground: var(--color-secondary-foreground);
-  --muted:               var(--color-muted);
-  --muted-foreground:    var(--color-muted-foreground);
-  --accent:              var(--color-muted);
-  --accent-foreground:   var(--color-foreground);
-  --destructive:         var(--color-danger);
+  --muted: var(--color-muted);
+  --muted-foreground: var(--color-muted-foreground);
+  --accent: var(--color-muted);
+  --accent-foreground: var(--color-foreground);
+  --destructive: var(--color-danger);
   --destructive-foreground: var(--color-danger-foreground);
-  --border:              var(--color-border-default);
-  --input:               var(--color-border-input);
-  --ring:                var(--color-ring-focus);
+  --border: var(--color-border-default);
+  --input: var(--color-border-input);
+  --ring: var(--color-ring-focus);
 }
 ```
 
@@ -461,7 +465,6 @@ shadcn/ui はデフォルトで `slate` / `zinc` 系。導入時に以下を必�
 ## 6. ダークモード
 
 MVP初期は **未対応**。導入時は以下の方針:
-
 - `dark:` プレフィックスで別トークンを適用
 - ダークモードでも `#000` は使わず、`brown-900` を背景に、`brown-100` をテキストに
 - あるいは deep-coffee 系の別スケールを用意

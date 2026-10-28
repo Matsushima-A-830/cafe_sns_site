@@ -10,7 +10,7 @@ name: Nightly
 # （UTC 16:00 指定 → 19:40 発火）。時刻に依存する処理はここに置かないこと。
 on:
   schedule:
-    - cron: '0 18 * * 1'  # UTC 月 18:00 = JST 火 03:00（あくまで目安）
+    - cron: "0 18 * * 1" # UTC 月 18:00 = JST 火 03:00（あくまで目安）
   workflow_dispatch:
 
 concurrency:

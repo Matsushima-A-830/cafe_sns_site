@@ -16,34 +16,34 @@
 
 ## エンティティ（データモデル）
 
-| 日本語UI | 英語コード | DB | 説明 |
-|---|---|---|---|
-| ユーザー / ユーザ | `user` | `profiles` (+ `auth.users`) | サービスに登録したアカウント |
-| プロフィール | `profile` | `profiles` | ユーザーの表示情報 |
-| カフェ / 店舗 | `cafe` | `cafes` | 実在するカフェ店舗 |
-| 投稿 | `post` | `posts` | ユーザーが作成した写真 + 本文 |
-| 短文投稿 | `short post` | `posts.post_type = 'short'` | 写真中心の短いコメント投稿 |
-| ブログ投稿 / ブログ | `blog post` | `posts.post_type = 'blog'` | Tiptapで書く長文投稿 |
-| 下書き | `draft` | `drafts` | 未公開の投稿の途中状態 |
-| コメント | `comment` | `comments` | 投稿へのユーザー返信 |
-| 返信 | `reply` | `comments.parent_id` | コメントへの返信（コメントの子） |
-| タグ | `tag` | `tags` | 投稿の分類ラベル |
-| エリア | `area` | `areas` / `cafes.area_code` / `area_visits.area_code` / `profiles.home_area_code` | 制覇マップで使う地理区分（ISO 3166-2準拠）。**エリアを参照する列は必ず `areas.code` への FK にする**（自由テキストで持たない） |
-| ホームエリア | `home area` | `profiles.home_area_code` | ユーザーがよく行くエリア。おすすめ・タグサジェストの初期値 |
-| バッジ | `badge` | `badges` / `user_badges` | ゲーミフィケーション達成報酬 |
-| 通報 | `report` | `reports` | ユーザーからの違反報告 |
-| ブロック | `block` | `blocks` | 相互非表示化 |
-| フォロー | `follow` | `follows` | 他ユーザーの投稿を追う関係 |
-| 通知 | `notification` | `notifications` | ユーザー宛のイベント通知 |
-| NGワード | `ng word` | `ng_words` | 投稿禁止語 |
-| 常連 / 常連さん | `regular customer` / `regular` | `regular_customers` | オーナーが顧客に付与する認定関係（幹C） |
-| 気分 / シーン | `scene` / `mood` | `tags.category='occasion'` | 「ひとり時間」「朝カフェ」等の利用機会（幹A） |
-| 好きな気分 | `interest tag` | `user_interest_tags` | オンボーディングでユーザーが選ぶ1〜5個のシーン。レコメンドの入力（幹A） |
-| ユーザー設定 | `user settings` | `user_settings` | 通知・プライバシー・表示の永続設定（`S_SETTINGS`） |
-| オーナー限定投稿 | `official post` | `posts.is_official = true` | 認証済みオーナーが投稿する公式コンテンツ |
-| オーナー公式返信 | `official reply` | `comments.is_official = true` | オーナーによる公式コメント |
-| オーナー限定フォーマット | `official format` | `posts.official_format` | 豆知識/今日のおすすめ/臨時休業/新メニュー |
-| 行きつけ | `home cafe` / `regular cafe` | `regular_customers` から派生 | 常連認定されたカフェ（ユーザー視点） |
+| 日本語UI                 | 英語コード                     | DB                                                                                | 説明                                                                                                                           |
+| ------------------------ | ------------------------------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| ユーザー / ユーザ        | `user`                         | `profiles` (+ `auth.users`)                                                       | サービスに登録したアカウント                                                                                                   |
+| プロフィール             | `profile`                      | `profiles`                                                                        | ユーザーの表示情報                                                                                                             |
+| カフェ / 店舗            | `cafe`                         | `cafes`                                                                           | 実在するカフェ店舗                                                                                                             |
+| 投稿                     | `post`                         | `posts`                                                                           | ユーザーが作成した写真 + 本文                                                                                                  |
+| 短文投稿                 | `short post`                   | `posts.post_type = 'short'`                                                       | 写真中心の短いコメント投稿                                                                                                     |
+| ブログ投稿 / ブログ      | `blog post`                    | `posts.post_type = 'blog'`                                                        | Tiptapで書く長文投稿                                                                                                           |
+| 下書き                   | `draft`                        | `drafts`                                                                          | 未公開の投稿の途中状態                                                                                                         |
+| コメント                 | `comment`                      | `comments`                                                                        | 投稿へのユーザー返信                                                                                                           |
+| 返信                     | `reply`                        | `comments.parent_id`                                                              | コメントへの返信（コメントの子）                                                                                               |
+| タグ                     | `tag`                          | `tags`                                                                            | 投稿の分類ラベル                                                                                                               |
+| エリア                   | `area`                         | `areas` / `cafes.area_code` / `area_visits.area_code` / `profiles.home_area_code` | 制覇マップで使う地理区分（ISO 3166-2準拠）。**エリアを参照する列は必ず `areas.code` への FK にする**（自由テキストで持たない） |
+| ホームエリア             | `home area`                    | `profiles.home_area_code`                                                         | ユーザーがよく行くエリア。おすすめ・タグサジェストの初期値                                                                     |
+| バッジ                   | `badge`                        | `badges` / `user_badges`                                                          | ゲーミフィケーション達成報酬                                                                                                   |
+| 通報                     | `report`                       | `reports`                                                                         | ユーザーからの違反報告                                                                                                         |
+| ブロック                 | `block`                        | `blocks`                                                                          | 相互非表示化                                                                                                                   |
+| フォロー                 | `follow`                       | `follows`                                                                         | 他ユーザーの投稿を追う関係                                                                                                     |
+| 通知                     | `notification`                 | `notifications`                                                                   | ユーザー宛のイベント通知                                                                                                       |
+| NGワード                 | `ng word`                      | `ng_words`                                                                        | 投稿禁止語                                                                                                                     |
+| 常連 / 常連さん          | `regular customer` / `regular` | `regular_customers`                                                               | オーナーが顧客に付与する認定関係（幹C）                                                                                        |
+| 気分 / シーン            | `scene` / `mood`               | `tags.category='occasion'`                                                        | 「ひとり時間」「朝カフェ」等の利用機会（幹A）                                                                                  |
+| 好きな気分               | `interest tag`                 | `user_interest_tags`                                                              | オンボーディングでユーザーが選ぶ1〜5個のシーン。レコメンドの入力（幹A）                                                        |
+| ユーザー設定             | `user settings`                | `user_settings`                                                                   | 通知・プライバシー・表示の永続設定（`S_SETTINGS`）                                                                             |
+| オーナー限定投稿         | `official post`                | `posts.is_official = true`                                                        | 認証済みオーナーが投稿する公式コンテンツ                                                                                       |
+| オーナー公式返信         | `official reply`               | `comments.is_official = true`                                                     | オーナーによる公式コメント                                                                                                     |
+| オーナー限定フォーマット | `official format`              | `posts.official_format`                                                           | 豆知識/今日のおすすめ/臨時休業/新メニュー                                                                                      |
+| 行きつけ                 | `home cafe` / `regular cafe`   | `regular_customers` から派生                                                      | 常連認定されたカフェ（ユーザー視点）                                                                                           |
 
 ---
 
@@ -53,11 +53,11 @@
 
 ### 特に混同しやすい3種（要注意）
 
-| 日本語 | 英語動詞 | 対象 | 意味 |
-|---|---|---|---|
-| **お気に入りに登録** | `favorite` | カフェ | 常連・好きなカフェ（既訪問想定） |
-| **行きたいに追加** | `wantToGo` | カフェ | まだ行っていない、行ってみたいカフェ |
-| **保存** | `bookmark` | 投稿 | 参考にしたい投稿を後で見返す |
+| 日本語               | 英語動詞   | 対象   | 意味                                 |
+| -------------------- | ---------- | ------ | ------------------------------------ |
+| **お気に入りに登録** | `favorite` | カフェ | 常連・好きなカフェ（既訪問想定）     |
+| **行きたいに追加**   | `wantToGo` | カフェ | まだ行っていない、行ってみたいカフェ |
+| **保存**             | `bookmark` | 投稿   | 参考にしたい投稿を後で見返す         |
 
 このプロジェクトでは:
 - 「保存」= 投稿単位 (`post_bookmarks`)
@@ -69,28 +69,28 @@
 
 ### 全アクション一覧
 
-| 日本語 | 英語動詞 | 対象 | メソッド例 |
-|---|---|---|---|
-| 投稿する | `create post` | posts | `createPost()` |
-| 公開する | `publish` | drafts → posts | `publishDraft()` |
-| 下書き保存 | `save draft` | drafts | `saveDraft()` |
-| 削除する | `delete` (soft) | posts / comments | `deletePost()` |
-| いいねする / いいね解除 | `like` / `unlike` | posts | `likePost()` / `unlikePost()` |
-| 保存 / 保存解除 | `bookmark` / `unbookmark` | posts | `bookmarkPost()` / `unbookmarkPost()` |
-| お気に入り登録 / 解除 | `toggle favorite` | cafes | `toggleFavorite()` |
-| 行きたい追加 / 解除 | `toggle wantToGo` | cafes | `toggleWantToGo()` |
-| フォロー / フォロー解除 | `toggle follow` | users | `toggleFollow()` |
-| ブロック / ブロック解除 | `toggle block` | users | `toggleBlock()` |
-| 通報する | `create report` | posts / comments / users / cafes | `createReport()` |
-| コメントする | `create comment` | posts | `createComment()` |
-| 返信する | `create reply` | comments | `createComment({ parentId })` |
-| 認証申請する | `claim` | cafes（オーナー認証） | `claimCafe()` |
-| 承認する | `approve` | cafe_owner_verifications | `approveClaim()` |
-| 却下する | `reject` | cafe_owner_verifications | `rejectClaim()` |
-| 混雑度を報告 | `report congestion` | cafe_congestion_reports | `reportCongestion()` |
-| 常連認定する | `award regular` | regular_customers | `awardRegular()` |
-| 常連認定を取り消す | `revoke regular` | regular_customers | `revokeRegular()` |
-| 申請を取り下げる | `withdraw` | cafe_owner_verifications | `withdrawClaim()` |
+| 日本語                  | 英語動詞                  | 対象                             | メソッド例                            |
+| ----------------------- | ------------------------- | -------------------------------- | ------------------------------------- |
+| 投稿する                | `create post`             | posts                            | `createPost()`                        |
+| 公開する                | `publish`                 | drafts → posts                   | `publishDraft()`                      |
+| 下書き保存              | `save draft`              | drafts                           | `saveDraft()`                         |
+| 削除する                | `delete` (soft)           | posts / comments                 | `deletePost()`                        |
+| いいねする / いいね解除 | `like` / `unlike`         | posts                            | `likePost()` / `unlikePost()`         |
+| 保存 / 保存解除         | `bookmark` / `unbookmark` | posts                            | `bookmarkPost()` / `unbookmarkPost()` |
+| お気に入り登録 / 解除   | `toggle favorite`         | cafes                            | `toggleFavorite()`                    |
+| 行きたい追加 / 解除     | `toggle wantToGo`         | cafes                            | `toggleWantToGo()`                    |
+| フォロー / フォロー解除 | `toggle follow`           | users                            | `toggleFollow()`                      |
+| ブロック / ブロック解除 | `toggle block`            | users                            | `toggleBlock()`                       |
+| 通報する                | `create report`           | posts / comments / users / cafes | `createReport()`                      |
+| コメントする            | `create comment`          | posts                            | `createComment()`                     |
+| 返信する                | `create reply`            | comments                         | `createComment({ parentId })`         |
+| 認証申請する            | `claim`                   | cafes（オーナー認証）            | `claimCafe()`                         |
+| 承認する                | `approve`                 | cafe_owner_verifications         | `approveClaim()`                      |
+| 却下する                | `reject`                  | cafe_owner_verifications         | `rejectClaim()`                       |
+| 混雑度を報告            | `report congestion`       | cafe_congestion_reports          | `reportCongestion()`                  |
+| 常連認定する            | `award regular`           | regular_customers                | `awardRegular()`                      |
+| 常連認定を取り消す      | `revoke regular`          | regular_customers                | `revokeRegular()`                     |
+| 申請を取り下げる        | `withdraw`                | cafe_owner_verifications         | `withdrawClaim()`                     |
 
 > **`toggleXxx()` は実装では追加と解除に分ける。** トグル1本にすると、二重クリックや
 > 表示が古いまま押されたときに「どちらの状態を求めたのか」をサーバー側で決められない。
@@ -104,57 +104,57 @@
 
 ### ユーザー状態 (`profiles.status`)
 
-| 日本語 | コード | 意味 |
-|---|---|---|
-| アクティブ | `active` | 通常利用可能 |
-| 同意待ち | `pending_consent` | 未成年で保護者同意未完了 |
-| 停止中 | `suspended` | 運営により利用停止 |
-| 削除済み | `deleted` | 論理削除済み |
+| 日本語     | コード            | 意味                     |
+| ---------- | ----------------- | ------------------------ |
+| アクティブ | `active`          | 通常利用可能             |
+| 同意待ち   | `pending_consent` | 未成年で保護者同意未完了 |
+| 停止中     | `suspended`       | 運営により利用停止       |
+| 削除済み   | `deleted`         | 論理削除済み             |
 
 ### ユーザーロール (`profiles.role`)
 
-| 日本語 | コード | 意味 |
-|---|---|---|
-| 一般ユーザー | `user` | 標準権限 |
+| 日本語            | コード  | 意味           |
+| ----------------- | ------- | -------------- |
+| 一般ユーザー      | `user`  | 標準権限       |
 | 経営者 / オーナー | `owner` | カフェ認証済み |
-| 管理者 | `admin` | 運営 |
+| 管理者            | `admin` | 運営           |
 
 ### 投稿状態 (`posts.status`)
 
-| 日本語 | コード | 意味 |
-|---|---|---|
-| 公開 | `published` | 通常公開 |
-| アーカイブ | `archived` | 自主非公開 |
-| 非表示 | `hidden` | 運営による非公開 |
+| 日本語     | コード      | 意味             |
+| ---------- | ----------- | ---------------- |
+| 公開       | `published` | 通常公開         |
+| アーカイブ | `archived`  | 自主非公開       |
+| 非表示     | `hidden`    | 運営による非公開 |
 
 ### 認証申請状態 (`cafe_owner_verifications.status`)
 
-| 日本語 | コード | 意味 |
-|---|---|---|
-| 審査中 | `pending` | 提出後 |
-| 承認 | `approved` | 認証完了 |
-| 却下 | `rejected` | 却下 |
+| 日本語   | コード      | 意味                   |
+| -------- | ----------- | ---------------------- |
+| 審査中   | `pending`   | 提出後                 |
+| 承認     | `approved`  | 認証完了               |
+| 却下     | `rejected`  | 却下                   |
 | 取り下げ | `withdrawn` | 申請者が自分で取り下げ |
 
 ### 通報状態 (`reports.status`)
 
-| 日本語 | コード | 意味 |
-|---|---|---|
-| 未対応 | `pending` | キュー投入直後 |
-| 対応中 | `reviewing` | 運営レビュー中 |
-| 対応済 | `resolved` | 措置完了 |
-| 対応不要 | `rejected` | 違反なしと判断 |
+| 日本語   | コード      | 意味           |
+| -------- | ----------- | -------------- |
+| 未対応   | `pending`   | キュー投入直後 |
+| 対応中   | `reviewing` | 運営レビュー中 |
+| 対応済   | `resolved`  | 措置完了       |
+| 対応不要 | `rejected`  | 違反なしと判断 |
 
 ### 通報理由 (`reports.reason`)
 
-| 日本語 | コード |
-|---|---|
-| スパム / 宣伝 | `spam` |
+| 日本語              | コード       |
+| ------------------- | ------------ |
+| スパム / 宣伝       | `spam`       |
 | 嫌がらせ / 誹謗中傷 | `harassment` |
-| 未成年に不適切 | `minor_risk` |
-| 著作権侵害 | `copyright` |
-| 個人情報を含む | `privacy` |
-| その他 | `other` |
+| 未成年に不適切      | `minor_risk` |
+| 著作権侵害          | `copyright`  |
+| 個人情報を含む      | `privacy`    |
+| その他              | `other`      |
 
 ### 通知タイプ (`notifications.type`)
 
@@ -163,15 +163,14 @@
 
 ### タグカテゴリ (`tags.category`)
 
-| 日本語 | コード | 例 |
-|---|---|---|
-| エリア | `area` | #渋谷区 #表参道 |
-| 雰囲気 | `mood` | #静か #おしゃれ |
+| 日本語   | コード     | 例                             |
+| -------- | ---------- | ------------------------------ |
+| エリア   | `area`     | #渋谷区 #表参道                |
+| 雰囲気   | `mood`     | #静か #おしゃれ                |
 | 利用機会 | `occasion` | #朝カフェ #デート #Wi-Fi #電源 |
-| その他 | `other` | #自家焙煎 #ペット可 |
+| その他   | `other`    | #自家焙煎 #ペット可            |
 
 **`occasion` と `other` の境界:**
-
 - `occasion` = **その気分でカフェを探すときの入り口になる条件**。「作業したい」から探す人にとって #Wi-Fi #電源 は設備ではなく**シーンそのもの**なので occasion に置く（幹Aの「今、どんなカフェ気分？」に出す）
 - `other` = **候補を絞り込んだ後に効く、こだわり条件**。#自家焙煎 #ペット可 のように、それ単独では探し始めない条件
 - 判断に迷ったら「ホーム最上部の気分チップに出したいか？」で決める
@@ -185,25 +184,25 @@
 
 ## UI構造用語
 
-| 日本語 | コード | 説明 |
-|---|---|---|
-| ホーム | `home` | ログイン後のトップ |
-| 発見 | `explore` | おすすめ投稿一覧 |
-| 近くのカフェ | `nearby` | S_EXPLORE のサブタブ。閲覧者の現在地に近いカフェの投稿一覧（`FeedQuery.scope='nearby'`） |
-| タイムライン | `timeline` | フォロー中の投稿一覧 |
-| 地図ビュー | `map view` | 地図でカフェ探索 |
-| マイページ | `my page` | 自分のプロフィール |
-| ダッシュボード | `dashboard` | 経営者用管理画面 |
-| ヒーロー画像 | `hero image` | ページ最上部の大きな画像 |
-| サムネイル | `thumbnail` | 一覧表示用の小画像 |
-| アバター | `avatar` | プロフィール画像 |
-| バナー | `banner` | 告知等の帯状表示 |
-| ボトムシート | `bottom sheet` | モバイル下から上がるパネル |
-| モーダル | `modal` | 中央ダイアログ |
-| トースト | `toast` | 画面隅の短時間表示 |
-| バッジ（UI） | `badge` | カウンタの数字表示（アイコン付き） |
-| チップ | `chip` | タグ的な小さなラベル |
-| プログレスバー | `progress bar` | 進捗表示 |
+| 日本語         | コード         | 説明                                                                                     |
+| -------------- | -------------- | ---------------------------------------------------------------------------------------- |
+| ホーム         | `home`         | ログイン後のトップ                                                                       |
+| 発見           | `explore`      | おすすめ投稿一覧                                                                         |
+| 近くのカフェ   | `nearby`       | S_EXPLORE のサブタブ。閲覧者の現在地に近いカフェの投稿一覧（`FeedQuery.scope='nearby'`） |
+| タイムライン   | `timeline`     | フォロー中の投稿一覧                                                                     |
+| 地図ビュー     | `map view`     | 地図でカフェ探索                                                                         |
+| マイページ     | `my page`      | 自分のプロフィール                                                                       |
+| ダッシュボード | `dashboard`    | 経営者用管理画面                                                                         |
+| ヒーロー画像   | `hero image`   | ページ最上部の大きな画像                                                                 |
+| サムネイル     | `thumbnail`    | 一覧表示用の小画像                                                                       |
+| アバター       | `avatar`       | プロフィール画像                                                                         |
+| バナー         | `banner`       | 告知等の帯状表示                                                                         |
+| ボトムシート   | `bottom sheet` | モバイル下から上がるパネル                                                               |
+| モーダル       | `modal`        | 中央ダイアログ                                                                           |
+| トースト       | `toast`        | 画面隅の短時間表示                                                                       |
+| バッジ（UI）   | `badge`        | カウンタの数字表示（アイコン付き）                                                       |
+| チップ         | `chip`         | タグ的な小さなラベル                                                                     |
+| プログレスバー | `progress bar` | 進捗表示                                                                                 |
 
 **注意:** 「バッジ」は文脈で2つの意味:
 - **ゲーミフィケーションのバッジ** — `badge` (entity)
@@ -215,33 +214,32 @@
 
 ## 数値・単位
 
-| 概念 | 単位 | 例 |
-|---|---|---|
-| タイムスタンプ | `timestamptz` (UTC) | DB保存、UI表示は JST 変換 |
-| 距離 | メートル | 「徒歩3分」= 240m相当 |
-| 画像サイズ | バイト | 投稿画像 10MB / アバター 2MB |
-| ページング | 20件/ページ | 標準の limit |
-| デバウンス | 秒 | 下書き自動保存 = 15秒 |
+| 概念           | 単位                | 例                           |
+| -------------- | ------------------- | ---------------------------- |
+| タイムスタンプ | `timestamptz` (UTC) | DB保存、UI表示は JST 変換    |
+| 距離           | メートル            | 「徒歩3分」= 240m相当        |
+| 画像サイズ     | バイト              | 投稿画像 10MB / アバター 2MB |
+| ページング     | 20件/ページ         | 標準の limit                 |
+| デバウンス     | 秒                  | 下書き自動保存 = 15秒        |
 
 ---
 
 ## 略語・命名規則
 
-| 場面 | 例 |
-|---|---|
-| 変数 | camelCase (`postId`, `userProfile`) |
-| 関数 | camelCase 動詞始まり (`createPost`, `toggleLike`) |
-| コンポーネント | PascalCase (`PostCard`, `LikeButton`) |
-| 型 | PascalCase (`PostSchema`, `UserRole`) |
-| 定数 | UPPER_SNAKE_CASE (`MAX_TAGS_PER_POST`) |
-| DBテーブル・列 | snake_case (`post_tags`, `author_id`) |
-| ファイル | kebab-case (`post-card.tsx`, `use-auth.ts`) |
-| URL slug | kebab-case (`/want-to-go`, `/owner/pending`) |
+| 場面           | 例                                                |
+| -------------- | ------------------------------------------------- |
+| 変数           | camelCase (`postId`, `userProfile`)               |
+| 関数           | camelCase 動詞始まり (`createPost`, `toggleLike`) |
+| コンポーネント | PascalCase (`PostCard`, `LikeButton`)             |
+| 型             | PascalCase (`PostSchema`, `UserRole`)             |
+| 定数           | UPPER_SNAKE_CASE (`MAX_TAGS_PER_POST`)            |
+| DBテーブル・列 | snake_case (`post_tags`, `author_id`)             |
+| ファイル       | kebab-case (`post-card.tsx`, `use-auth.ts`)       |
+| URL slug       | kebab-case (`/want-to-go`, `/owner/pending`)      |
 
 ### 略語の禁止
 
 以下の略語は使わない（意味不明化するため）:
-
 - ❌ `usr` → ✅ `user`
 - ❌ `img` → ✅ `image`
 - ❌ `btn` → ✅ `button`
@@ -255,7 +253,6 @@
 ## 追加時のルール
 
 新しい概念（機能・状態・UI要素）を追加する際:
-
 1. **本用語集にまずエントリを作る**（日本語 / 英語 / DB / 説明）
 2. 既存語との衝突を確認
 3. その上でコード実装に入る

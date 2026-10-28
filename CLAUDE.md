@@ -5,7 +5,6 @@
 ## プロジェクト概要
 
 **目的:** カフェで交流するためのSNSサイト。行動経済学の考え方を意識したUI/UXで、日本の10〜20代（メインターゲット）とカフェ経営者（サブターゲット）に届ける。
-
 - **公開計画:** AWSでブラウザ版先行 → アプリ化検討
 - **対応端末:** スマホ / タブレット / PC すべて最適化
 - **対応ブラウザ:** Chrome, Edge, Firefox（Safariは MVP開発期間中は非対応、リリース前に集中検証）
@@ -15,65 +14,64 @@
 
 **実装前に必ず参照する。単一の情報源はドキュメント側であり、コードで齟齬が出た場合はドキュメント優先で議論する。**
 
-| カテゴリ | パス | 用途 |
-|---|---|---|
-| 索引 | [docs/README.md](docs/README.md) | 全ドキュメントの索引 |
-| **product / 戦略** | [docs/product/positioning.md](docs/product/positioning.md) | **差別化戦略の幹（気分検索・オーナー連携）— 判断の起点** |
-| product / スコープ | [docs/product/mvp-scope.md](docs/product/mvp-scope.md) | 機能の実装優先度・後回し判断 |
-| product / TODO | [docs/product/pending-items.md](docs/product/pending-items.md) | 優先度別TODO |
-| architecture / データモデル | [docs/architecture/data-model/README.md](docs/architecture/data-model/README.md) | ER図・設計方針・RLS方針 |
-| architecture / テーブル | [docs/architecture/data-model/tables.md](docs/architecture/data-model/tables.md) | 列・制約・RLSポリシー |
-| architecture / ルーティング | [docs/architecture/routing.md](docs/architecture/routing.md) | App Router・middleware・SEO |
-| architecture / エラー | [docs/architecture/error-catalog.md](docs/architecture/error-catalog.md) | Result型エラーコード |
-| design / 画面遷移 | [docs/design/screen-flow.md](docs/design/screen-flow.md) | Mermaidフロー6種 |
-| design / ワイヤー | [docs/design/wireframes/README.md](docs/design/wireframes/README.md) | 37画面のモバイル/PCレイアウト |
-| **design / デザインシステム** | [docs/design/design-system.md](docs/design/design-system.md) | **余白/色/サイズ・brown系（実装時必読）** |
-| **operations / 開発サイクル** | [docs/operations/development-cycle.md](docs/operations/development-cycle.md) | **スキルを使った1周の順序と理由（着手判断→実装→レビュー→実機確認→出荷→引き継ぎ）** |
-| **operations / Git** | [docs/operations/git-workflow.md](docs/operations/git-workflow.md) | **ブランチ・コミット・PR規約（実装時必読）** |
-| **operations / デプロイ** | [docs/operations/deployment.md](docs/operations/deployment.md) | **環境・CI/CD・監視（実装時必読）** |
-| operations / エージェント | [docs/operations/agent-pipeline.md](docs/operations/agent-pipeline.md) | 無人実行（nightly）・自動レビュー・無人マージのステージと安全弁 |
-| seed / バッジ | [docs/seed/badges-initial-set.md](docs/seed/badges-initial-set.md) | 20バッジの条件定義 |
-| seed / タグ | [docs/seed/curated-tags-initial-set.md](docs/seed/curated-tags-initial-set.md) | 厳選タグ30個 |
-| seed / エリア | [docs/seed/areas-initial-set.md](docs/seed/areas-initial-set.md) | 東京45エリア |
-| **ユビキタス言語** | [docs/glossary.md](docs/glossary.md) | **日本語UI↔英語コード対応（実装時必読）** |
+| カテゴリ                      | パス                                                                             | 用途                                                                               |
+| ----------------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 索引                          | [docs/README.md](docs/README.md)                                                 | 全ドキュメントの索引                                                               |
+| **product / 戦略**            | [docs/product/positioning.md](docs/product/positioning.md)                       | **差別化戦略の幹（気分検索・オーナー連携）— 判断の起点**                           |
+| product / スコープ            | [docs/product/mvp-scope.md](docs/product/mvp-scope.md)                           | 機能の実装優先度・後回し判断                                                       |
+| product / TODO                | [docs/product/pending-items.md](docs/product/pending-items.md)                   | 優先度別TODO                                                                       |
+| architecture / データモデル   | [docs/architecture/data-model/README.md](docs/architecture/data-model/README.md) | ER図・設計方針・RLS方針                                                            |
+| architecture / テーブル       | [docs/architecture/data-model/tables.md](docs/architecture/data-model/tables.md) | 列・制約・RLSポリシー                                                              |
+| architecture / ルーティング   | [docs/architecture/routing.md](docs/architecture/routing.md)                     | App Router・middleware・SEO                                                        |
+| architecture / エラー         | [docs/architecture/error-catalog.md](docs/architecture/error-catalog.md)         | Result型エラーコード                                                               |
+| design / 画面遷移             | [docs/design/screen-flow.md](docs/design/screen-flow.md)                         | Mermaidフロー6種                                                                   |
+| design / ワイヤー             | [docs/design/wireframes/README.md](docs/design/wireframes/README.md)             | 37画面のモバイル/PCレイアウト                                                      |
+| **design / デザインシステム** | [docs/design/design-system.md](docs/design/design-system.md)                     | **余白/色/サイズ・brown系（実装時必読）**                                          |
+| **operations / 開発サイクル** | [docs/operations/development-cycle.md](docs/operations/development-cycle.md)     | **スキルを使った1周の順序と理由（着手判断→実装→レビュー→実機確認→出荷→引き継ぎ）** |
+| **operations / Git**          | [docs/operations/git-workflow.md](docs/operations/git-workflow.md)               | **ブランチ・コミット・PR規約（実装時必読）**                                       |
+| **operations / デプロイ**     | [docs/operations/deployment.md](docs/operations/deployment.md)                   | **環境・CI/CD・監視（実装時必読）**                                                |
+| operations / エージェント     | [docs/operations/agent-pipeline.md](docs/operations/agent-pipeline.md)           | 無人実行（nightly）・自動レビュー・無人マージのステージと安全弁                    |
+| seed / バッジ                 | [docs/seed/badges-initial-set.md](docs/seed/badges-initial-set.md)               | 20バッジの条件定義                                                                 |
+| seed / タグ                   | [docs/seed/curated-tags-initial-set.md](docs/seed/curated-tags-initial-set.md)   | 厳選タグ30個                                                                       |
+| seed / エリア                 | [docs/seed/areas-initial-set.md](docs/seed/areas-initial-set.md)                 | 東京45エリア                                                                       |
+| **ユビキタス言語**            | [docs/glossary.md](docs/glossary.md)                                             | **日本語UI↔英語コード対応（実装時必読）**                                          |
 
 **画面ID (`S_*`)** は上記ドキュメント間で一貫している。実装時は `page.tsx` の冒頭コメントに対応する画面IDを記載してトレーサビリティを保つ。
 
 ## 技術スタック
 
-| レイヤー | 採用 |
-|---|---|
-| ランタイム | Node.js 22 LTS |
-| パッケージマネージャ | pnpm |
-| フレームワーク | Next.js 16 (App Router) |
-| 言語 | TypeScript (strict) |
-| スタイル | Tailwind CSS + shadcn/ui |
-| リッチテキスト | Tiptap（JSON保存） |
-| バックエンド | Supabase（Auth / Postgres / Storage / Realtime） |
-| 画像配信 | **MVP: Supabase Storage + Next/Image**（本格展開時に AWS S3 + CloudFront へ移行。[pending-items A5](docs/product/pending-items.md) で決定済）。読み書きは必ず `lib/storage/` のラッパー経由 |
-| 地図 | Google Maps Platform |
-| 検索 | Postgres の `simple` tsvector + **`pg_trgm`**（日本語の部分一致はこちらが主役）。`pgroonga` は導入しない（[tables.md #全文検索の方式](docs/architecture/data-model/tables.md)） |
-| ホスティング（開発） | Vercel |
-| ホスティング（本番想定） | AWS（詳細は [product/pending-items.md](docs/product/pending-items.md) C1） |
+| レイヤー                 | 採用                                                                                                                                                                                        |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ランタイム               | Node.js 22 LTS                                                                                                                                                                              |
+| パッケージマネージャ     | pnpm                                                                                                                                                                                        |
+| フレームワーク           | Next.js 16 (App Router)                                                                                                                                                                     |
+| 言語                     | TypeScript (strict)                                                                                                                                                                         |
+| スタイル                 | Tailwind CSS + shadcn/ui                                                                                                                                                                    |
+| リッチテキスト           | Tiptap（JSON保存）                                                                                                                                                                          |
+| バックエンド             | Supabase（Auth / Postgres / Storage / Realtime）                                                                                                                                            |
+| 画像配信                 | **MVP: Supabase Storage + Next/Image**（本格展開時に AWS S3 + CloudFront へ移行。[pending-items A5](docs/product/pending-items.md) で決定済）。読み書きは必ず `lib/storage/` のラッパー経由 |
+| 地図                     | Google Maps Platform                                                                                                                                                                        |
+| 検索                     | Postgres の `simple` tsvector + **`pg_trgm`**（日本語の部分一致はこちらが主役）。`pgroonga` は導入しない（[tables.md #全文検索の方式](docs/architecture/data-model/tables.md)）             |
+| ホスティング（開発）     | Vercel                                                                                                                                                                                      |
+| ホスティング（本番想定） | AWS（詳細は [product/pending-items.md](docs/product/pending-items.md) C1）                                                                                                                  |
 
 ## 実装ツーリング
 
-| 用途 | ツール |
-|---|---|
-| ユニットテスト | Vitest |
+| 用途                 | ツール                         |
+| -------------------- | ------------------------------ |
+| ユニットテスト       | Vitest                         |
 | コンポーネントテスト | Vitest + React Testing Library |
-| E2Eテスト | Playwright |
-| Lint + Format | Biome |
-| 型チェック | tsc --noEmit（CIで実行） |
-| Git hooks | lefthook（Windowsフレンドリ） |
-| DBマイグレーション | Supabase CLI |
+| E2Eテスト            | Playwright                     |
+| Lint + Format        | Biome                          |
+| 型チェック           | tsc --noEmit（CIで実行）       |
+| Git hooks            | lefthook（Windowsフレンドリ）  |
+| DBマイグレーション   | Supabase CLI                   |
 
 ## 開発哲学
 
 ### 1. TDDを主軸に
 
 **コアロジック（Server Actions・API・バリデーション・DB関連）は必ずテストを先に書く。**
-
 - **Red:** 失敗するテストを書く（意図の記述）
 - **Green:** 最短で通す実装（"just enough" の原則）
 - **Refactor:** 設計を整える（テスト緑を維持しながら）
@@ -248,13 +246,13 @@ bg-danger           (危険操作)
 
 `scripts/check-design-system.sh` が以下を検出する。**CI（`ci.yml`）と pre-commit hook の両方で実行される**ため、違反はコミットできない。
 
-| 検出内容 | 例 |
-|---|---|
-| `#000` 系の色 | `text-black` `bg-black` `black/50` `#000` `#000000` |
-| インライン style | `style={` |
-| 非8倍数の余白 | `p-5` `md:mt-7` `gap-9`（`h-5 w-5` 等のサイズ系は対象外） |
-| 余白の任意値 | `p-[13px]` `gap-[13px]` |
-| フォントの任意サイズ | `text-[15px]` |
+| 検出内容             | 例                                                        |
+| -------------------- | --------------------------------------------------------- |
+| `#000` 系の色        | `text-black` `bg-black` `black/50` `#000` `#000000`       |
+| インライン style     | `style={`                                                 |
+| 非8倍数の余白        | `p-5` `md:mt-7` `gap-9`（`h-5 w-5` 等のサイズ系は対象外） |
+| 余白の任意値         | `p-[13px]` `gap-[13px]`                                   |
+| フォントの任意サイズ | `text-[15px]`                                             |
 
 手元での実行は `pnpm lint:design`。
 
@@ -273,18 +271,18 @@ bg-danger           (危険操作)
 `/{skill}` で呼び出し可能。実体は `.claude/skills/<name>/SKILL.md`（フラットな `.md` は認識されない）。
 **どのスキルをどの順で走らせるかは [docs/operations/development-cycle.md](docs/operations/development-cycle.md)**:
 
-| コマンド | 用途 |
-|---|---|
-| `/test` | TDDワークフロー、テスト設計の指南 |
-| `/fe-implement` | フロントエンド実装（ページ・コンポーネント） |
-| `/be-implement` | バックエンド実装（Server Actions・API Routes） |
-| `/db-implement` | DB実装（マイグレーション・RLS） |
-| `/self-review` | 実装後のセルフレビュー（組み込み `/code-review` とは別物） |
-| `/debug` | RLS/Server Actions/キャッシュ/型エラー等の解消手順 |
-| `/board-update` | 実装状況ボード（docs/implementation-board.html）の更新 |
-| `/dashboard-update` | Obsidian個人開発ダッシュボード・実装履歴の更新（リポジトリ外、PRマージ後） |
-| `/handoff` | 次セッションへの引き継ぎテキスト生成（マージ後・セッションを切る直前） |
-| （`supabase`） | Supabase 一般知識。スラッシュ起動ではなく内容に応じて自動発動。上流 supabase/agent-skills 由来 |
+| コマンド            | 用途                                                                                           |
+| ------------------- | ---------------------------------------------------------------------------------------------- |
+| `/test`             | TDDワークフロー、テスト設計の指南                                                              |
+| `/fe-implement`     | フロントエンド実装（ページ・コンポーネント）                                                   |
+| `/be-implement`     | バックエンド実装（Server Actions・API Routes）                                                 |
+| `/db-implement`     | DB実装（マイグレーション・RLS）                                                                |
+| `/self-review`      | 実装後のセルフレビュー（組み込み `/code-review` とは別物）                                     |
+| `/debug`            | RLS/Server Actions/キャッシュ/型エラー等の解消手順                                             |
+| `/board-update`     | 実装状況ボード（docs/implementation-board.html）の更新                                         |
+| `/dashboard-update` | Obsidian個人開発ダッシュボード・実装履歴の更新（リポジトリ外、PRマージ後）                     |
+| `/handoff`          | 次セッションへの引き継ぎテキスト生成（マージ後・セッションを切る直前）                         |
+| （`supabase`）      | Supabase 一般知識。スラッシュ起動ではなく内容に応じて自動発動。上流 supabase/agent-skills 由来 |
 
 **組み込みスキルとの併用:** `/code-review`（差分レビュー、`ultra` でクラウド多エージェント）・`/security-review`・`/run` も利用可。
 `docs/` 内の過去ログにある `/code-review` は、2026-09-16 の改名前の本プロジェクトスキル（現 `/self-review`）を指す。
@@ -334,7 +332,6 @@ GitHub Free のプライベートリポジトリではブランチ保護・ル�
 
 代わりに次で担保する。詳細は
 [docs/operations/agent-pipeline.md](docs/operations/agent-pipeline.md)。
-
 - 起動できるのは OWNER / MEMBER / COLLABORATOR がラベルを付けた issue だけ
 - エージェントに任せる範囲は `scripts/check-agent-scope.sh` で制限（現在は `docs/` のみ）
 - `.github/` `lefthook.yml` `scripts/check-*` `supabase/migrations/` `package.json`
@@ -361,13 +358,13 @@ MVPリリース時点で以下の基準を満たすことを目標にする。
 
 ### パフォーマンス (Core Web Vitals)
 
-| 指標 | 目標 | 意味 |
-|---|---|---|
-| **LCP** (Largest Contentful Paint) | < 2.5s | 主要コンテンツの表示速度 |
+| 指標                                | 目標    | 意味                     |
+| ----------------------------------- | ------- | ------------------------ |
+| **LCP** (Largest Contentful Paint)  | < 2.5s  | 主要コンテンツの表示速度 |
 | **INP** (Interaction to Next Paint) | < 200ms | インタラクションの応答性 |
-| **CLS** (Cumulative Layout Shift) | < 0.1 | レイアウトのずれ |
-| **TTFB** (Time to First Byte) | < 800ms | サーバー応答時間 |
-| **FCP** (First Contentful Paint) | < 1.8s | 初回描画速度 |
+| **CLS** (Cumulative Layout Shift)   | < 0.1   | レイアウトのずれ         |
+| **TTFB** (Time to First Byte)       | < 800ms | サーバー応答時間         |
+| **FCP** (First Contentful Paint)    | < 1.8s  | 初回描画速度             |
 
 ### 実装ルール
 

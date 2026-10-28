@@ -1,4 +1,5 @@
 ---
+
 name: be-implement
 description: バックエンド実装（Server Actions・Route Handlers・Supabaseクライアント層）を進める。TDD必須の領域。
 ---
@@ -20,13 +21,21 @@ description: バックエンド実装（Server Actions・Route Handlers・Supaba
 // app/_actions/follows.ts
 'use server'
 
-import { POSTGRES_INSUFFICIENT_PRIVILEGE, POSTGRES_UNIQUE_VIOLATION } from '@/lib/constants/postgres-error-codes'
+import {
+  POSTGRES_INSUFFICIENT_PRIVILEGE,
+  POSTGRES_UNIQUE_VIOLATION,
+} from '@/lib/constants/postgres-error-codes'
 import { createClient } from '@/lib/supabase/server'
 import { followUserSchema } from '@/lib/validators/follows'
 import type { Result } from '@/types/result'
 
 // 返しうるエラーだけを列挙する。types/errors.ts の ErrorCode から絞り込む
-type FollowUserError = 'INVALID_INPUT' | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'ALREADY_FOLLOWING' | 'INTERNAL_ERROR'
+type FollowUserError =
+  | 'INVALID_INPUT'
+  | 'UNAUTHENTICATED'
+  | 'FORBIDDEN'
+  | 'ALREADY_FOLLOWING'
+  | 'INTERNAL_ERROR'
 
 export async function followUser(input: unknown): Promise<Result<null, FollowUserError>> {
   // 1. 入力検証（Zod）
@@ -35,7 +44,9 @@ export async function followUser(input: unknown): Promise<Result<null, FollowUse
 
   // 2. クライアント取得と、主体の確定
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: 'UNAUTHENTICATED' }
 
   // 3. 認可はRLSに委譲。主体（follower_id）は必ずセッションから引く
@@ -77,12 +88,12 @@ composer・follows の両方で実際にこのバグを踏んでいる。**delet
 
 コードは `lib/constants/postgres-error-codes.ts` に集約する（直書き禁止）。
 
-| 定数 | SQLSTATE | 典型的な原因 |
-|---|---|---|
-| `POSTGRES_UNIQUE_VIOLATION` | 23505 | 二重登録（`ALREADY_FOLLOWING` 等） |
-| `POSTGRES_FOREIGN_KEY_VIOLATION` | 23503 | 参照先が無い（`CAFE_NOT_FOUND` 等） |
-| `POSTGRES_CHECK_VIOLATION` | 23514 | CHECK 制約（自己フォロー等） |
-| `POSTGRES_INSUFFICIENT_PRIVILEGE` | 42501 | RLS の USING / WITH CHECK に弾かれた |
+| 定数                              | SQLSTATE | 典型的な原因                         |
+| --------------------------------- | -------- | ------------------------------------ |
+| `POSTGRES_UNIQUE_VIOLATION`       | 23505    | 二重登録（`ALREADY_FOLLOWING` 等）   |
+| `POSTGRES_FOREIGN_KEY_VIOLATION`  | 23503    | 参照先が無い（`CAFE_NOT_FOUND` 等）  |
+| `POSTGRES_CHECK_VIOLATION`        | 23514    | CHECK 制約（自己フォロー等）         |
+| `POSTGRES_INSUFFICIENT_PRIVILEGE` | 42501    | RLS の USING / WITH CHECK に弾かれた |
 
 **制約名まで見て分岐する。** SQLSTATE だけで判定すると、同じテーブルに制約が増えた瞬間に無関係な違反が誤ったメッセージになる。
 
@@ -136,16 +147,16 @@ const { error } = await supabase.from('posts').update(...).eq('id', postId)
 - Server Action の入力検証
 - クライアントのフォームバリデーション（react-hook-form）
 - テスト
-の3箇所で共有する。
+  の3箇所で共有する。
 
 ### 4. Supabase Client の切り替え
 
-| 用途 | 関数 | 場所 |
-|---|---|---|
-| Server Components / Server Actions / Route Handlers | `await createClient()` | `lib/supabase/server.ts` |
-| Client Components（限定） | `createClient()`（同名・ブラウザ用シングルトン） | `lib/supabase/browser.ts` |
-| middleware | `updateSession(request)`（クライアントは内部に閉じる） | `lib/supabase/middleware.ts` |
-| Service Role が必要な処理 | `createAdminClient()` | `lib/supabase/admin.ts`（`import 'server-only'` 付き） |
+| 用途                                                | 関数                                                   | 場所                                                   |
+| --------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------ |
+| Server Components / Server Actions / Route Handlers | `await createClient()`                                 | `lib/supabase/server.ts`                               |
+| Client Components（限定）                           | `createClient()`（同名・ブラウザ用シングルトン）       | `lib/supabase/browser.ts`                              |
+| middleware                                          | `updateSession(request)`（クライアントは内部に閉じる） | `lib/supabase/middleware.ts`                           |
+| Service Role が必要な処理                           | `createAdminClient()`                                  | `lib/supabase/admin.ts`（`import 'server-only'` 付き） |
 
 **注意:**
 - `lib/supabase/server.ts` と `browser.ts` は**どちらも `createClient` という名前**。import 元を取り違えると Server Component で cookie を読まないクライアントが手に入り、**RLS のブロック判定が anon 扱いで素通りする**
@@ -162,7 +173,10 @@ const { error } = await supabase.from('posts').update(...).eq('id', postId)
 
 ```typescript
 // lib/profiles/public-profile.ts
-export async function getPublicProfile(supabase: Client, username: string): Promise<PublicProfile | null>
+export async function getPublicProfile(
+  supabase: Client,
+  username: string,
+): Promise<PublicProfile | null>
 ```
 
 呼び出し元は**必ず閲覧者のセッション付きクライアント**を渡す。anon で読むと RLS のブロック判定（`is_blocked_either_way`）が常に偽になり、ブロックした相手の投稿が見える。
@@ -190,11 +204,11 @@ createClientMock.mockResolvedValue(buildSupabaseStub({ user: { id: userId } }).s
 
 **Server Actions で代替できないものだけ**（[routing.md](../../../docs/architecture/routing.md)）。現時点で実在するのは1本だけ。
 
-| ルート | 用途 | 状態 |
-|---|---|---|
-| `POST /api/uploads/sign` | 画像アップロードの署名付きURL発行 | 実装済み |
-| `/api/auth/callback` | Supabase OAuth コールバック | 未実装（OAuth 未対応） |
-| `/api/webhooks/consent` | 保護者同意リンク処理 | 未実装（pending-items B3） |
+| ルート                   | 用途                              | 状態                       |
+| ------------------------ | --------------------------------- | -------------------------- |
+| `POST /api/uploads/sign` | 画像アップロードの署名付きURL発行 | 実装済み                   |
+| `/api/auth/callback`     | Supabase OAuth コールバック       | 未実装（OAuth 未対応）     |
+| `/api/webhooks/consent`  | 保護者同意リンク処理              | 未実装（pending-items B3） |
 
 ### 基本骨格
 
