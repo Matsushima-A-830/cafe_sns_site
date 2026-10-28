@@ -2094,6 +2094,34 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   `is_active_user()` を追加する一括対応を検討（単独修正は「3回ルール」に反するため、他2バケットの
   現状を先に確認してから判断）。2は対応しない（D3・D65と同じトーンで、実害が見えてから再判断）
 
+### D77. 日次クリーンアップ3本（D3・D19・D50）が本番で2026-10-24頃から失敗し続けていた ✅ 解消済（2026-10-28）
+
+- **課題:** `Cleanup Reserved Posts`・`Cleanup Expired Drafts`・`Cleanup Orphaned Owner Documents`
+  の3つのGitHub Actions（D3・D19・D50で実装）が、少なくとも2026-10-24から毎日 `curl` レベルで
+  失敗し続けていた（`gh run list` で確認）。PR #150（Biome 2.6.2対応）のCI調査中に偶然発見した。
+  原因は独立した3つの不具合が重なったもの
+  1. **独自ドメイン `mitsu-cafe.com` がVercelに未接続:** Cloudflareでドメインは購入・Active
+     だったが、Vercel側の Domains には `mitsu-cafe.vercel.app` しか登録されておらず、
+     `mitsu-cafe.com` へのDNSレコードが存在しなかった（GitHub Actionsの実行環境からは
+     `Could not resolve host` で確認。ユーザーのブラウザでは別経路でアクセスできていたため
+     この問題には気づきにくかった）
+  2. **`CRON_SECRET` がGitHub ActionsのEnvironment secret（production環境）に設定されており、
+     cronワークフローのjobが `environment: production` を宣言していないため参照できなかった**
+     （`${{ secrets.CRON_SECRET }}` が空文字列になる。Repository secretsの `SITE_URL` とは
+     scopeが違うことに気づきにくい）
+  3. **`gh secret set NAME --body -` の `-` はstdin経由の読み込みマーカーではなく、
+     リテラル文字列 `"-"` として設定されてしまう（gh CLIの挙動）。** 対応中にこれでSITE_URLを
+     壊し、curlが `-/api/cron/...` を不正なオプションとして解釈するバグを新たに作ってしまった
+     （`--body "<値>"` で直接渡せば問題ない）
+- **対応（2026-10-28）:** Vercelに `mitsu-cafe.com`／`www.mitsu-cafe.com` をAdd Existingで追加し、
+  CloudflareにCNAMEレコード（`@`・`www` → Vercelが指定した値、Proxy: DNS only）を追加。
+  `CRON_SECRET` をRepository secretとして新しい値で作り直し（Vercel側のEnvironment Variables も
+  同じ値に更新・Redeploy）、旧Environment secretは削除。`SITE_URL` も `--body "<値>"` で設定し直し。
+  3ワークフローとも `workflow_dispatch` で手動実行し成功を確認済み
+- **教訓:** 本番URL・認証シークレットを使う定期実行ジョブは、**実装直後に最低1回
+  `workflow_dispatch` で手動実行して確認する**運用を次回から徹底する（schedule起動まで
+  気づかないと今回のように数日〜気づかないまま放置されうる）
+
 ## 削除・アーカイブ判断待ち
 
 現時点で「削除する」と決めた項目はなし。追加・変更発生時にここに追記。
