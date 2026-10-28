@@ -34,3 +34,12 @@ export const avatarUploadSignSchema = z.object({
 })
 
 export type AvatarUploadSignInput = z.infer<typeof avatarUploadSignSchema>
+
+/** cafe-images 版。サイズ上限・MIME判定は validateCafeImageUpload に一本化する */
+export const cafeImageUploadSignSchema = z.object({
+  cafeId: z.string().uuid('カフェIDの形式が正しくありません'),
+  contentType: z.string().min(1, 'ファイル形式を指定してください'),
+  fileSize: z.number().int().positive('ファイルサイズを指定してください'),
+})
+
+export type CafeImageUploadSignInput = z.infer<typeof cafeImageUploadSignSchema>

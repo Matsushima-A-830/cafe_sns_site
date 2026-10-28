@@ -1347,6 +1347,7 @@ export type Database = {
           city: string
           description: string
           id: string
+          main_image_path: string
           name: string
           phone: string
           prefecture: string
@@ -1370,6 +1371,7 @@ export type Database = {
           description: string
           external_ids: Json
           id: string
+          main_image_path: string
           name: string
           name_kana: string
           phone: string
