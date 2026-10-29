@@ -10,6 +10,7 @@ import type { ComposerTag } from '@/types/composer'
 import { AutosaveStatus } from './autosave-status'
 import { CafePicker } from './cafe-picker'
 import { ComposerHeader } from './composer-header'
+import { ImagePicker } from './image-picker'
 import { LeaveDialog } from './leave-dialog'
 import { PreviewDialog } from './preview-dialog'
 import { TagPicker } from './tag-picker'
@@ -109,6 +110,17 @@ export function BlogComposer({
             <p className="text-sm text-muted-foreground">
               {fields.title.length} / {TITLE_MAX_LENGTH}
             </p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <Label>アイキャッチ画像</Label>
+            <ImagePicker
+              postId={composer.postId}
+              images={fields.images}
+              onChange={(update) => updateFields((prev) => ({ images: update(prev.images) }))}
+              disabled={composer.isSubmitting}
+              maxImages={1}
+            />
           </div>
 
           <CafePicker selected={fields.cafe} onSelect={(cafe) => updateFields({ cafe })} />

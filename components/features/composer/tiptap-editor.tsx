@@ -249,6 +249,7 @@ export function TiptapEditor({
         ref={fileInputRef}
         type="file"
         accept="image/*"
+        aria-label="本文に画像を挿入"
         className="sr-only"
         onChange={(event) => void insertImage(event.target.files?.[0])}
       />

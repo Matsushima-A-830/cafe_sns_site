@@ -9,8 +9,8 @@ import { login } from './helpers/login'
  * 一度も触られていなかった。ここでの主眼は「タイトル+本文入力〜投稿確定〜詳細表示」
  * と「下書き保存→復元」が実ブラウザで一往復すること
  *
- * ブログ投稿にはアイキャッチ画像欄が無く、本文埋め込み画像は post_images
- * 行を作らないため、投稿カードのサムネイルや post_images テーブルは検証しない
+ * 本文埋め込み画像（Tiptapツールバー経由）は post_images 行を作らないため、
+ * 投稿カードのサムネイルには使われない。サムネイルはアイキャッチ画像欄（D68）経由のみ
  *   docs/product/pending-items.md D68
  */
 
@@ -101,7 +101,7 @@ test('本文に画像を挿入すると、詳細画面でも画像が表示さ�
   const body = page.locator('[aria-label="本文"]')
   await body.fill('本文の前置き')
 
-  const fileInput = page.locator('input[type="file"]')
+  const fileInput = page.getByLabel('本文に画像を挿入')
   await fileInput.setInputFiles({
     name: 'embedded.jpg',
     mimeType: 'image/jpeg',
@@ -135,7 +135,7 @@ test('下書きに保存して離脱すると、リロード後もタイトル�
   const body = page.locator('[aria-label="本文"]')
   await body.fill('下書きの本文')
 
-  const fileInput = page.locator('input[type="file"]')
+  const fileInput = page.getByLabel('本文に画像を挿入')
   await fileInput.setInputFiles({
     name: 'draft.jpg',
     mimeType: 'image/jpeg',
@@ -153,6 +153,38 @@ test('下書きに保存して離脱すると、リロード後もタイトル�
   await expect(page.getByLabel('タイトル')).toHaveValue('下書きのタイトル')
   await expect(page.getByText('下書きの本文')).toBeVisible()
   await waitForEmbeddedImage(page)
+})
+
+test('アイキャッチ画像を選択して公開すると、詳細画面にその画像が表示される', async ({ page }) => {
+  const suffix = uniqueSuffix(`${test.info().project.name}-eyecatch`)
+  const user = await createOnboardedUser(suffix)
+  createdUserIds.push(user.userId)
+
+  await loginAndOpenComposer(page, user)
+
+  await page.getByLabel('タイトル').fill('アイキャッチ付きブログ')
+  const body = page.locator('[aria-label="本文"]')
+  await body.fill('アイキャッチ画像のテスト本文')
+
+  const eyecatchInput = page.getByLabel('追加')
+  await eyecatchInput.setInputFiles({
+    name: 'eyecatch.jpg',
+    mimeType: 'image/jpeg',
+    buffer: await buildRealPlainJpeg(page),
+  })
+  const eyecatchPreview = page.getByAltText('選択した写真 1枚目')
+  await expect(eyecatchPreview).toHaveAttribute('src', /^blob:/, { timeout: 15_000 })
+
+  const submitButton = page.getByRole('button', { name: '公開する' })
+  await expect(submitButton).toBeEnabled()
+  await submitButton.click()
+
+  await expect(page).toHaveURL(/\/new\/success/)
+  await page.getByRole('link', { name: '投稿を見る' }).click()
+  await expect(page).toHaveURL(/\/posts\//)
+
+  const detailImageSrc = await page.locator('figure img').first().getAttribute('src')
+  expect(detailImageSrc).toMatch(/post-images/)
 })
 
 test('プレビューを開くとタイトルと本文が見た目通りに表示される', async ({ page }) => {
