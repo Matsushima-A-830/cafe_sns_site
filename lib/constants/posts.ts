@@ -44,3 +44,7 @@ export const OFFICIAL_FORMAT_LABELS: Record<OfficialFormat, string> = {
  *   docs/design/wireframes/composer.md #新メニューnew_menu */
 export const NEW_MENU_IMAGE_MIN_COUNT = 1
 export const NEW_MENU_IMAGE_MAX_COUNT = 3
+
+/** ブログ投稿のアイキャッチ画像枚数。ワイヤーの「アイキャッチ画像」欄は1枚のみ（D68）
+ *   docs/design/wireframes/composer.md #S_POST_BLOGブログ投稿 */
+export const BLOG_IMAGE_MAX_COUNT = 1

@@ -1874,29 +1874,26 @@ MVP計画中に発生した「後で決める」項目を集約。実装フェ�
   - モデレーションランブック（[docs/operations/moderation-runbook.md](../operations/moderation-runbook.md)）
 - 参照: D66段階公開の決定（2026-10-08）
 
-### D68. S_POST_BLOG に「アイキャッチ画像」欄が無く、ブログ投稿は一覧でサムネイルが出ない
+### D68. S_POST_BLOG に「アイキャッチ画像」欄が無く、ブログ投稿は一覧でサムネイルが出ない（実害は解消済み・2026-10-29）
 
 - **課題:** [wireframes/composer.md #S_POST_BLOG](../design/wireframes/composer.md#s_post_blogブログ投稿)
   のモバイル/PC両レイアウトに「アイキャッチ画像 [+ 画像を追加]」が独立したサイドバー項目として
-  描かれているが、`components/features/composer/blog-composer.tsx` にはこの項目が無い
+  描かれているが、`components/features/composer/blog-composer.tsx` にはこの項目が無かった
   （`image-picker.tsx` を import していない。S_POST_SHORT のみ写真欄を持つ）
-- **実害:** `components/features/composer/tiptap-editor.tsx` の本文埋め込み画像は
-  `post_images` 行を作らない設計（同ファイルのコメント参照）。ブログ投稿は写真欄
-  （`post_images`）に書き込む経路が存在しないため、本文に画像を何枚入れても
-  `post_images[0]` を見る `lib/posts/post-list.ts:200,218` は常に `null` を返し、
-  投稿カード（`post-card.tsx:28`）にサムネイルが**一切表示されない**
-- **実害2（セキュリティ寄り）:** `app/api/uploads/sign/route.ts` の署名URL発行は
-  `post_images` の行数で10枚上限をチェックする（`lib/storage/post-images.ts:85-106`）。
-  ブログの本文埋め込み画像はこの `post_images` に一切登録されないため、サーバー側の
-  上限チェックは常に `count=0` を見ることになり、実質機能しない。クライアント側の
-  `countEmbeddedImages()`（`tiptap-editor.tsx`）だけが歯止めで、API を直接叩けば
-  上限を回避して際限なく Storage に書き込める（[D15](#d15-署名付きアップロードurl発行の事前カウントチェックに-toctou-レースがある)
+- **対応（2026-10-29・方針a採用）:** `blog-composer.tsx` に `<ImagePicker maxImages={1}>`
+  を追加し、タイトルとカフェ選択の間（ワイヤー通りの位置）に1枚だけ登録できるようにした。
+  `useComposer`（送信・下書き保存・復元）と`finalize_post` RPCは`postType`を問わず
+  `image_paths`を既に受け付けていたため、バックエンド・マイグレーション変更は不要だった。
+  これにより投稿カード・投稿詳細（`PostGallery`）の両方でサムネイルが表示されるようになった
+  （`lib/posts/post-list.ts`の`post_images[0]`参照はそのまま活用、変更不要）
+- **実害2（セキュリティ寄り・未解消。D68とは別問題として引き続き追跡）:**
+  `app/api/uploads/sign/route.ts` の署名URL発行は`post_images`の行数で10枚上限をチェックする
+  （`lib/storage/post-images.ts:85-106`）。本文埋め込み画像（Tiptapツールバー経由、アイキャッチ
+  画像とは別経路）はこの`post_images`に一切登録されないため、サーバー側の上限チェックは
+  常に埋め込み画像分を見落とす。クライアント側の`countEmbeddedImages()`
+  （`tiptap-editor.tsx`）だけが歯止めで、API を直接叩けば上限を回避して際限なく Storage に
+  書き込める（[D15](#d15-署名付きアップロードurl発行の事前カウントチェックに-toctou-レースがある)
   と根は同じ「サーバー側カウントが信頼できない」問題のブログ版）
-- **対応方針（未決）:** a) アイキャッチ画像欄を実装し`post_images`へ登録する
-  b) 本文内の最初の画像をカードのサムネイルとして流用する（`post_images`は使わず、
-  本文JSONから抽出する別ロジックが要る） c) MVPは割り切ってブログ投稿はカードに
-  サムネイルを出さない仕様として `wireframes/composer.md` 側を修正する
-- **決定期限:** 未定。BlogComposerの実機確認（D34）を優先し、その後に判断する
 - 参照: D34（BlogComposer実機確認）着手前の調査で発覚（2026-10-08）
 
 ### D69. faviconがNext.jsのデフォルトのまま
