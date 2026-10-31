@@ -1,9 +1,16 @@
 import { z } from 'zod'
 import {
+  BLOG_IMAGE_MAX_COUNT,
   NEW_MENU_IMAGE_MAX_COUNT,
   NEW_MENU_IMAGE_MIN_COUNT,
   OFFICIAL_FORMATS,
 } from '@/lib/constants/posts'
+
+// lib/storage/post-images.ts の POST_IMAGE_MAX_COUNT と揃える値。あちらを import
+// すると（Supabaseクライアント型を経由して）storage層への依存が増え、このファイルを
+// 使う既存テストの vi.mock('@/lib/storage/post-images') が軒並み壊れるため、
+// 検証ロジックとしては意図的に値だけを鏡写しする
+const SHORT_IMAGE_MAX_COUNT = 10
 
 // Tiptap JSON の中身そのものは検証しない（エディタが生成する構造を信頼する）。
 // 空文言・サイズ上限チェックは extractPlainText 経由でアプリ層（createPost）が行う
@@ -30,6 +37,17 @@ const imagePathSchema = z
     '画像パスの形式が正しくありません',
   )
 
+// 重複パスは post_images に同じ画像が複数行入る事故になるため、tagIds と同様に去重する。
+// postType によって上限が違う（short: SHORT_IMAGE_MAX_COUNT、blog: BLOG_IMAGE_MAX_COUNT=1
+// アイキャッチのみ・D68）ため、呼び出し側で上限を渡す
+function imagePathsField(max: number) {
+  return z
+    .array(imagePathSchema)
+    .default([])
+    .transform((paths) => Array.from(new Set(paths)))
+    .pipe(z.array(z.string()).max(max, `画像は${max}枚までです`))
+}
+
 const basePostFields = {
   // reservePost で先に作成した hidden 投稿の id。createPost は Postgres 関数
   // finalize_post（RPC）でこの行を確定させる（docs/product/pending-items.md D17）
@@ -44,12 +62,6 @@ const basePostFields = {
     .default([])
     .transform((ids) => Array.from(new Set(ids)))
     .pipe(z.array(z.string()).max(5, 'タグは5個までです')),
-  // 重複パスは post_images に同じ画像が複数行入る事故になるため、tagIds と同様に去重する
-  imagePaths: z
-    .array(imagePathSchema)
-    .default([])
-    .transform((paths) => Array.from(new Set(paths)))
-    .pipe(z.array(z.string()).max(10, '画像は10枚までです')),
   visibility: z.enum(['public', 'followers']).default('public'),
   bodyJson: tiptapDocSchema,
 }
@@ -58,6 +70,7 @@ export const createPostSchema = z.discriminatedUnion('postType', [
   z.object({
     postType: z.literal('short'),
     ...basePostFields,
+    imagePaths: imagePathsField(SHORT_IMAGE_MAX_COUNT),
   }),
   z.object({
     postType: z.literal('blog'),
@@ -67,6 +80,10 @@ export const createPostSchema = z.discriminatedUnion('postType', [
       .min(1, 'タイトルを入力してください')
       .max(100, 'タイトルは100文字以内で入力してください'),
     ...basePostFields,
+    // アイキャッチ画像欄は1枚のみ（docs/design/wireframes/composer.md #S_POST_BLOG）。
+    // UI（ImagePicker maxImages={1}）はクライアント側の制限に過ぎないため、
+    // Server Actions境界のZodでも postType ごとの上限を保証する
+    imagePaths: imagePathsField(BLOG_IMAGE_MAX_COUNT),
   }),
 ])
 

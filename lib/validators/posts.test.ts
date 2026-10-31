@@ -129,6 +129,29 @@ describe('createPostSchema', () => {
     expect(result.success).toBe(false)
   })
 
+  it('ブログ投稿の画像は2枚だと弾く（アイキャッチは1枚まで・D68）', () => {
+    const imagePaths = ['author/post/0.webp', 'author/post/1.webp']
+    const result = createPostSchema.safeParse({
+      postType: 'blog',
+      postId: validPostId,
+      title: 'タイトル',
+      bodyJson: textDoc,
+      imagePaths,
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('ブログ投稿の画像は1枚なら通る', () => {
+    const result = createPostSchema.safeParse({
+      postType: 'blog',
+      postId: validPostId,
+      title: 'タイトル',
+      bodyJson: textDoc,
+      imagePaths: [validImagePath],
+    })
+    expect(result.success).toBe(true)
+  })
+
   it('画像パスの形式が正しくないものを弾く', () => {
     const result = createPostSchema.safeParse({
       postType: 'short',
