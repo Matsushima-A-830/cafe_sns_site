@@ -34,6 +34,8 @@ function isLocalSupabase() {
 }
 
 const nextConfig: NextConfig = {
+  // エージェント向けルールは CLAUDE.md が正。next dev が AGENTS.md を自動生成しないようにする
+  agentRules: false,
   images: {
     remotePatterns: supabaseImagePattern(),
     // Next.js 16 は SSRF 対策として private IP からの画像取得を拒否する
